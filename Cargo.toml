@@ -1,0 +1,22 @@
+[package]
+name = "circular-buffer"
+version = "0.1.0"
+authors = ["Andrea Corbellini <corbellini.andrea@gmail.com>"]
+edition = "2021"
+rust = "1.69"
+license = "BSD-3-Clause"
+
+description = "Efficient, fixed-size, overwriting circular buffer"
+repository = "https://github.com/andreacorbellini/rust-circular-buffer"
+
+keywords = ["circular-buffer", "buffer", "queue", "fifo", "small"]
+categories = ["data-structures", "no-std"]
+
+[features]
+default = ["use_std"]
+use_std = []
+
+[dependencies]
+
+[dev-dependencies]
+drop-tracker = "0.1"
