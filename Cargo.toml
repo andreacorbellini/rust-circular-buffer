@@ -3,7 +3,7 @@ name = "circular-buffer"
 version = "0.1.1"
 authors = ["Andrea Corbellini <corbellini.andrea@gmail.com>"]
 edition = "2021"
-rust = "1.69"
+rust-version = "1.59"
 license = "BSD-3-Clause"
 
 description = "Efficient, fixed-size, overwriting circular buffer"
