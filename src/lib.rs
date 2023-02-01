@@ -158,9 +158,9 @@
 #![cfg_attr(feature = "unstable", feature(const_slice_split_at_mut))]
 #![cfg_attr(feature = "unstable", feature(const_slice_split_at_not_mut))]
 #![cfg_attr(feature = "unstable", feature(const_trait_impl))]
-#![feature(maybe_uninit_slice)]
-#![feature(maybe_uninit_uninit_array)]
-#![feature(maybe_uninit_write_slice)]
+#![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
+#![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
+#![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
 #![feature(slice_take)]
 
 #![cfg_attr(feature = "use_std", feature(new_uninit))]
@@ -596,9 +596,15 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             };
 
             // SAFETY: The elements in these slices are guaranteed to be initialized
+            #[cfg(feature = "unstable")]
             unsafe {
                 (MaybeUninit::slice_assume_init_ref(left),
                  MaybeUninit::slice_assume_init_ref(right))
+            }
+            #[cfg(not(feature = "unstable"))]
+            unsafe {
+                (&*(left as *const [MaybeUninit<T>] as *const [T]),
+                 &*(right as *const [MaybeUninit<T>] as *const [T]))
             }
         }
     }
@@ -654,9 +660,15 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             };
 
             // SAFETY: The elements in these slices are guaranteed to be initialized
+            #[cfg(feature = "unstable")]
             unsafe {
                 (MaybeUninit::slice_assume_init_mut(left),
                  MaybeUninit::slice_assume_init_mut(right))
+            }
+            #[cfg(not(feature = "unstable"))]
+            unsafe {
+                (&mut *(left as *mut [MaybeUninit<T>] as *mut [T]),
+                 &mut *(right as *mut [MaybeUninit<T>] as *mut [T]))
             }
         }
     }
@@ -778,7 +790,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             fn drop(&mut self) {
                 // SAFETY: the caller of `drop_range` is responsible to check that this slice was
                 // initialized.
+                #[cfg(feature = "unstable")]
                 unsafe { ptr::drop_in_place(MaybeUninit::slice_assume_init_mut(self.0)); }
+                #[cfg(not(feature = "unstable"))]
+                unsafe { ptr::drop_in_place(&mut *(self.0 as *mut [MaybeUninit<T>] as *mut [T])); }
             }
         }
 
@@ -1343,6 +1358,18 @@ impl<const N: usize, T> CircularBuffer<N, T>
         debug_assert!(self.start < N, "start out-of-bounds");
         debug_assert!(self.size <= N, "size out-of-bounds");
 
+        #[cfg(not(feature = "unstable"))]
+        fn write_uninit_slice_cloned<T: Clone>(dst: &mut [MaybeUninit<T>], src: &[T]) {
+            debug_assert_eq!(dst.len(), src.len());
+            let len = dst.len();
+            // XXX This implementation, unlike MaybeUninit::write_slice_cloned, is not fully safe:
+            // XXX if one of the clone() calls panics, this will leave the dst slice with partially
+            // XXX initialized memory.
+            for i in 0..len {
+                dst[i].write(src[i].clone());
+            }
+        }
+
         if other.len() < N {
             // All the elements of `other` fit into the buffer
             let free_size = N - self.size;
@@ -1358,12 +1385,18 @@ impl<const N: usize, T> CircularBuffer<N, T>
             let (right, left) = self.slices_uninit_mut();
 
             let write_len = core::cmp::min(right.len(), other.len());
+            #[cfg(feature = "unstable")]
             MaybeUninit::write_slice_cloned(&mut right[..write_len], &other[..write_len]);
+            #[cfg(not(feature = "unstable"))]
+            write_uninit_slice_cloned(&mut right[..write_len], &other[..write_len]);
 
             let other = &other[write_len..];
             debug_assert!(left.len() >= other.len());
             let write_len = other.len();
+            #[cfg(feature = "unstable")]
             MaybeUninit::write_slice_cloned(&mut left[..write_len], other);
+            #[cfg(not(feature = "unstable"))]
+            write_uninit_slice_cloned(&mut left[..write_len], other);
 
             self.size = final_size;
         } else {
@@ -1374,7 +1407,10 @@ impl<const N: usize, T> CircularBuffer<N, T>
 
             let other = &other[other.len() - N..];
             debug_assert_eq!(self.items.len(), other.len());
+            #[cfg(feature = "unstable")]
             MaybeUninit::write_slice_cloned(&mut self.items, other);
+            #[cfg(not(feature = "unstable"))]
+            write_uninit_slice_cloned(&mut self.items, other);
 
             self.size = N;
         }
@@ -1414,7 +1450,10 @@ unstable_const_impl! {
 
 impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<N, T> {
     fn from(mut arr: [T; M]) -> Self {
+        #[cfg(feature = "unstable")]
         let mut elems = MaybeUninit::<T>::uninit_array();
+        #[cfg(not(feature = "unstable"))]
+        let mut elems = unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
         let arr_ptr = &arr as *const T as *const MaybeUninit<T>;
         let elems_ptr = &mut elems as *mut MaybeUninit<T>;
         let size = if N >= M { M } else { N };
