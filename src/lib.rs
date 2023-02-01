@@ -161,7 +161,8 @@
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
-#![feature(slice_take)]
+#![cfg_attr(feature = "unstable", feature(one_sided_range))]
+#![cfg_attr(feature = "unstable", feature(slice_take))]
 
 #![cfg_attr(feature = "use_std", feature(new_uninit))]
 

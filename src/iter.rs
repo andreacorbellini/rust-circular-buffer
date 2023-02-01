@@ -82,6 +82,108 @@ fn translate_range_bounds<const N: usize, T, R>(buf: &CircularBuffer<N, T>, rang
     (start, end)
 }
 
+#[inline(always)]
+#[cfg(feature = "unstable")]
+fn slice_take<'a, T, R: core::ops::OneSidedRange<usize>>(slice: &mut &'a [T], range: R) -> Option<&'a [T]> {
+    slice.take(range)
+}
+
+#[cfg(not(feature = "unstable"))]
+fn slice_take<'a, T, R: RangeBounds<usize>>(slice: &mut &'a [T], range: R) -> Option<&'a [T]> {
+    match (range.start_bound(), range.end_bound()) {
+        (Bound::Unbounded, Bound::Excluded(index)) => {
+            if *index > slice.len() { return None; }
+            let (left, right) = slice.split_at(*index);
+            *slice = right;
+            Some(left)
+        },
+        (Bound::Included(index), Bound::Unbounded) => {
+            if *index > slice.len() { return None; }
+            let (left, right) = slice.split_at(*index);
+            *slice = left;
+            Some(right)
+        },
+        _ => unimplemented!(),
+    }
+}
+
+#[inline(always)]
+#[cfg(feature = "unstable")]
+fn slice_take_mut<'a, T, R: core::ops::OneSidedRange<usize>>(slice: &mut &'a mut [T], range: R) -> Option<&'a mut [T]> {
+    slice.take_mut(range)
+}
+
+#[cfg(not(feature = "unstable"))]
+fn slice_take_mut<'a, T, R: RangeBounds<usize>>(slice: &mut &'a mut [T], range: R) -> Option<&'a mut [T]> {
+    match (range.start_bound(), range.end_bound()) {
+        (Bound::Unbounded, Bound::Excluded(index)) => {
+            if *index > slice.len() { return None; }
+            let (left, right) = core::mem::take(slice).split_at_mut(*index);
+            *slice = right;
+            Some(left)
+        },
+        (Bound::Included(index), Bound::Unbounded) => {
+            if *index > slice.len() { return None; }
+            let (left, right) = core::mem::take(slice).split_at_mut(*index);
+            *slice = left;
+            Some(right)
+        },
+        _ => unimplemented!(),
+    }
+}
+
+#[inline(always)]
+#[cfg(feature = "unstable")]
+fn slice_take_first<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
+    slice.take_first()
+}
+
+#[cfg(not(feature = "unstable"))]
+fn slice_take_first<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
+    let (item, rest) = slice.split_first()?;
+    *slice = rest;
+    Some(item)
+}
+
+#[inline(always)]
+#[cfg(feature = "unstable")]
+fn slice_take_first_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
+    slice.take_first_mut()
+}
+
+#[cfg(not(feature = "unstable"))]
+fn slice_take_first_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
+    let (item, rest) = core::mem::take(slice).split_first_mut()?;
+    *slice = rest;
+    Some(item)
+}
+
+#[inline(always)]
+#[cfg(feature = "unstable")]
+fn slice_take_last<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
+    slice.take_last()
+}
+
+#[cfg(not(feature = "unstable"))]
+fn slice_take_last<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
+    let (item, rest) = slice.split_last()?;
+    *slice = rest;
+    Some(item)
+}
+
+#[inline(always)]
+#[cfg(feature = "unstable")]
+fn slice_take_last_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
+    slice.take_last_mut()
+}
+
+#[cfg(not(feature = "unstable"))]
+fn slice_take_last_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
+    let (item, rest) = core::mem::take(slice).split_last_mut()?;
+    *slice = rest;
+    Some(item)
+}
+
 /// An [iterator](std::iter::Iterator) over the elements of a `CircularBuffer`.
 ///
 /// This struct is created by [`CircularBuffer::iter()`] and [`CircularBuffer::range()`]. See
@@ -110,19 +212,19 @@ impl<'a, T> Iter<'a, T> {
     }
 
     fn advance_front_by(&mut self, count: usize) {
-        if self.right.take(..count).is_none() {
+        if slice_take(&mut self.right, ..count).is_none() {
             let take_left = count - self.right.len();
-            self.left.take(..take_left)
-                     .expect("attempted to advance past the back of the buffer");
+            slice_take(&mut self.left, ..take_left)
+                .expect("attempted to advance past the back of the buffer");
             self.right = &mut [];
         }
     }
 
     fn advance_back_by(&mut self, count: usize) {
-        if self.left.take(count..).is_none() {
+        if slice_take(&mut self.left, count..).is_none() {
             let take_right = count - self.left.len();
-            self.right.take(take_right..)
-                      .expect("attempted to advance past the front of the buffer");
+            slice_take(&mut self.right, take_right..)
+                .expect("attempted to advance past the front of the buffer");
             self.left = &mut [];
         }
     }
@@ -132,9 +234,9 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.right.take_first() {
+        if let Some(item) = slice_take_first(&mut self.right) {
             Some(item)
-        } else if let Some(item) = self.left.take_first() {
+        } else if let Some(item) = slice_take_first(&mut self.left) {
             Some(item)
         } else {
             None
@@ -159,9 +261,9 @@ impl<'a, T> FusedIterator for Iter<'a, T> {}
 
 impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.left.take_last() {
+        if let Some(item) = slice_take_last(&mut self.left) {
             Some(item)
-        } else if let Some(item) = self.right.take_last() {
+        } else if let Some(item) = slice_take_last(&mut self.right) {
             Some(item)
         } else {
             None
@@ -211,19 +313,19 @@ impl<'a, T> IterMut<'a, T> {
     }
 
     fn advance_front_by(&mut self, count: usize) {
-        if self.right.take_mut(..count).is_none() {
+        if slice_take_mut(&mut self.right, ..count).is_none() {
             let take_left = count - self.right.len();
-            self.left.take_mut(..take_left)
-                     .expect("attempted to advance past the back of the buffer");
+            slice_take_mut(&mut self.left, ..take_left)
+                .expect("attempted to advance past the back of the buffer");
             self.right = &mut [];
         }
     }
 
     fn advance_back_by(&mut self, count: usize) {
-        if self.left.take_mut(count..).is_none() {
+        if slice_take_mut(&mut self.left, count..).is_none() {
             let take_right = count - self.left.len();
-            self.right.take_mut(take_right..)
-                      .expect("attempted to advance past the front of the buffer");
+            slice_take_mut(&mut self.right, take_right..)
+                .expect("attempted to advance past the front of the buffer");
             self.left = &mut [];
         }
     }
@@ -233,9 +335,9 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.right.take_first_mut() {
+        if let Some(item) = slice_take_first_mut(&mut self.right) {
             Some(item)
-        } else if let Some(item) = self.left.take_first_mut() {
+        } else if let Some(item) = slice_take_first_mut(&mut self.left) {
             Some(item)
         } else {
             None
@@ -260,9 +362,9 @@ impl<'a, T> FusedIterator for IterMut<'a, T> {}
 
 impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.left.take_last_mut() {
+        if let Some(item) = slice_take_last_mut(&mut self.left) {
             Some(item)
-        } else if let Some(item) = self.right.take_last_mut() {
+        } else if let Some(item) = slice_take_last_mut(&mut self.right) {
             Some(item)
         } else {
             None
