@@ -7,13 +7,6 @@
 //!
 //! [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
 //!
-//! # Nightly features
-//!
-//! This crate requires features for memory uninitialization that are currently only available in
-//! the [nightly compiler].
-//!
-//! [nightly compiler]: https://doc.rust-lang.org/book/appendix-07-nightly-rust.html
-//!
 //! # Examples
 //!
 //! ```
