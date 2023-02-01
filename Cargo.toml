@@ -1,6 +1,6 @@
 [package]
 name = "circular-buffer"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Andrea Corbellini <corbellini.andrea@gmail.com>"]
 edition = "2021"
 rust = "1.69"
