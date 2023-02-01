@@ -151,13 +151,13 @@
 
 #![cfg_attr(not(feature = "use_std"), no_std)]
 
-#![feature(const_maybe_uninit_assume_init)]
-#![feature(const_maybe_uninit_uninit_array)]
-#![feature(const_mut_refs)]
-#![feature(const_slice_index)]
-#![feature(const_slice_split_at_mut)]
-#![feature(const_slice_split_at_not_mut)]
-#![feature(const_trait_impl)]
+#![cfg_attr(feature = "unstable", feature(const_maybe_uninit_assume_init))]
+#![cfg_attr(feature = "unstable", feature(const_maybe_uninit_uninit_array))]
+#![cfg_attr(feature = "unstable", feature(const_mut_refs))]
+#![cfg_attr(feature = "unstable", feature(const_slice_index))]
+#![cfg_attr(feature = "unstable", feature(const_slice_split_at_mut))]
+#![cfg_attr(feature = "unstable", feature(const_slice_split_at_not_mut))]
+#![cfg_attr(feature = "unstable", feature(const_trait_impl))]
 #![feature(maybe_uninit_slice)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_write_slice)]
@@ -193,6 +193,46 @@ use core::ptr;
 pub use crate::iter::IntoIter;
 pub use crate::iter::Iter;
 pub use crate::iter::IterMut;
+
+macro_rules! unstable_const_fn {
+    (
+        $( #[ $meta:meta ] )*
+        $vis:vis const fn $fn:ident $( <{ $( $generics:tt )* }> )? ( $( $arg:tt )* )
+        $( -> $out:ty )? { $( $tt:tt )* }
+    ) => {
+        #[cfg(feature = "unstable")]
+        $(#[$meta])*
+        $vis const fn $fn $(<$($generics)*>)? ($($arg)*) $(-> $out)? { $($tt)* }
+
+        #[cfg(not(feature = "unstable"))]
+        $(#[$meta])*
+        $vis fn $fn $(<$($generics)*>)? ($($arg)*) $(-> $out)? { $($tt)* }
+    }
+}
+
+#[cfg(feature = "unstable")]
+macro_rules! unstable_const_impl {
+    (
+        $( #[ $meta:meta ] )*
+        impl $( <{ $( $generics:tt )* }> )? const $trait:ident for $type:ty { $( $tt:tt )* }
+    ) => {
+        $(#[$meta])*
+        impl $(<$($generics)*>)? const $trait for $type { $($tt)* }
+    }
+}
+
+#[cfg(not(feature = "unstable"))]
+macro_rules! unstable_const_impl {
+    (
+        $( #[ $meta:meta ] )*
+        impl $( <{ $( $generics:tt )* }> )? const $trait:ident for $type:ty { $( $tt:tt )* }
+    ) => {
+        $(#[$meta])*
+        impl $(<$($generics)*>)? $trait for $type { $($tt)* }
+    }
+}
+
+use unstable_const_fn;
 
 /// Returns `(x + y) % m` without risk of overflows if `x + y` cannot fit in `usize`.
 #[inline]
@@ -233,10 +273,21 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     #[inline]
     #[must_use]
     pub const fn new() -> Self {
-        Self {
-            size: 0,
-            start: 0,
-            items: MaybeUninit::uninit_array(),
+        #[cfg(feature = "unstable")]
+        {
+            Self {
+                size: 0,
+                start: 0,
+                items: MaybeUninit::uninit_array(),
+            }
+        }
+        #[cfg(not(feature = "unstable"))]
+        {
+            Self {
+                size: 0,
+                start: 0,
+                items: unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() },
+            }
         }
     }
 
@@ -348,66 +399,70 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         self.size == N
     }
 
-    /// Returns an iterator over the elements of the buffer.
-    ///
-    /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
-    /// front.
-    ///
-    /// # Examples
-    ///
-    /// Iterate from front to back:
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
-    /// let mut it = buf.iter();
-    ///
-    /// assert_eq!(it.next(), Some(&'a'));
-    /// assert_eq!(it.next(), Some(&'b'));
-    /// assert_eq!(it.next(), Some(&'c'));
-    /// assert_eq!(it.next(), None);
-    /// ```
-    ///
-    /// Iterate from back to front:
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
-    /// let mut it = buf.iter().rev();
-    ///
-    /// assert_eq!(it.next(), Some(&'c'));
-    /// assert_eq!(it.next(), Some(&'b'));
-    /// assert_eq!(it.next(), Some(&'a'));
-    /// assert_eq!(it.next(), None);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub const fn iter(&self) -> Iter<'_, T> {
-        Iter::new(self)
+    unstable_const_fn! {
+        /// Returns an iterator over the elements of the buffer.
+        ///
+        /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from
+        /// back to front.
+        ///
+        /// # Examples
+        ///
+        /// Iterate from front to back:
+        ///
+        /// ```
+        /// use circular_buffer::CircularBuffer;
+        ///
+        /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
+        /// let mut it = buf.iter();
+        ///
+        /// assert_eq!(it.next(), Some(&'a'));
+        /// assert_eq!(it.next(), Some(&'b'));
+        /// assert_eq!(it.next(), Some(&'c'));
+        /// assert_eq!(it.next(), None);
+        /// ```
+        ///
+        /// Iterate from back to front:
+        ///
+        /// ```
+        /// use circular_buffer::CircularBuffer;
+        ///
+        /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
+        /// let mut it = buf.iter().rev();
+        ///
+        /// assert_eq!(it.next(), Some(&'c'));
+        /// assert_eq!(it.next(), Some(&'b'));
+        /// assert_eq!(it.next(), Some(&'a'));
+        /// assert_eq!(it.next(), None);
+        /// ```
+        #[inline]
+        #[must_use]
+        pub const fn iter(&self) -> Iter<'_, T> {
+            Iter::new(self)
+        }
     }
 
-    /// Returns an iterator over the elements of the buffer that allows modifying each value.
-    ///
-    /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
-    /// front.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<5, u32>::from([1, 2, 3]);
-    /// for elem in buf.iter_mut() {
-    ///     *elem += 5;
-    /// }
-    /// assert_eq!(buf, [6, 7, 8]);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub const fn iter_mut(&mut self) -> IterMut<'_, T> {
-        IterMut::new(self)
+    unstable_const_fn! {
+        /// Returns an iterator over the elements of the buffer that allows modifying each value.
+        ///
+        /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from
+        /// back to front.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use circular_buffer::CircularBuffer;
+        ///
+        /// let mut buf = CircularBuffer::<5, u32>::from([1, 2, 3]);
+        /// for elem in buf.iter_mut() {
+        ///     *elem += 5;
+        /// }
+        /// assert_eq!(buf, [6, 7, 8]);
+        /// ```
+        #[inline]
+        #[must_use]
+        pub const fn iter_mut(&mut self) -> IterMut<'_, T> {
+            IterMut::new(self)
+        }
     }
 
     /// Returns an iterator over the specified range of elements of the buffer.
@@ -495,110 +550,114 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     // TODO     todo!()
     // TODO }
 
-    /// Returns a pair of slices which contain the elements of this buffer.
-    ///
-    /// The second slice may be empty if the internal buffer is contiguous.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// buf.push_back('d');
-    ///
-    /// // Buffer is contiguous; second slice is empty
-    /// assert_eq!(buf.as_slices(), (&['a', 'b', 'c', 'd'][..], &[][..]));
-    ///
-    /// buf.push_back('e');
-    /// buf.push_back('f');
-    ///
-    /// // Buffer is disjoint; both slices are non-empty
-    /// assert_eq!(buf.as_slices(), (&['c', 'd'][..], &['e', 'f'][..]));
-    /// ```
-    #[inline]
-    pub const fn as_slices(&self) -> (&[T], &[T]) {
-        if N == 0 || self.size == 0 {
-            return (&[][..], &[][..]);
-        }
+    unstable_const_fn! {
+        /// Returns a pair of slices which contain the elements of this buffer.
+        ///
+        /// The second slice may be empty if the internal buffer is contiguous.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use circular_buffer::CircularBuffer;
+        ///
+        /// let mut buf = CircularBuffer::<4, char>::new();
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// buf.push_back('d');
+        ///
+        /// // Buffer is contiguous; second slice is empty
+        /// assert_eq!(buf.as_slices(), (&['a', 'b', 'c', 'd'][..], &[][..]));
+        ///
+        /// buf.push_back('e');
+        /// buf.push_back('f');
+        ///
+        /// // Buffer is disjoint; both slices are non-empty
+        /// assert_eq!(buf.as_slices(), (&['c', 'd'][..], &['e', 'f'][..]));
+        /// ```
+        #[inline]
+        pub const fn as_slices(&self) -> (&[T], &[T]) {
+            if N == 0 || self.size == 0 {
+                return (&[], &[]);
+            }
 
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
+            debug_assert!(self.start < N, "start out-of-bounds");
+            debug_assert!(self.size <= N, "size out-of-bounds");
 
-        let start = self.start;
-        let end = add_mod(self.start, self.size, N);
+            let start = self.start;
+            let end = add_mod(self.start, self.size, N);
 
-        let (left, right) = if start < end {
-            (&self.items[start..end], &[][..])
-        } else {
-            let (right, left) = self.items.split_at(end);
-            let left = &left[start - end..];
-            (left, right)
-        };
+            let (left, right) = if start < end {
+                (&self.items[start..end], &[][..])
+            } else {
+                let (right, left) = self.items.split_at(end);
+                let left = &left[start - end..];
+                (left, right)
+            };
 
-        // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe {
-            (MaybeUninit::slice_assume_init_ref(left),
-             MaybeUninit::slice_assume_init_ref(right))
+            // SAFETY: The elements in these slices are guaranteed to be initialized
+            unsafe {
+                (MaybeUninit::slice_assume_init_ref(left),
+                 MaybeUninit::slice_assume_init_ref(right))
+            }
         }
     }
 
-    /// Returns a pair of mutable slices which contain the elements of this buffer.
-    ///
-    /// These slices can be used to modify or replace the elements in the buffer.
-    ///
-    /// The second slice may be empty if the internal buffer is contiguous.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// buf.push_back('d');
-    /// buf.push_back('e');
-    /// buf.push_back('f');
-    ///
-    /// assert_eq!(buf, ['c', 'd', 'e', 'f']);
-    ///
-    /// let (left, right) = buf.as_mut_slices();
-    /// assert_eq!(left, &mut ['c', 'd'][..]);
-    /// assert_eq!(right, &mut ['e', 'f'][..]);
-    ///
-    /// left[0] = 'z';
-    ///
-    /// assert_eq!(buf, ['z', 'd', 'e', 'f']);
-    /// ```
-    #[inline]
-    pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        if N == 0 || self.size == 0 {
-            return (&mut [][..], &mut [][..]);
-        }
+    unstable_const_fn! {
+        /// Returns a pair of mutable slices which contain the elements of this buffer.
+        ///
+        /// These slices can be used to modify or replace the elements in the buffer.
+        ///
+        /// The second slice may be empty if the internal buffer is contiguous.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use circular_buffer::CircularBuffer;
+        ///
+        /// let mut buf = CircularBuffer::<4, char>::new();
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// buf.push_back('d');
+        /// buf.push_back('e');
+        /// buf.push_back('f');
+        ///
+        /// assert_eq!(buf, ['c', 'd', 'e', 'f']);
+        ///
+        /// let (left, right) = buf.as_mut_slices();
+        /// assert_eq!(left, &mut ['c', 'd'][..]);
+        /// assert_eq!(right, &mut ['e', 'f'][..]);
+        ///
+        /// left[0] = 'z';
+        ///
+        /// assert_eq!(buf, ['z', 'd', 'e', 'f']);
+        /// ```
+        #[inline]
+        pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+            if N == 0 || self.size == 0 {
+                return (&mut [][..], &mut [][..]);
+            }
 
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
+            debug_assert!(self.start < N, "start out-of-bounds");
+            debug_assert!(self.size <= N, "size out-of-bounds");
 
-        let start = self.start;
-        let end = add_mod(self.start, self.size, N);
+            let start = self.start;
+            let end = add_mod(self.start, self.size, N);
 
-        let (left, right) = if start < end {
-            (&mut self.items[start..end], &mut [][..])
-        } else {
-            let (right, left) = self.items.split_at_mut(end);
-            let left = &mut left[start - end..];
-            (left, right)
-        };
+            let (left, right) = if start < end {
+                (&mut self.items[start..end], &mut [][..])
+            } else {
+                let (right, left) = self.items.split_at_mut(end);
+                let left = &mut left[start - end..];
+                (left, right)
+            };
 
-        // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe {
-            (MaybeUninit::slice_assume_init_mut(left),
-             MaybeUninit::slice_assume_init_mut(right))
+            // SAFETY: The elements in these slices are guaranteed to be initialized
+            unsafe {
+                (MaybeUninit::slice_assume_init_mut(left),
+                 MaybeUninit::slice_assume_init_mut(right))
+            }
         }
     }
 
@@ -1344,10 +1403,12 @@ impl<const N: usize, T> CircularBuffer<N, T>
     }
 }
 
-impl<const N: usize, T> const Default for CircularBuffer<N, T> {
-    #[inline]
-    fn default() -> Self {
-        Self::new()
+unstable_const_impl! {
+    impl<{const N: usize, T}> const Default for CircularBuffer<N, T> {
+        #[inline]
+        fn default() -> Self {
+            Self::new()
+        }
     }
 }
 
@@ -1408,23 +1469,27 @@ impl<'a, const N: usize, T> Extend<&'a T> for CircularBuffer<N, T>
     }
 }
 
-impl<const N: usize, T> const IntoIterator for CircularBuffer<N, T> {
-    type Item = T;
-    type IntoIter = IntoIter<N, T>;
+unstable_const_impl! {
+    impl<{const N: usize, T}> const IntoIterator for CircularBuffer<N, T> {
+        type Item = T;
+        type IntoIter = IntoIter<N, T>;
 
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        IntoIter::new(self)
+        #[inline]
+        fn into_iter(self) -> Self::IntoIter {
+            IntoIter::new(self)
+        }
     }
 }
 
-impl<'a, const N: usize, T> const IntoIterator for &'a CircularBuffer<N, T> {
-    type Item = &'a T;
-    type IntoIter = Iter<'a, T>;
+unstable_const_impl! {
+    impl<{'a, const N: usize, T}> const IntoIterator for &'a CircularBuffer<N, T> {
+        type Item = &'a T;
+        type IntoIter = Iter<'a, T>;
 
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        Iter::new(self)
+        #[inline]
+        fn into_iter(self) -> Self::IntoIter {
+            Iter::new(self)
+        }
     }
 }
 

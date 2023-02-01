@@ -15,6 +15,7 @@ categories = ["data-structures", "no-std"]
 [features]
 default = ["use_std"]
 use_std = []
+unstable = []
 
 [dependencies]
 
