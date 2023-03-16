@@ -229,16 +229,25 @@ macro_rules! unstable_const_impl {
 use unstable_const_fn;
 
 /// Returns `(x + y) % m` without risk of overflows if `x + y` cannot fit in `usize`.
+///
+/// `x` and `y` are expected to be less than, or equal to `m`.
 #[inline]
 const fn add_mod(x: usize, y: usize, m: usize) -> usize {
+    debug_assert!(m > 0);
+    debug_assert!(x <= m);
+    debug_assert!(y <= m);
     let (z, overflow) = x.overflowing_add(y);
-    z % m + (overflow as usize) * (usize::MAX % m + 1)
+    (z + (overflow as usize) * (usize::MAX % m + 1)) % m
 }
 
 /// Returns `(x - y) % m` without risk of underflows if `x - y` is negative.
+///
+/// `x` and `y` are expected to be less than, or equal to `m`.
 #[inline]
 const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
-    let y = y % m;
+    debug_assert!(m > 0);
+    debug_assert!(x <= m);
+    debug_assert!(y <= m);
     add_mod(x, m - y, m)
 }
 
