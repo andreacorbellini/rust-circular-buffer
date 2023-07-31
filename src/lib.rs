@@ -1219,7 +1219,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             let i = add_mod(self.start, i, N);
             let j = add_mod(self.start, j, N);
             // SAFETY: these are valid pointers
-            unsafe { ptr::swap(&mut self.items[i], &mut self.items[j]) };
+            unsafe { ptr::swap_nonoverlapping(&mut self.items[i], &mut self.items[j], 1) };
         }
     }
 
