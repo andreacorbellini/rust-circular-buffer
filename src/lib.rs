@@ -1215,10 +1215,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     pub fn swap(&mut self, i: usize, j: usize) {
         assert!(i < self.size, "i index out-of-bounds");
         assert!(j < self.size, "j index out-of-bounds");
-        // SAFETY: these are valid pointers
-        unsafe {
-            ptr::swap(self.get_maybe_uninit(i) as *const MaybeUninit<T> as *mut MaybeUninit<T>,
-                      self.get_maybe_uninit(j) as *const MaybeUninit<T> as *mut MaybeUninit<T>);
+        if i != j {
+            let i = add_mod(self.start, i, N);
+            let j = add_mod(self.start, j, N);
+            // SAFETY: these are valid pointers
+            unsafe { ptr::swap(&mut self.items[i], &mut self.items[j]) };
         }
     }
 

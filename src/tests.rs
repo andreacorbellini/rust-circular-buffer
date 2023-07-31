@@ -1090,7 +1090,10 @@ fn clone() {
 
 #[test]
 fn large_boxed() {
+    #[cfg(not(miri))]
     const SIZE: usize = 2 * 1024 * 1024; // 2 MiB
+    #[cfg(miri)]
+    const SIZE: usize = 2 * 1024; // 2 kiB
     let chunk = b"abcdefghijklmnopqrstuvxyz0123456789";
     let mut buf = CircularBuffer::<SIZE, u8>::boxed();
     let mut vec = Vec::new();
@@ -1250,4 +1253,25 @@ fn add_mod() {
         assert_add_mod_eq!(m - 2, crate::add_mod(m - 2, m, m));
         assert_add_mod_eq!(m - 1, crate::add_mod(m - 1, m, m));
     }
+}
+
+#[test]
+fn swap() {
+    let mut buf: CircularBuffer<4, u32> = [1,2,3,4].into_iter().collect();
+    buf.swap(0, 3);
+    assert_eq!(buf.to_vec(), vec![4, 2, 3, 1]);
+    buf.swap(1, 2);
+    assert_eq!(buf.to_vec(), vec![4, 3, 2, 1]);
+    buf.pop_front();
+    assert_eq!(buf.to_vec(), vec![3, 2, 1]);
+    buf.push_back(4);
+    assert_eq!(buf.to_vec(), vec![3, 2, 1, 4]);
+    buf.swap(0, 1);
+    assert_eq!(buf.to_vec(), vec![2, 3, 1, 4]);
+    buf.swap(1, 2);
+    assert_eq!(buf.to_vec(), vec![2, 1, 3, 4]);
+    buf.swap(2, 3);
+    assert_eq!(buf.to_vec(), vec![2, 1, 4, 3]);
+    buf.swap(3, 0);
+    assert_eq!(buf.to_vec(), vec![3, 1, 4, 2]);
 }
