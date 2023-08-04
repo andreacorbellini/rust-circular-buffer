@@ -1076,6 +1076,59 @@ fn extend_from_slice() {
 }
 
 #[test]
+fn extend_from_slice_unwind_safety() {
+    // This needs to be `static` to be used in `fn clone()` below
+    static mut TRACKER: Option<DropTracker<String>> = None;
+
+    // SAFETY: the assumption is that this test function will be called only once
+    unsafe { TRACKER.replace(DropTracker::new()); }
+
+    fn tracker() -> &'static DropTracker<String> {
+        unsafe { TRACKER.as_ref().unwrap() }
+    }
+
+    fn tracker_mut() -> &'static mut DropTracker<String> {
+        unsafe { TRACKER.as_mut().unwrap() }
+    }
+
+    #[derive(PartialEq, Eq, Hash)]
+    struct FaultyClonable {
+        drop_item: DropItem<String>,
+        panic_on_clone: bool,
+    }
+
+    impl Clone for FaultyClonable {
+        fn clone(&self) -> Self {
+            if self.panic_on_clone {
+                panic!("clone failed :(");
+            } else {
+                Self {
+                    drop_item: tracker_mut().track(format!("clone of {}", self.drop_item)),
+                    panic_on_clone: false,
+                }
+            }
+        }
+    }
+
+    let array = [
+        FaultyClonable { drop_item: tracker_mut().track("a".to_string()), panic_on_clone: false },
+        FaultyClonable { drop_item: tracker_mut().track("b".to_string()), panic_on_clone: false },
+        FaultyClonable { drop_item: tracker_mut().track("c".to_string()), panic_on_clone: true },
+        FaultyClonable { drop_item: tracker_mut().track("d".to_string()), panic_on_clone: false },
+    ];
+
+    let mut buf = CircularBuffer::<4, FaultyClonable>::new();
+
+    let res = std::panic::catch_unwind(move || buf.extend_from_slice(&array));
+    assert!(res.is_err());
+
+    tracker().assert_dropped("clone of a");
+    tracker().assert_dropped("clone of b");
+    assert!(!tracker().is_tracked("clone of c"));
+    assert!(!tracker().is_tracked("clone of d"));
+}
+
+#[test]
 fn clone() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_eq!(buf, buf.clone());

@@ -1390,14 +1390,41 @@ impl<const N: usize, T> CircularBuffer<N, T>
 
         #[cfg(not(feature = "unstable"))]
         fn write_uninit_slice_cloned<T: Clone>(dst: &mut [MaybeUninit<T>], src: &[T]) {
+            // Each call to `clone()` may panic, therefore we need to track how many elements we
+            // successfully cloned so that we can drop them in case of panic. This `Guard` struct
+            // does exactly that: it keeps track of how many items have been successfully cloned
+            // and drops them if the guard is dropped.
+            //
+            // This implementation was highly inspired by the implementation of
+            // `MaybeUninit::write_slice_cloned`
+            struct Guard<'a, T> {
+                dst: &'a mut [MaybeUninit<T>],
+                initialized: usize,
+            }
+
+            impl<'a, T> Drop for Guard<'a, T> {
+                fn drop(&mut self) {
+                    let initialized = &mut self.dst[..self.initialized];
+                    // SAFETY: this slice contain only initialized objects; `MaybeUninit<T>` has
+                    // the same alignment and size as `T`
+                    unsafe {
+                        let initialized = &mut *(initialized as *mut [MaybeUninit<T>] as *mut [T]);
+                        ptr::drop_in_place(initialized);
+                    }
+                }
+            }
+
             debug_assert_eq!(dst.len(), src.len());
             let len = dst.len();
-            // XXX This implementation, unlike MaybeUninit::write_slice_cloned, is not fully safe:
-            // XXX if one of the clone() calls panics, this will leave the dst slice with partially
-            // XXX initialized memory.
+            let mut guard = Guard { dst, initialized: 0 };
             for i in 0..len {
-                dst[i].write(src[i].clone());
+                guard.dst[i].write(src[i].clone());
+                guard.initialized += 1;
             }
+
+            // All the `clone()` calls succeded; get rid of the guard without running its `drop()`
+            // implementation
+            mem::forget(guard);
         }
 
         if other.len() < N {
