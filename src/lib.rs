@@ -1006,6 +1006,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the back of the buffer.
     ///
+    /// Returns `true` if it had to drop an element to make room, or `false` if not.
+    ///
     /// If the buffer is full, the element at the front of the buffer is automatically dropped.
     ///
     /// # Examples
@@ -1019,15 +1021,17 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// buf.push_back('b'); assert_eq!(buf, ['a', 'b']);
     /// buf.push_back('c'); assert_eq!(buf, ['a', 'b', 'c']);
     /// // The buffer is now full; adding more values causes the front elements to be dropped
+    /// // From here on, `push_back` will return `true`
     /// buf.push_back('d'); assert_eq!(buf, ['b', 'c', 'd']);
     /// buf.push_back('e'); assert_eq!(buf, ['c', 'd', 'e']);
     /// buf.push_back('f'); assert_eq!(buf, ['d', 'e', 'f']);
     /// ```
-    pub fn push_back(&mut self, item: T) {
+    pub fn push_back(&mut self, item: T) -> bool {
         if N == 0 {
             // Nothing to do
-            return;
+            return false;
         }
+
         if self.size >= N {
             // At capacity; need to replace the front item
             //
@@ -1035,14 +1039,20 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             unsafe { ptr::drop_in_place(self.front_maybe_uninit_mut().as_mut_ptr()); }
             self.front_maybe_uninit_mut().write(item);
             self.inc_start();
+
+            true
         } else {
             // Some uninitialized slots left; append at the end
             self.inc_size();
             self.back_maybe_uninit_mut().write(item);
+
+            false
         }
     }
 
     /// Appends an element to the front of the buffer.
+    ///
+    /// Returns `true` if it had to drop an element to make room, or `false` if not.
     ///
     /// If the buffer is full, the element at the back of the buffer is automatically dropped.
     ///
@@ -1057,15 +1067,17 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// buf.push_front('b'); assert_eq!(buf, ['b', 'a']);
     /// buf.push_front('c'); assert_eq!(buf, ['c', 'b', 'a']);
     /// // The buffer is now full; adding more values causes the back elements to be dropped
+    /// // From here on, `push_front` will return `true`
     /// buf.push_front('d'); assert_eq!(buf, ['d', 'c', 'b']);
     /// buf.push_front('e'); assert_eq!(buf, ['e', 'd', 'c']);
     /// buf.push_front('f'); assert_eq!(buf, ['f', 'e', 'd']);
     /// ```
-    pub fn push_front(&mut self, item: T) {
+    pub fn push_front(&mut self, item: T) -> bool {
         if N == 0 {
             // Nothing to do
-            return;
+            return false;
         }
+
         if self.size >= N {
             // At capacity; need to replace the back item
             //
@@ -1073,11 +1085,15 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             unsafe { ptr::drop_in_place(self.back_maybe_uninit_mut().as_mut_ptr()); }
             self.back_maybe_uninit_mut().write(item);
             self.dec_start();
+
+            true
         } else {
             // Some uninitialized slots left; insert at the start
             self.inc_size();
             self.dec_start();
             self.front_maybe_uninit_mut().write(item);
+
+            false
         }
     }
 
@@ -1540,7 +1556,7 @@ impl<const N: usize, T> FromIterator<T> for CircularBuffer<N, T> {
     {
         // TODO Optimize
         let mut buf = Self::new();
-        iter.into_iter().for_each(|item| buf.push_back(item));
+        iter.into_iter().for_each(|item| { buf.push_back(item); });
         buf
     }
 }
@@ -1550,7 +1566,7 @@ impl<const N: usize, T> Extend<T> for CircularBuffer<N, T> {
         where I: IntoIterator<Item = T>
     {
         // TODO Optimize
-        iter.into_iter().for_each(|item| self.push_back(item));
+        iter.into_iter().for_each(|item| { self.push_back(item); });
     }
 }
 
@@ -1561,7 +1577,7 @@ impl<'a, const N: usize, T> Extend<&'a T> for CircularBuffer<N, T>
         where I: IntoIterator<Item = &'a T>
     {
         // TODO Optimize
-        iter.into_iter().for_each(|item| self.push_back(*item));
+        iter.into_iter().for_each(|item| { self.push_back(*item); });
     }
 }
 
