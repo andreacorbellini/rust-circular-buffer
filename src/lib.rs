@@ -1416,6 +1416,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
             debug_assert_eq!(dst.len(), src.len());
             let len = dst.len();
             let mut guard = Guard { dst, initialized: 0 };
+            #[allow(clippy::needless_range_loop)]
             for i in 0..len {
                 guard.dst[i].write(src[i].clone());
                 guard.initialized += 1;

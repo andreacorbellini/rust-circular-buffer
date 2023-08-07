@@ -998,12 +998,12 @@ fn from_array() {
 #[test]
 fn from_iter() {
     let vec = vec![];
-    let buf = CircularBuffer::<4, i32>::from_iter(vec.into_iter());
+    let buf = CircularBuffer::<4, i32>::from_iter(vec);
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     let mut tracker = DropTracker::new();
     let vec = vec![tracker.track(1), tracker.track(2)];
-    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec.into_iter());
+    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec);
     assert_buf_eq!(buf, [1, 2]);
     tracker.assert_all_alive([1, 2]);
     tracker.assert_fully_alive();
@@ -1011,7 +1011,7 @@ fn from_iter() {
     let mut tracker = DropTracker::new();
     let vec = vec![tracker.track(1), tracker.track(2),
                    tracker.track(3), tracker.track(4)];
-    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec.into_iter());
+    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec);
     assert_buf_eq!(buf, [1, 2, 3, 4]);
     tracker.assert_all_alive([1, 2, 3, 4]);
     tracker.assert_fully_alive();
@@ -1020,7 +1020,7 @@ fn from_iter() {
     let vec = vec![tracker.track(1), tracker.track(2),
                    tracker.track(3), tracker.track(4),
                    tracker.track(5), tracker.track(6)];
-    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec.into_iter());
+    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec);
     assert_buf_eq!(buf, [3, 4, 5, 6]);
     tracker.assert_all_alive([3, 4, 5, 6]);
     tracker.assert_all_dropped([1, 2]);
@@ -1030,7 +1030,7 @@ fn from_iter() {
                    tracker.track(3), tracker.track(4),
                    tracker.track(5), tracker.track(6),
                    tracker.track(7), tracker.track(8)];
-    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec.into_iter());
+    let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec);
     assert_buf_eq!(buf, [5, 6, 7, 8]);
     tracker.assert_all_alive([5, 6, 7, 8]);
     tracker.assert_all_dropped([1, 2, 3, 4]);
@@ -1041,12 +1041,12 @@ fn extend() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.extend(([] as [u32; 0]).into_iter());       assert_buf_eq!(buf, [] as [u32; 0]);
-    buf.extend([1].into_iter());                    assert_buf_eq!(buf, [1]);
-    buf.extend([2, 3].into_iter());                 assert_buf_eq!(buf, [1, 2, 3]);
-    buf.extend([4, 5, 6].into_iter());              assert_buf_eq!(buf, [3, 4, 5, 6]);
-    buf.extend([7, 8, 9, 10].into_iter());          assert_buf_eq!(buf, [7, 8, 9, 10]);
-    buf.extend([11, 12, 13, 14, 15].into_iter());   assert_buf_eq!(buf, [12, 13, 14, 15]);
+    buf.extend([] as [u32; 0]);         assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.extend([1]);                    assert_buf_eq!(buf, [1]);
+    buf.extend([2, 3]);                 assert_buf_eq!(buf, [1, 2, 3]);
+    buf.extend([4, 5, 6]);              assert_buf_eq!(buf, [3, 4, 5, 6]);
+    buf.extend([7, 8, 9, 10]);          assert_buf_eq!(buf, [7, 8, 9, 10]);
+    buf.extend([11, 12, 13, 14, 15]);   assert_buf_eq!(buf, [12, 13, 14, 15]);
 }
 
 #[test]

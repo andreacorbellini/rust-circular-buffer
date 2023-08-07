@@ -259,7 +259,8 @@ fn test<const N: usize, T>()
         let expected_items = reference.iter()
                                       .cloned()
                                       .collect::<Vec<T>>();
-        assert_eq!(buffer, buffer);
+        #[allow(clippy::eq_op)]
+        { assert_eq!(buffer, buffer); }
         assert_eq!(*buffer, &expected_items[..]);
 
         assert_eq!(reference.len(), buffer.len());
