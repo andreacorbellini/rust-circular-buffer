@@ -1593,12 +1593,30 @@ impl<const N: usize, const M: usize, T, U> PartialEq<CircularBuffer<M, U>> for C
     where T: PartialEq<U>
 {
     fn eq(&self, other: &CircularBuffer<M, U>) -> bool {
-        // TODO Optimize
         if self.len() != other.len() {
             return false;
         }
-        self.iter().zip(other.iter())
-                   .all(|(x, y)| x == y)
+
+        let (a_left, a_right) = self.as_slices();
+        let (b_left, b_right) = other.as_slices();
+
+        match a_left.len().cmp(&b_left.len()) {
+            Ordering::Less => {
+                let x = a_left.len();
+                let y = b_left.len() - x;
+                a_left[..] == b_left[..x] && a_right[..y] == b_left[x..] && a_right[y..] == b_right[..]
+            },
+            Ordering::Greater => {
+                let x = b_left.len();
+                let y = a_left.len() - x;
+                a_left[..x] == b_left[..] && a_right[x..] == b_left[..y] && a_right[..] == b_right[y..]
+            },
+            Ordering::Equal => {
+                debug_assert_eq!(a_left.len(), b_left.len());
+                debug_assert_eq!(a_right.len(), b_right.len());
+                a_left == b_left && a_right == b_right
+            },
+        }
     }
 }
 
@@ -1608,18 +1626,23 @@ impl<const N: usize, T, U> PartialEq<[U]> for CircularBuffer<N, T>
     where T: PartialEq<U>
 {
     fn eq(&self, other: &[U]) -> bool {
-        // TODO Optimize
         if self.len() != other.len() {
             return false;
         }
-        self.iter().zip(other.iter())
-                   .all(|(x, y)| x == y)
+
+        let (a_left, a_right) = self.as_slices();
+        let (b_left, b_right) = other.split_at(a_left.len());
+
+        debug_assert_eq!(a_left.len(), b_left.len());
+        debug_assert_eq!(a_right.len(), b_right.len());
+        a_left == b_left && a_right == b_right
     }
 }
 
 impl<const N: usize, const M: usize, T, U> PartialEq<[U; M]> for CircularBuffer<N, T>
     where T: PartialEq<U>
 {
+    #[inline]
     fn eq(&self, other: &[U; M]) -> bool {
         self == &other[..]
     }
@@ -1628,52 +1651,36 @@ impl<const N: usize, const M: usize, T, U> PartialEq<[U; M]> for CircularBuffer<
 impl<'a, const N: usize, T, U> PartialEq<&'a [U]> for CircularBuffer<N, T>
     where T: PartialEq<U>
 {
+    #[inline]
     fn eq(&self, other: &&'a [U]) -> bool {
-        // TODO Optimize
-        if self.len() != other.len() {
-            return false;
-        }
-        self.iter().zip(other.iter())
-                   .all(|(x, y)| x == y)
+        self == *other
     }
 }
 
 impl<'a, const N: usize, T, U> PartialEq<&'a mut [U]> for CircularBuffer<N, T>
     where T: PartialEq<U>
 {
+    #[inline]
     fn eq(&self, other: &&'a mut [U]) -> bool {
-        // TODO Optimize
-        if self.len() != other.len() {
-            return false;
-        }
-        self.iter().zip(other.iter())
-                   .all(|(x, y)| x == y)
+        self == *other
     }
 }
 
 impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a [U; M]> for CircularBuffer<N, T>
     where T: PartialEq<U>
 {
+    #[inline]
     fn eq(&self, other: &&'a [U; M]) -> bool {
-        // TODO Optimize
-        if self.len() != other.len() {
-            return false;
-        }
-        self.iter().zip(other.iter())
-                   .all(|(x, y)| x == y)
+        self == *other
     }
 }
 
 impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a mut [U; M]> for CircularBuffer<N, T>
     where T: PartialEq<U>
 {
+    #[inline]
     fn eq(&self, other: &&'a mut [U; M]) -> bool {
-        // TODO Optimize
-        if self.len() != other.len() {
-            return false;
-        }
-        self.iter().zip(other.iter())
-                   .all(|(x, y)| x == y)
+        self == *other
     }
 }
 
