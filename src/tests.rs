@@ -831,6 +831,21 @@ fn remove_on_empty() {
 }
 
 #[test]
+fn swap() {
+    let mut buf: CircularBuffer<4, u32> = [1, 2, 3, 4].into_iter().collect();
+
+    buf.swap(0, 3);     assert_buf_eq!(buf, [4, 2, 3, 1]);
+    buf.swap(1, 2);     assert_buf_eq!(buf, [4, 3, 2, 1]);
+    buf.pop_front();    assert_buf_eq!(buf, [3, 2, 1]);
+    buf.push_back(4);   assert_buf_eq!(buf, [3, 2, 1, 4]);
+    assert!(!is_contiguous(&buf));
+    buf.swap(0, 1);     assert_buf_eq!(buf, [2, 3, 1, 4]);
+    buf.swap(1, 2);     assert_buf_eq!(buf, [2, 1, 3, 4]);
+    buf.swap(2, 3);     assert_buf_eq!(buf, [2, 1, 4, 3]);
+    buf.swap(3, 0);     assert_buf_eq!(buf, [3, 1, 4, 2]);
+}
+
+#[test]
 fn drop_contiguous() {
     let mut tracker = DropTracker::new();
     let mut buf = CircularBuffer::<4, DropItem<i32>>::new();
@@ -1265,25 +1280,4 @@ fn add_mod() {
         assert_add_mod_eq!(m - 2, crate::add_mod(m - 2, m, m));
         assert_add_mod_eq!(m - 1, crate::add_mod(m - 1, m, m));
     }
-}
-
-#[test]
-fn swap() {
-    let mut buf: CircularBuffer<4, u32> = [1,2,3,4].into_iter().collect();
-    buf.swap(0, 3);
-    assert_eq!(buf.to_vec(), vec![4, 2, 3, 1]);
-    buf.swap(1, 2);
-    assert_eq!(buf.to_vec(), vec![4, 3, 2, 1]);
-    buf.pop_front();
-    assert_eq!(buf.to_vec(), vec![3, 2, 1]);
-    buf.push_back(4);
-    assert_eq!(buf.to_vec(), vec![3, 2, 1, 4]);
-    buf.swap(0, 1);
-    assert_eq!(buf.to_vec(), vec![2, 3, 1, 4]);
-    buf.swap(1, 2);
-    assert_eq!(buf.to_vec(), vec![2, 1, 3, 4]);
-    buf.swap(2, 3);
-    assert_eq!(buf.to_vec(), vec![2, 1, 4, 3]);
-    buf.swap(3, 0);
-    assert_eq!(buf.to_vec(), vec![3, 1, 4, 2]);
 }
