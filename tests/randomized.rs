@@ -6,6 +6,8 @@
 /// action. The reference implementation currently is based on top of `VecDeque`.
 
 use circular_buffer::CircularBuffer;
+use drop_tracker::DropItem;
+use drop_tracker::DropTracker;
 use rand::Rng;
 use rand::distributions::Distribution;
 use rand::distributions::Standard;
@@ -14,6 +16,7 @@ use std::collections::VecDeque;
 use std::fmt;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 enum Action<T> {
@@ -291,4 +294,34 @@ fn medium() {
 #[test]
 fn large() {
     test::<1_000_000, u64>();
+}
+
+#[test]
+fn drop() {
+    static mut TRACKER: Option<DropTracker<u64>> = None;
+
+    // SAFETY: the assumption is that this test function will be called only once
+    unsafe { TRACKER.replace(DropTracker::new()); }
+
+    fn tracker() -> &'static DropTracker<u64> {
+        unsafe { TRACKER.as_ref().unwrap() }
+    }
+
+    fn tracker_mut() -> &'static mut DropTracker<u64> {
+        unsafe { TRACKER.as_mut().unwrap() }
+    }
+
+    #[derive(Clone, PartialEq, Eq, Debug)]
+    struct Item(Rc<DropItem<u64>>);
+
+    impl Distribution<Item> for Standard {
+        fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Item {
+            let n = rng.gen();
+            Item(Rc::new(tracker_mut().track(n)))
+        }
+    }
+
+    test::<100, Item>();
+
+    tracker().assert_fully_dropped();
 }
