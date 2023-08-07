@@ -273,6 +273,11 @@ fn test<const N: usize, T>()
 }
 
 #[test]
+fn zero() {
+    test::<0, u64>();
+}
+
+#[test]
 fn small() {
     test::<10, u64>();
 }
