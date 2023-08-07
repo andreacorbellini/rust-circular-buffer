@@ -163,7 +163,6 @@
 #![warn(missing_docs)]
 #![warn(pointer_structural_match)]
 #![warn(unreachable_pub)]
-#![warn(unused_crate_dependencies)]
 #![warn(unused_qualifications)]
 
 mod iter;
