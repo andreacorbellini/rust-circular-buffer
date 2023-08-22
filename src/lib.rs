@@ -1127,8 +1127,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the back of the buffer.
     ///
-    /// If the buffer is full, the element at the front of the buffer is automatically dropped and
-    /// overwritten.
+    /// If the buffer is full, the element at the front of the buffer is overwritten and returned.
     ///
     /// See also [`try_push_back()`](CircularBuffer::try_push_back) for a non-overwriting version
     /// of this method.
@@ -1140,39 +1139,47 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// buf.push_back('a');
+    /// assert_eq!(buf.push_back('a'), None);
     /// assert_eq!(buf, ['a']);
-    /// buf.push_back('b');
+    ///
+    /// assert_eq!(buf.push_back('b'), None);
     /// assert_eq!(buf, ['a', 'b']);
-    /// buf.push_back('c');
+    ///
+    /// assert_eq!(buf.push_back('c'), None);
     /// assert_eq!(buf, ['a', 'b', 'c']);
     ///
-    /// // The buffer is now full; adding more values causes the front elements to be dropped
-    /// buf.push_back('d');
+    /// // The buffer is now full; adding more values causes the front elements to be removed and
+    /// // returned
+    /// assert_eq!(buf.push_back('d'), Some('a'));
     /// assert_eq!(buf, ['b', 'c', 'd']);
-    /// buf.push_back('e');
+    ///
+    /// assert_eq!(buf.push_back('e'), Some('b'));
     /// assert_eq!(buf, ['c', 'd', 'e']);
-    /// buf.push_back('f');
+    ///
+    /// assert_eq!(buf.push_back('f'), Some('c'));
     /// assert_eq!(buf, ['d', 'e', 'f']);
     /// ```
-    pub fn push_back(&mut self, item: T) {
+    pub fn push_back(&mut self, item: T) -> Option<T> {
         if N == 0 {
             // Nothing to do
-            return;
+            return Some(item);
         }
+
         if self.size >= N {
             // At capacity; need to replace the front item
             //
             // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-            unsafe {
-                ptr::drop_in_place(self.front_maybe_uninit_mut().as_mut_ptr());
-            }
-            self.front_maybe_uninit_mut().write(item);
+            let replaced_item = mem::replace(
+                unsafe { self.front_maybe_uninit_mut().assume_init_mut() },
+                item,
+            );
             self.inc_start();
+            Some(replaced_item)
         } else {
             // Some uninitialized slots left; append at the end
             self.inc_size();
             self.back_maybe_uninit_mut().write(item);
+            None
         }
     }
 
@@ -1193,8 +1200,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// assert_eq!(buf.try_push_back('a'), Ok(()));
     /// assert_eq!(buf, ['a']);
+    ///
     /// assert_eq!(buf.try_push_back('b'), Ok(()));
     /// assert_eq!(buf, ['a', 'b']);
+    ///
     /// assert_eq!(buf.try_push_back('c'), Ok(()));
     /// assert_eq!(buf, ['a', 'b', 'c']);
     ///
@@ -1219,8 +1228,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the front of the buffer.
     ///
-    /// If the buffer is full, the element at the back of the buffer is automatically dropped and
-    /// overwritten.
+    /// If the buffer is full, the element at the back of the buffer is overwritten and returned.
     ///
     /// See also [`try_push_front()`](CircularBuffer::try_push_front) for a non-overwriting version
     /// of this method.
@@ -1232,40 +1240,47 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// buf.push_front('a');
+    /// assert_eq!(buf.push_front('a'), None);
     /// assert_eq!(buf, ['a']);
-    /// buf.push_front('b');
+    ///
+    /// assert_eq!(buf.push_front('b'), None);
     /// assert_eq!(buf, ['b', 'a']);
-    /// buf.push_front('c');
+    ///
+    /// assert_eq!(buf.push_front('c'), None);
     /// assert_eq!(buf, ['c', 'b', 'a']);
     ///
     /// // The buffer is now full; adding more values causes the back elements to be dropped
-    /// buf.push_front('d');
+    /// assert_eq!(buf.push_front('d'), Some('a'));
     /// assert_eq!(buf, ['d', 'c', 'b']);
-    /// buf.push_front('e');
+    ///
+    /// assert_eq!(buf.push_front('e'), Some('b'));
     /// assert_eq!(buf, ['e', 'd', 'c']);
-    /// buf.push_front('f');
+    ///
+    /// assert_eq!(buf.push_front('f'), Some('c'));
     /// assert_eq!(buf, ['f', 'e', 'd']);
     /// ```
-    pub fn push_front(&mut self, item: T) {
+    pub fn push_front(&mut self, item: T) -> Option<T> {
         if N == 0 {
             // Nothing to do
-            return;
+            return Some(item);
         }
+
         if self.size >= N {
             // At capacity; need to replace the back item
             //
-            // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-            unsafe {
-                ptr::drop_in_place(self.back_maybe_uninit_mut().as_mut_ptr());
-            }
-            self.back_maybe_uninit_mut().write(item);
+            // SAFETY: if size is greater than 0, the back item is guaranteed to be initialized.
+            let replaced_item = mem::replace(
+                unsafe { self.back_maybe_uninit_mut().assume_init_mut() },
+                item,
+            );
             self.dec_start();
+            Some(replaced_item)
         } else {
             // Some uninitialized slots left; insert at the start
             self.inc_size();
             self.dec_start();
             self.front_maybe_uninit_mut().write(item);
+            None
         }
     }
 
@@ -1286,8 +1301,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// assert_eq!(buf.try_push_front('a'), Ok(()));
     /// assert_eq!(buf, ['a']);
+    ///
     /// assert_eq!(buf.try_push_front('b'), Ok(()));
     /// assert_eq!(buf, ['b', 'a']);
+    ///
     /// assert_eq!(buf.try_push_front('c'), Ok(()));
     /// assert_eq!(buf, ['c', 'b', 'a']);
     ///
@@ -1362,10 +1379,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         }
 
         // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-        let back = unsafe { self.front_maybe_uninit().assume_init_read() };
+        let front = unsafe { self.front_maybe_uninit().assume_init_read() };
         self.dec_size();
         self.inc_start();
-        Some(back)
+        Some(front)
     }
 
     /// Removes and returns an element at the specified index.
@@ -1966,7 +1983,9 @@ impl<const N: usize, T> FromIterator<T> for CircularBuffer<N, T> {
     {
         // TODO Optimize
         let mut buf = Self::new();
-        iter.into_iter().for_each(|item| buf.push_back(item));
+        iter.into_iter().for_each(|item| {
+            buf.push_back(item);
+        });
         buf
     }
 }
@@ -1977,7 +1996,9 @@ impl<const N: usize, T> Extend<T> for CircularBuffer<N, T> {
         I: IntoIterator<Item = T>,
     {
         // TODO Optimize
-        iter.into_iter().for_each(|item| self.push_back(item));
+        iter.into_iter().for_each(|item| {
+            self.push_back(item);
+        });
     }
 }
 
@@ -1990,7 +2011,9 @@ where
         I: IntoIterator<Item = &'a T>,
     {
         // TODO Optimize
-        iter.into_iter().for_each(|item| self.push_back(*item));
+        iter.into_iter().for_each(|item| {
+            self.push_back(*item);
+        });
     }
 }
 
