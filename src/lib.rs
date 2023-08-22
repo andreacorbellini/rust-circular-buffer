@@ -1027,7 +1027,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     pub fn push_back(&mut self, item: T) -> Option<T> {
         if N == 0 {
             // Nothing to do
-            return None;
+            return Some(item);
         }
 
         if self.size >= N {
@@ -1072,7 +1072,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     pub fn push_front(&mut self, item: T) -> Option<T> {
         if N == 0 {
             // Nothing to do
-            return None;
+            return Some(item);
         }
 
         if self.size >= N {
