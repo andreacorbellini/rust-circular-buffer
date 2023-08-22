@@ -127,23 +127,29 @@ impl<T> Reference<T> {
         }
     }
 
-    fn trim(&mut self, direction: Direction) {
+    fn trim(&mut self, direction: Direction) -> Vec<T> {
         match direction {
             Direction::Back  => self.trim_back(),
             Direction::Front => self.trim_front(),
         }
     }
 
-    fn trim_back(&mut self) {
+    fn trim_back(&mut self) -> Vec<T> {
+        let mut trimmed = Vec::new();
         while self.len() > self.max_len {
-            self.pop_back().unwrap();
+            let item = self.pop_back().unwrap();
+            trimmed.push(item);
         }
+        trimmed
     }
 
-    fn trim_front(&mut self) {
+    fn trim_front(&mut self) -> Vec<T> {
+        let mut trimmed = Vec::new();
         while self.len() > self.max_len {
-            self.pop_front().unwrap();
+            let item = self.pop_front().unwrap();
+            trimmed.push(item);
         }
+        trimmed
     }
 }
 
@@ -173,8 +179,8 @@ impl<const N: usize, T> Perform<T> for CircularBuffer<N, T>
             Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; None },
             Action::FrontMut(elem)         => { *self.front_mut().unwrap() = elem; None },
             Action::GetMut(index, elem)    => { *self.get_mut(index).unwrap() = elem; None },
-            Action::PushBack(elem)         => { self.push_back(elem); None },
-            Action::PushFront(elem)        => { self.push_front(elem); None },
+            Action::PushBack(elem)         => { self.push_back(elem) },
+            Action::PushFront(elem)        => { self.push_front(elem) },
             Action::PopBack                => self.pop_back(),
             Action::PopFront               => self.pop_front(),
             Action::Remove(index)          => self.remove(index),
@@ -215,18 +221,23 @@ impl<T> Perform<T> for VecDeque<T> {
 
 impl<T> Perform<T> for Reference<T> {
     fn perform(&mut self, action: Action<T>) -> Option<T> {
-        let trim_direction = match action {
-            Action::PushBack(_)        => Some(Direction::Front),
-            Action::PushFront(_)       => Some(Direction::Back),
-            Action::Extend(_)          => Some(Direction::Front),
-            Action::ExtendFromSlice(_) => Some(Direction::Front),
-            _                          => None,
+        let (trim_direction, return_trimmed) = match action {
+            Action::PushBack(_)        => (Some(Direction::Front), true),
+            Action::PushFront(_)       => (Some(Direction::Back), true),
+            Action::Extend(_)          => (Some(Direction::Front), false),
+            Action::ExtendFromSlice(_) => (Some(Direction::Front), false),
+            _                          => (None, false),
         };
 
         let result = self.inner.perform(action);
 
         if let Some(direction) = trim_direction {
-            self.trim(direction);
+            let mut trimmed = self.trim(direction);
+            if return_trimmed {
+                assert!(result.is_none());
+                assert!(trimmed.len() <= 1);
+                return trimmed.pop();
+            }
         }
 
         result
