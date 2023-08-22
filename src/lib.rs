@@ -1006,9 +1006,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the back of the buffer.
     ///
-    /// If the buffer is full, the element at the front of the buffer is replaced.
-    ///
-    /// Returns the replaced value if it had to replace an element to make room, or `None` if not.
+    /// If the buffer is full, the element at the front of the buffer is removed and returned.
     ///
     /// # Examples
     ///
@@ -1017,11 +1015,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// assert_eq!(buf.push_back('a'), None); assert_eq!(buf, ['a']);
-    /// assert_eq!(buf.push_back('b'), None); assert_eq!(buf, ['a', 'b']);
-    /// assert_eq!(buf.push_back('c'), None); assert_eq!(buf, ['a', 'b', 'c']);
-    /// // The buffer is now full; adding more values causes the front elements to be replaced
-    /// // From here on, `push_back` will return the replaced value
+    /// assert_eq!(buf.push_back('a'), None);      assert_eq!(buf, ['a']);
+    /// assert_eq!(buf.push_back('b'), None);      assert_eq!(buf, ['a', 'b']);
+    /// assert_eq!(buf.push_back('c'), None);      assert_eq!(buf, ['a', 'b', 'c']);
+    /// // The buffer is now full; adding more values causes the front elements to be
+    /// // removed and returned
     /// assert_eq!(buf.push_back('d'), Some('a')); assert_eq!(buf, ['b', 'c', 'd']);
     /// assert_eq!(buf.push_back('e'), Some('b')); assert_eq!(buf, ['c', 'd', 'e']);
     /// assert_eq!(buf.push_back('f'), Some('c')); assert_eq!(buf, ['d', 'e', 'f']);
@@ -1053,9 +1051,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the front of the buffer.
     ///
-    /// If the buffer is full, the element at the back of the buffer is replaced.
-    ///
-    /// Returns the replaced value if it had to replace an element to make room, or `None` if not.
+    /// If the buffer is full, the element at the back of the buffer is removed and returned.
     ///
     /// # Examples
     ///
@@ -1064,11 +1060,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// assert_eq!(buf.push_front('a'), None); assert_eq!(buf, ['a']);
-    /// assert_eq!(buf.push_front('b'), None); assert_eq!(buf, ['b', 'a']);
-    /// assert_eq!(buf.push_front('c'), None); assert_eq!(buf, ['c', 'b', 'a']);
-    /// // The buffer is now full; adding more values causes the back elements to be replaced
-    /// // From here on, `push_front` will return the replaced value
+    /// assert_eq!(buf.push_front('a'), None);      assert_eq!(buf, ['a']);
+    /// assert_eq!(buf.push_front('b'), None);      assert_eq!(buf, ['b', 'a']);
+    /// assert_eq!(buf.push_front('c'), None);      assert_eq!(buf, ['c', 'b', 'a']);
+    /// // The buffer is now full; adding more values causes the back elements to be
+    /// // removed and returned
     /// assert_eq!(buf.push_front('d'), Some('a')); assert_eq!(buf, ['d', 'c', 'b']);
     /// assert_eq!(buf.push_front('e'), Some('b')); assert_eq!(buf, ['e', 'd', 'c']);
     /// assert_eq!(buf.push_front('f'), Some('c')); assert_eq!(buf, ['f', 'e', 'd']);
