@@ -1036,16 +1036,12 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             // At capacity; need to replace the front item
             //
             // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-            let old_value = unsafe {
-                mem::replace(self.front_maybe_uninit_mut()
-                                 .as_mut_ptr()
-                                 .as_mut()
-                                 .expect("pointer is valid"),
-                             item)
-            };
+            let replaced_item = mem::replace(
+                unsafe { self.front_maybe_uninit_mut().assume_init_mut() },
+                item);
             self.inc_start();
 
-            Some(old_value)
+            Some(replaced_item)
         } else {
             // Some uninitialized slots left; append at the end
             self.inc_size();
@@ -1087,16 +1083,12 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             // At capacity; need to replace the back item
             //
             // SAFETY: if size is greater than 0, the back item is guaranteed to be initialized.
-            let old_value = unsafe {
-                mem::replace(self.back_maybe_uninit_mut()
-                                 .as_mut_ptr()
-                                 .as_mut()
-                                 .expect("pointer is valid"),
-                             item)
-            };
+            let replaced_item = mem::replace(
+                unsafe { self.back_maybe_uninit_mut().assume_init_mut() },
+                item);
             self.dec_start();
 
-            Some(old_value)
+            Some(replaced_item)
         } else {
             // Some uninitialized slots left; insert at the start
             self.inc_size();
