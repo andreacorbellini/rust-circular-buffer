@@ -115,22 +115,22 @@ fn push_back() {
     tracker.assert_all_alive([1, 2, 3, 4]);
     tracker.assert_fully_alive();
 
-    assert_eq!(buf.push_back(tracker.track(5)).as_deref().map(Clone::clone), Some(1));
+    assert_eq!(buf.push_back(tracker.track(5)).unwrap(), 1);
     assert_buf_eq!(buf, [2, 3, 4, 5]);
     tracker.assert_all_alive([2, 3, 4, 5]);
     tracker.assert_all_dropped([1]);
 
-    assert_eq!(buf.push_back(tracker.track(6)).as_deref().map(Clone::clone), Some(2));
+    assert_eq!(buf.push_back(tracker.track(6)).unwrap(), 2);
     assert_buf_eq!(buf, [3, 4, 5, 6]);
     tracker.assert_all_alive([3, 4, 5, 6]);
     tracker.assert_all_dropped([1, 2]);
 
-    assert_eq!(buf.push_back(tracker.track(7)).as_deref().map(Clone::clone), Some(3));
+    assert_eq!(buf.push_back(tracker.track(7)).unwrap(), 3);
     assert_buf_eq!(buf, [4, 5, 6, 7]);
     tracker.assert_all_alive([4, 5, 6, 7]);
     tracker.assert_all_dropped([1, 2, 3]);
 
-    assert_eq!(buf.push_back(tracker.track(8)).as_deref().map(Clone::clone), Some(4));
+    assert_eq!(buf.push_back(tracker.track(8)).unwrap(), 4);
     assert_buf_eq!(buf, [5, 6, 7, 8]);
     tracker.assert_all_alive([5, 6, 7, 8]);
     tracker.assert_all_dropped([1, 2, 3, 4]);
@@ -162,22 +162,22 @@ fn push_front() {
     tracker.assert_all_alive([1, 2, 3, 4]);
     tracker.assert_fully_alive();
 
-    assert_eq!(buf.push_front(tracker.track(5)).as_deref().map(Clone::clone), Some(1));
+    assert_eq!(buf.push_front(tracker.track(5)).unwrap(), 1);
     assert_buf_eq!(buf, [5, 4, 3, 2]);
     tracker.assert_all_alive([2, 3, 4, 5]);
     tracker.assert_all_dropped([1]);
 
-    assert_eq!(buf.push_front(tracker.track(6)).as_deref().map(Clone::clone), Some(2));
+    assert_eq!(buf.push_front(tracker.track(6)).unwrap(), 2);
     assert_buf_eq!(buf, [6, 5, 4, 3]);
     tracker.assert_all_alive([3, 4, 5, 6]);
     tracker.assert_all_dropped([1, 2]);
 
-    assert_eq!(buf.push_front(tracker.track(7)).as_deref().map(Clone::clone), Some(3));
+    assert_eq!(buf.push_front(tracker.track(7)).unwrap(), 3);
     assert_buf_eq!(buf, [7, 6, 5, 4]);
     tracker.assert_all_alive([4, 5, 6, 7]);
     tracker.assert_all_dropped([1, 2, 3]);
 
-    assert_eq!(buf.push_front(tracker.track(8)).as_deref().map(Clone::clone), Some(4));
+    assert_eq!(buf.push_front(tracker.track(8)).unwrap(), 4);
     assert_buf_eq!(buf, [8, 7, 6, 5]);
     tracker.assert_all_alive([5, 6, 7, 8]);
     tracker.assert_all_dropped([1, 2, 3, 4]);
