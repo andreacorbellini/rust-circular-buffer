@@ -658,6 +658,12 @@ fn range() {
     assert_eq!(iter.next(), None);
 
     let buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
+    let mut iter = buf.range(0..0);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    let buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
     let mut iter = buf.range((Bound::Excluded(4), Bound::Unbounded));
     assert_eq!(iter.next(), Some(&'f'));
     assert_eq!(iter.next(), Some(&'g'));
@@ -680,6 +686,18 @@ fn range() {
     assert_eq!(iter.next(), Some(&'d'));
     assert_eq!(iter.next(), Some(&'e'));
     assert_eq!(iter.next(), Some(&'f'));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    let buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
+    let mut iter = buf.range((Bound::Excluded(2), Bound::Excluded(3)));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    let buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
+    let mut iter = buf.range((Bound::Excluded(2), Bound::Included(2)));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
@@ -753,6 +771,12 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
 
     let mut buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
+    let mut iter = buf.range_mut(0..0);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    let mut buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut((Bound::Excluded(4), Bound::Unbounded));
     assert_eq!(iter.next(), Some(&mut 'f'));
     assert_eq!(iter.next(), Some(&mut 'g'));
@@ -775,6 +799,18 @@ fn range_mut() {
     assert_eq!(iter.next(), Some(&mut 'd'));
     assert_eq!(iter.next(), Some(&mut 'e'));
     assert_eq!(iter.next(), Some(&mut 'f'));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    let mut buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
+    let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Excluded(3)));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    let mut buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
+    let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Included(2)));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);

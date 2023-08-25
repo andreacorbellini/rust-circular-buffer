@@ -194,6 +194,10 @@ pub struct Iter<'a, T> {
 }
 
 impl<'a, T> Iter<'a, T> {
+    pub(crate) const fn empty() -> Self {
+        Self { right: &[], left: &[] }
+    }
+
     unstable_const_fn! {
         pub(crate) const fn new<{const N: usize}>(buf: &'a CircularBuffer<N, T>) -> Self {
             let (right, left) = buf.as_slices();
@@ -205,10 +209,14 @@ impl<'a, T> Iter<'a, T> {
         where R: RangeBounds<usize>
     {
         let (start, end) = translate_range_bounds(buf, range);
-        let mut it = Self::new(buf);
-        it.advance_front_by(start);
-        it.advance_back_by(end - start);
-        it
+        if start >= end {
+            Self::empty()
+        } else {
+            let mut it = Self::new(buf);
+            it.advance_front_by(start);
+            it.advance_back_by(end - start);
+            it
+        }
     }
 
     fn advance_front_by(&mut self, count: usize) {
@@ -296,6 +304,12 @@ pub struct IterMut<'a, T> {
 
 impl<'a, T> IterMut<'a, T> {
     unstable_const_fn! {
+        pub(crate) const fn empty() -> Self {
+            Self { right: &mut [], left: &mut [] }
+        }
+    }
+
+    unstable_const_fn! {
         pub(crate) const fn new<{const N: usize}>(buf: &'a mut CircularBuffer<N, T>) -> Self {
             let (right, left) = buf.as_mut_slices();
             Self { right, left }
@@ -306,10 +320,14 @@ impl<'a, T> IterMut<'a, T> {
         where R: RangeBounds<usize>
     {
         let (start, end) = translate_range_bounds(buf, range);
-        let mut it = Self::new(buf);
-        it.advance_front_by(start);
-        it.advance_back_by(end - start);
-        it
+        if start >= end {
+            Self::empty()
+        } else {
+            let mut it = Self::new(buf);
+            it.advance_front_by(start);
+            it.advance_back_by(end - start);
+            it
+        }
     }
 
     fn advance_front_by(&mut self, count: usize) {
