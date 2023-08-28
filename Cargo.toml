@@ -20,5 +20,10 @@ unstable = []
 [dependencies]
 
 [dev-dependencies]
-drop-tracker = "0.1"
-rand = "0.8"
+criterion = { version = "0.3", features = ["html_reports"] }
+drop-tracker = { version = "0.1" }
+rand = { version = "0.8" }
+
+[[bench]]
+name = "benchmark"
+harness = false
