@@ -1,5 +1,10 @@
 # Changelog
 
+## circular-buffer 0.1.3
+
+* Fix `range()` and `range_mut()` when passing an empty range (contributed by
+  Icxolu)
+
 ## circular-buffer 0.1.2
 
 * Make `extend_from_slice()` safe by ensuring that all cloned elements get
