@@ -14,3 +14,28 @@ For more information and examples, check out the [documentation]!
 
 [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
 [documentation]: https://docs.rs/circular-buffer/latest/circular_buffer/
+
+# Example
+
+```rust
+use circular_buffer::CircularBuffer;
+
+// Initialize a new, empty circular buffer with a capacity of 5 elements
+let mut buf = CircularBuffer::<5, u32>::new();
+
+// Add a few elements
+buf.push_back(1);
+buf.push_back(2);
+buf.push_back(3);
+assert_eq!(buf.to_vec(), vec![1, 2, 3]);
+
+// Add more elements to fill the buffer capacity completely
+buf.push_back(4);
+buf.push_back(5);
+assert_eq!(buf.to_vec(), vec![1, 2, 3, 4, 5]);
+
+// Adding more elements than the buffer can contain causes the front elements to be
+// automatically dropped
+buf.push_back(6);
+assert_eq!(buf.to_vec(), vec![2, 3, 4, 5, 6]); // `1` got dropped to make room for `6`
+```
