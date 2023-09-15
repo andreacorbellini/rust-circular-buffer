@@ -6,7 +6,7 @@ This is a Rust crate that implements a [circular buffer], also known as cyclic
 buffer, circular queue or ring.
 
 This circular buffer has a fixed maximum capacity, does not automatically grow,
-and once its maximum capacity is reached, elements at the start of the buffer
+and by default once its maximum capacity is reached, elements at the start of the buffer
 are overwritten. It's useful for implementing fast FIFO (_first in, first out_)
 and LIFO (_last in, first out_) queues with a fixed memory capacity.
 
