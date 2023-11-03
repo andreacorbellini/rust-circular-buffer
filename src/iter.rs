@@ -246,6 +246,13 @@ impl<'a, T> Iter<'a, T> {
     }
 }
 
+impl<'a, T> Default for Iter<'a, T> {
+    #[inline]
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
@@ -362,6 +369,13 @@ impl<'a, T> IterMut<'a, T> {
             slice_take_mut(&mut self.right, take_right..);
             self.left = &mut [];
         }
+    }
+}
+
+impl<'a, T> Default for IterMut<'a, T> {
+    #[inline]
+    fn default() -> Self {
+        Self::empty()
     }
 }
 
