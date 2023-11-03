@@ -297,6 +297,13 @@ fn large() {
 }
 
 #[test]
+fn largest_with_zero_sized_struct() {
+    type Zst = ();
+    assert_eq!(mem::size_of::<Zst>(), 0);
+    test::<{ usize::MAX }, Zst>();
+}
+
+#[test]
 fn drop() {
     static mut TRACKER: Option<DropTracker<u64>> = None;
 
