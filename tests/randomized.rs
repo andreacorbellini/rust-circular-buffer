@@ -265,14 +265,20 @@ fn test<const N: usize, T>()
         #[allow(clippy::eq_op)]
         { assert_eq!(buffer, buffer); }
         assert_eq!(*buffer, &expected_items[..]);
+        assert_eq!(buffer.to_vec(), expected_items);
 
         assert_eq!(reference.len(), buffer.len());
         assert_eq!(reference.is_empty(), buffer.is_empty());
+
         assert_eq!(reference.iter().collect::<Vec<&T>>(),
                    buffer.iter().collect::<Vec<&T>>());
         assert_eq!(reference.iter_mut().collect::<Vec<&mut T>>(),
                    buffer.iter_mut().collect::<Vec<&mut T>>());
-        assert_eq!(buffer.to_vec(), expected_items);
+
+        assert_eq!(reference.iter().rev().collect::<Vec<&T>>(),
+                   buffer.iter().rev().collect::<Vec<&T>>());
+        assert_eq!(reference.iter_mut().rev().collect::<Vec<&mut T>>(),
+                   buffer.iter_mut().rev().collect::<Vec<&mut T>>());
     }
 }
 
