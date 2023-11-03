@@ -701,6 +701,16 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
+
+    let buf = CircularBuffer::<8, char>::from_iter("abcdefghijkl".chars());
+    let mut iter = buf.range(2..6);
+    assert_eq!(iter.next(), Some(&'g'));
+    assert_eq!(iter.next(), Some(&'h'));
+    assert_eq!(iter.next(), Some(&'i'));
+    assert_eq!(iter.next(), Some(&'j'));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
 }
 
 #[test]
@@ -811,6 +821,16 @@ fn range_mut() {
 
     let mut buf = CircularBuffer::<8, char>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Included(2)));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    let mut buf = CircularBuffer::<8, char>::from_iter("abcdefghijkl".chars());
+    let mut iter = buf.range_mut(2..6);
+    assert_eq!(iter.next(), Some(&mut 'g'));
+    assert_eq!(iter.next(), Some(&mut 'h'));
+    assert_eq!(iter.next(), Some(&mut 'i'));
+    assert_eq!(iter.next(), Some(&mut 'j'));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);

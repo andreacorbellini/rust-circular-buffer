@@ -212,28 +212,36 @@ impl<'a, T> Iter<'a, T> {
         if start >= end {
             Self::empty()
         } else {
+            let len = buf.len();
             let mut it = Self::new(buf);
             it.advance_front_by(start);
-            it.advance_back_by(end - start);
+            it.advance_back_by(len - end);
             it
         }
     }
 
     fn advance_front_by(&mut self, count: usize) {
-        if slice_take(&mut self.right, ..count).is_none() {
+        if self.right.len() > count {
+            slice_take(&mut self.right, ..count);
+        } else {
             let take_left = count - self.right.len();
-            slice_take(&mut self.left, ..take_left)
-                .expect("attempted to advance past the back of the buffer");
-            self.right = &mut [];
+            debug_assert!(take_left <= self.left.len(),
+                          "attempted to advance past the back of the buffer");
+            slice_take(&mut self.left, ..take_left);
+            self.right = &[];
         }
     }
 
     fn advance_back_by(&mut self, count: usize) {
-        if slice_take(&mut self.left, count..).is_none() {
-            let take_right = count - self.left.len();
-            slice_take(&mut self.right, take_right..)
-                .expect("attempted to advance past the front of the buffer");
-            self.left = &mut [];
+        if self.left.len() > count {
+            let take_left = self.left.len() - count;
+            slice_take(&mut self.left, take_left..);
+        } else {
+            let take_right = self.right.len() - (count - self.left.len());
+            debug_assert!(take_right <= self.right.len(),
+                          "attempted to advance past the front of the buffer");
+            slice_take(&mut self.right, take_right..);
+            self.left = &[];
         }
     }
 }
@@ -323,27 +331,35 @@ impl<'a, T> IterMut<'a, T> {
         if start >= end {
             Self::empty()
         } else {
+            let len = buf.len();
             let mut it = Self::new(buf);
             it.advance_front_by(start);
-            it.advance_back_by(end - start);
+            it.advance_back_by(len - end);
             it
         }
     }
 
     fn advance_front_by(&mut self, count: usize) {
-        if slice_take_mut(&mut self.right, ..count).is_none() {
+        if self.right.len() > count {
+            slice_take_mut(&mut self.right, ..count);
+        } else {
             let take_left = count - self.right.len();
-            slice_take_mut(&mut self.left, ..take_left)
-                .expect("attempted to advance past the back of the buffer");
+            debug_assert!(take_left <= self.left.len(),
+                          "attempted to advance past the back of the buffer");
+            slice_take_mut(&mut self.left, ..take_left);
             self.right = &mut [];
         }
     }
 
     fn advance_back_by(&mut self, count: usize) {
-        if slice_take_mut(&mut self.left, count..).is_none() {
-            let take_right = count - self.left.len();
-            slice_take_mut(&mut self.right, take_right..)
-                .expect("attempted to advance past the front of the buffer");
+        if self.left.len() > count {
+            let take_left = self.left.len() - count;
+            slice_take_mut(&mut self.left, take_left..);
+        } else {
+            let take_right = self.right.len() - (count - self.left.len());
+            debug_assert!(take_right <= self.right.len(),
+                          "attempted to advance past the front of the buffer");
+            slice_take_mut(&mut self.right, take_right..);
             self.left = &mut [];
         }
     }
