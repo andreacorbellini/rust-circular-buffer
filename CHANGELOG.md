@@ -1,5 +1,10 @@
 # Changelog
 
+## circular-buffer 0.1.4
+
+* Fixed a bug in `range()` and `range_mut()` that made them return more
+  elements than requested in some circumstances.
+
 ## circular-buffer 0.1.3
 
 * Fixed `range()` and `range_mut()` when passing an empty range ([contributed
