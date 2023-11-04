@@ -14,8 +14,10 @@ use rand::distributions::Standard;
 use rand::distributions::Uniform;
 use std::collections::VecDeque;
 use std::fmt;
+use std::mem;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
@@ -36,6 +38,8 @@ enum Action<T> {
     Clear,
     Extend(Vec<T>),
     ExtendFromSlice(Vec<T>),
+    RangeMut(RangeInclusive<usize>, Vec<T>),
+    Drain(RangeInclusive<usize>),
 }
 
 impl<T> Distribution<Action<T>> for Standard
@@ -83,7 +87,13 @@ impl<T> Distribution<Action<T>> for Uniform<usize>
             vec
         }
 
-        let action_num: u8 = rng.gen_range(0..=15);
+        fn random_range<D: Distribution<usize>, R: Rng + ?Sized>(dist: &D, rng: &mut R) -> RangeInclusive<usize> {
+            let low = dist.sample(rng);
+            let high = dist.sample(rng).max(low);
+            low..=high
+        }
+
+        let action_num: u8 = rng.gen_range(0..=17);
 
         match action_num {
             0  => Action::BackMut(rng.gen()),
@@ -102,6 +112,8 @@ impl<T> Distribution<Action<T>> for Uniform<usize>
             13 => Action::Clear,
             14 => Action::Extend(random_vec(rng)),
             15 => Action::ExtendFromSlice(random_vec(rng)),
+            16 => Action::RangeMut(random_range(self, rng), random_vec(rng)),
+            17 => Action::Drain(random_range(self, rng)),
             _ => unreachable!(),
         }
     }
@@ -161,60 +173,107 @@ impl<T> DerefMut for Reference<T> {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+enum Result<T> {
+    None,
+    Val(T),
+    Vec(Vec<T>),
+}
+
+impl<T> From<Option<T>> for Result<T> {
+    fn from(opt: Option<T>) -> Self {
+        match opt {
+            Some(val) => Self::Val(val),
+            None      => Self::None,
+        }
+    }
+}
+
+impl<T> FromIterator<T> for Result<T> {
+    fn from_iter<I>(iter: I) -> Self
+       where I: IntoIterator<Item = T>
+    {
+        let vec = Vec::from_iter(iter);
+        Self::Vec(vec)
+    }
+}
+
 trait Perform<T> {
-    fn perform(&mut self, action: Action<T>) -> Option<T>;
+    fn perform(&mut self, action: Action<T>) -> Result<T>;
 }
 
 impl<const N: usize, T> Perform<T> for CircularBuffer<N, T>
     where T: Clone
 {
-    fn perform(&mut self, action: Action<T>) -> Option<T> {
+    fn perform(&mut self, action: Action<T>) -> Result<T> {
         match action {
-            Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; None },
-            Action::FrontMut(elem)         => { *self.front_mut().unwrap() = elem; None },
-            Action::GetMut(index, elem)    => { *self.get_mut(index).unwrap() = elem; None },
-            Action::PushBack(elem)         => { self.push_back(elem); None },
-            Action::PushFront(elem)        => { self.push_front(elem); None },
-            Action::PopBack                => self.pop_back(),
-            Action::PopFront               => self.pop_front(),
-            Action::Remove(index)          => self.remove(index),
-            Action::Swap(x, y)             => { self.swap(x, y); None },
-            Action::SwapRemoveBack(index)  => { self.swap_remove_back(index); None },
-            Action::SwapRemoveFront(index) => { self.swap_remove_front(index); None },
-            Action::TruncateBack(index)    => { self.truncate_back(index); None },
-            Action::TruncateFront(index)   => { self.truncate_front(index); None },
-            Action::Clear                  => { self.clear(); None },
-            Action::Extend(elems)          => { self.extend(elems); None },
-            Action::ExtendFromSlice(elems) => { self.extend_from_slice(&elems[..]); None },
+            Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; Result::None },
+            Action::FrontMut(elem)         => { *self.front_mut().unwrap() = elem; Result::None },
+            Action::GetMut(index, elem)    => { *self.get_mut(index).unwrap() = elem; Result::None },
+            Action::PushBack(elem)         => { self.push_back(elem); Result::None },
+            Action::PushFront(elem)        => { self.push_front(elem); Result::None },
+            Action::PopBack                => self.pop_back().into(),
+            Action::PopFront               => self.pop_front().into(),
+            Action::Remove(index)          => self.remove(index).into(),
+            Action::Swap(x, y)             => { self.swap(x, y); Result::None },
+            Action::SwapRemoveBack(index)  => { self.swap_remove_back(index); Result::None },
+            Action::SwapRemoveFront(index) => { self.swap_remove_front(index); Result::None },
+            Action::TruncateBack(index)    => { self.truncate_back(index); Result::None },
+            Action::TruncateFront(index)   => { self.truncate_front(index); Result::None },
+            Action::Clear                  => { self.clear(); Result::None },
+            Action::Extend(elems)          => { self.extend(elems); Result::None },
+            Action::ExtendFromSlice(elems) => { self.extend_from_slice(&elems[..]); Result::None },
+            Action::RangeMut(range, elems) => {
+                self.range_mut(range)
+                    .zip(elems)
+                    .map(|(elem, replacement)| *elem = replacement)
+                    .count();
+                Result::None
+            },
+            Action::Drain(range)           => { self.drain(range).collect() },
         }
     }
 }
 
 impl<T> Perform<T> for VecDeque<T> {
-    fn perform(&mut self, action: Action<T>) -> Option<T> {
+    fn perform(&mut self, action: Action<T>) -> Result<T> {
         match action {
-            Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; None },
-            Action::FrontMut(elem)         => { *self.front_mut().unwrap() = elem; None },
-            Action::GetMut(index, elem)    => { *self.get_mut(index).unwrap() = elem; None },
-            Action::PushBack(elem)         => { self.push_back(elem); None },
-            Action::PushFront(elem)        => { self.push_front(elem); None },
-            Action::PopBack                => self.pop_back(),
-            Action::PopFront               => self.pop_front(),
-            Action::Remove(index)          => self.remove(index),
-            Action::Swap(x, y)             => { self.swap(x, y); None },
-            Action::SwapRemoveBack(index)  => { self.swap_remove_back(index); None },
-            Action::SwapRemoveFront(index) => { self.swap_remove_front(index); None },
-            Action::TruncateBack(size)     => { while self.len() > size { let _ = self.pop_back(); }; None },
-            Action::TruncateFront(size)    => { while self.len() > size { let _ = self.pop_front(); }; None },
-            Action::Clear                  => { self.clear(); None },
-            Action::Extend(elems)          => { self.extend(elems); None },
-            Action::ExtendFromSlice(elems) => { self.extend(elems); None },
+            Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; Result::None },
+            Action::FrontMut(elem)         => { *self.front_mut().unwrap() = elem; Result::None },
+            Action::GetMut(index, elem)    => { *self.get_mut(index).unwrap() = elem; Result::None },
+            Action::PushBack(elem)         => { self.push_back(elem); Result::None },
+            Action::PushFront(elem)        => { self.push_front(elem); Result::None },
+            Action::PopBack                => self.pop_back().into(),
+            Action::PopFront               => self.pop_front().into(),
+            Action::Remove(index)          => self.remove(index).into(),
+            Action::Swap(x, y)             => { self.swap(x, y); Result::None },
+            Action::SwapRemoveBack(index)  => { self.swap_remove_back(index); Result::None },
+            Action::SwapRemoveFront(index) => { self.swap_remove_front(index); Result::None },
+            Action::TruncateBack(size)     => {
+                while self.len() > size { let _ = self.pop_back(); };
+                Result::None
+            },
+            Action::TruncateFront(size)    => {
+                while self.len() > size { let _ = self.pop_front(); };
+                Result::None
+            },
+            Action::Clear                  => { self.clear(); Result::None },
+            Action::Extend(elems)          => { self.extend(elems); Result::None },
+            Action::ExtendFromSlice(elems) => { self.extend(elems); Result::None },
+            Action::RangeMut(range, elems) => {
+                self.range_mut(range)
+                    .zip(elems)
+                    .map(|(elem, replacement)| *elem = replacement)
+                    .count();
+                Result::None
+            },
+            Action::Drain(range)           => { self.drain(range).collect() },
         }
     }
 }
 
 impl<T> Perform<T> for Reference<T> {
-    fn perform(&mut self, action: Action<T>) -> Option<T> {
+    fn perform(&mut self, action: Action<T>) -> Result<T> {
         let trim_direction = match action {
             Action::PushBack(_)        => Some(Direction::Front),
             Action::PushFront(_)       => Some(Direction::Back),
