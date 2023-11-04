@@ -3,7 +3,6 @@ use core::iter::FusedIterator;
 use core::ops::Bound;
 use core::ops::RangeBounds;
 use crate::CircularBuffer;
-use crate::unstable_const_fn;
 
 /// An owning [iterator](std::iter::Iterator) over the elements of a [`CircularBuffer`].
 ///
@@ -198,11 +197,9 @@ impl<'a, T> Iter<'a, T> {
         Self { right: &[], left: &[] }
     }
 
-    unstable_const_fn! {
-        pub(crate) const fn new<{const N: usize}>(buf: &'a CircularBuffer<N, T>) -> Self {
-            let (right, left) = buf.as_slices();
-            Self { right, left }
-        }
+    pub(crate) fn new<const N: usize>(buf: &'a CircularBuffer<N, T>) -> Self {
+        let (right, left) = buf.as_slices();
+        Self { right, left }
     }
 
     pub(crate) fn over_range<const N: usize, R>(buf: &'a CircularBuffer<N, T>, range: R) -> Self
@@ -318,17 +315,13 @@ pub struct IterMut<'a, T> {
 }
 
 impl<'a, T> IterMut<'a, T> {
-    unstable_const_fn! {
-        pub(crate) const fn empty() -> Self {
-            Self { right: &mut [], left: &mut [] }
-        }
+    pub(crate) fn empty() -> Self {
+        Self { right: &mut [], left: &mut [] }
     }
 
-    unstable_const_fn! {
-        pub(crate) const fn new<{const N: usize}>(buf: &'a mut CircularBuffer<N, T>) -> Self {
-            let (right, left) = buf.as_mut_slices();
-            Self { right, left }
-        }
+    pub(crate) fn new<const N: usize>(buf: &'a mut CircularBuffer<N, T>) -> Self {
+        let (right, left) = buf.as_mut_slices();
+        Self { right, left }
     }
 
     pub(crate) fn over_range<const N: usize, R>(buf: &'a mut CircularBuffer<N, T>, range: R) -> Self
