@@ -837,8 +837,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     #[inline]
     fn inc_size(&mut self) {
         debug_assert!(self.size <= N, "size out-of-bounds");
+        debug_assert!(self.size < N, "size at capacity limit");
         self.size += 1;
-        debug_assert!(self.size <= N, "size exceeding capacity");
     }
 
     #[inline]
@@ -855,7 +855,9 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
         debug_assert!(self.start < N, "start out-of-bounds");
         debug_assert!(self.size <= N, "size out-of-bounds");
+        debug_assert!(range.start < self.size, "start of range out-of-bounds");
         debug_assert!(range.end <= self.size, "end of range out-of-bounds");
+        debug_assert!(range.start < range.end, "start of range is past its end");
         debug_assert!(range.start == 0 || range.end == self.size,
                       "range does not include boundary of the buffer");
 
