@@ -1,3 +1,5 @@
+#![allow(clippy::extra_unused_lifetimes)]
+
 /// Tests to verify that certain types offered by the crate are [covariant].
 ///
 /// [covariant]: https://doc.rust-lang.org/nomicon/subtyping.html
