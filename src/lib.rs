@@ -231,6 +231,22 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
     add_mod(x, m - y, m)
 }
 
+#[inline]
+const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
+    #[cfg(feature = "unstable")]
+    { MaybeUninit::slice_assume_init_ref(slice) }
+    #[cfg(not(feature = "unstable"))]
+    { &*(slice as *const [MaybeUninit<T>] as *const [T]) }
+}
+
+#[inline]
+unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
+    #[cfg(feature = "unstable")]
+    { MaybeUninit::slice_assume_init_mut(slice) }
+    #[cfg(not(feature = "unstable"))]
+    { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
+}
+
 /// A fixed-size circular buffer.
 ///
 /// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
@@ -633,24 +649,16 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         let start = self.start;
         let end = add_mod(self.start, self.size, N);
 
-        let (left, right) = if start < end {
+        let (front, back) = if start < end {
             (&self.items[start..end], &[][..])
         } else {
-            let (right, left) = self.items.split_at(end);
-            let left = &left[start - end..];
-            (left, right)
+            let (back, front) = self.items.split_at(start);
+            (front, &back[..end])
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        #[cfg(feature = "unstable")]
         unsafe {
-            (MaybeUninit::slice_assume_init_ref(left),
-             MaybeUninit::slice_assume_init_ref(right))
-        }
-        #[cfg(not(feature = "unstable"))]
-        unsafe {
-            (&*(left as *const [MaybeUninit<T>] as *const [T]),
-             &*(right as *const [MaybeUninit<T>] as *const [T]))
+            (slice_assume_init_ref(front), slice_assume_init_ref(back))
         }
     }
 
@@ -695,24 +703,16 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         let start = self.start;
         let end = add_mod(self.start, self.size, N);
 
-        let (left, right) = if start < end {
+        let (front, back) = if start < end {
             (&mut self.items[start..end], &mut [][..])
         } else {
-            let (right, left) = self.items.split_at_mut(end);
-            let left = &mut left[start - end..];
-            (left, right)
+            let (back, front) = self.items.split_at_mut(start);
+            (front, &mut back[..end])
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        #[cfg(feature = "unstable")]
         unsafe {
-            (MaybeUninit::slice_assume_init_mut(left),
-             MaybeUninit::slice_assume_init_mut(right))
-        }
-        #[cfg(not(feature = "unstable"))]
-        unsafe {
-            (&mut *(left as *mut [MaybeUninit<T>] as *mut [T]),
-             &mut *(right as *mut [MaybeUninit<T>] as *mut [T]))
+            (slice_assume_init_mut(front), slice_assume_init_mut(back))
         }
     }
 
@@ -835,10 +835,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             fn drop(&mut self) {
                 // SAFETY: the caller of `drop_range` is responsible to check that this slice was
                 // initialized.
-                #[cfg(feature = "unstable")]
-                unsafe { ptr::drop_in_place(MaybeUninit::slice_assume_init_mut(self.0)); }
-                #[cfg(not(feature = "unstable"))]
-                unsafe { ptr::drop_in_place(self.0 as *mut [MaybeUninit<T>] as *mut [T]); }
+                unsafe { ptr::drop_in_place(slice_assume_init_mut(self.0)); }
             }
         }
 
