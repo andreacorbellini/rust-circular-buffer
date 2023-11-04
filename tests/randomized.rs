@@ -40,6 +40,7 @@ enum Action<T> {
     ExtendFromSlice(Vec<T>),
     RangeMut(RangeInclusive<usize>, Vec<T>),
     Drain(RangeInclusive<usize>),
+    MakeContiguous,
 }
 
 impl<T> Distribution<Action<T>> for Standard
@@ -93,7 +94,7 @@ impl<T> Distribution<Action<T>> for Uniform<usize>
             low..=high
         }
 
-        let action_num: u8 = rng.gen_range(0..=17);
+        let action_num: u8 = rng.gen_range(0..=18);
 
         match action_num {
             0  => Action::BackMut(rng.gen()),
@@ -114,6 +115,7 @@ impl<T> Distribution<Action<T>> for Uniform<usize>
             15 => Action::ExtendFromSlice(random_vec(rng)),
             16 => Action::RangeMut(random_range(self, rng), random_vec(rng)),
             17 => Action::Drain(random_range(self, rng)),
+            18 => Action::MakeContiguous,
             _ => unreachable!(),
         }
     }
@@ -231,11 +233,14 @@ impl<const N: usize, T> Perform<T> for CircularBuffer<N, T>
                 Result::None
             },
             Action::Drain(range)           => { self.drain(range).collect() },
+            Action::MakeContiguous         => { self.make_contiguous().iter().cloned().collect() },
         }
     }
 }
 
-impl<T> Perform<T> for VecDeque<T> {
+impl<T> Perform<T> for VecDeque<T> 
+    where T: Clone
+{
     fn perform(&mut self, action: Action<T>) -> Result<T> {
         match action {
             Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; Result::None },
@@ -268,11 +273,14 @@ impl<T> Perform<T> for VecDeque<T> {
                 Result::None
             },
             Action::Drain(range)           => { self.drain(range).collect() },
+            Action::MakeContiguous         => { self.make_contiguous().iter().cloned().collect() },
         }
     }
 }
 
-impl<T> Perform<T> for Reference<T> {
+impl<T> Perform<T> for Reference<T> 
+    where T: Clone
+{
     fn perform(&mut self, action: Action<T>) -> Result<T> {
         let trim_direction = match action {
             Action::PushBack(_)        => Some(Direction::Front),

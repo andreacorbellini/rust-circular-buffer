@@ -613,6 +613,77 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         Drain::over_range(self, range)
     }
 
+    /// Rearranges the internal memory of the buffer so that all elements are in a contiguous
+    /// slice, which is then returned.
+    ///
+    /// This method does not allocate and does not change the order of the inserted elements.
+    /// Because it returns a mutable slice, any [slice methods](slice) may be called on the
+    /// elements of the buffer, such as sorting methods.
+    ///
+    /// Once the internal storage is contiguous, the [`as_slices()`](CircularBuffer::as_slices) and
+    /// [`as_mut_slices()`](CircularBuffer::as_mut_slices) methods will return the entire contents
+    /// of the deque in a single slice. Adding new elements to the buffer may make the buffer
+    /// disjoint (not contiguous).
+    ///
+    /// # Complexity
+    ///
+    /// If the buffer is disjoint (not contiguous), this method takes *O*(*N*) time, where *N* is
+    /// the capacity of the buffer.
+    ///
+    /// If the buffer is already contiguous, this method takes *O*(1) time.
+    ///
+    /// This means that this method may be called multiple times on the same buffer without a
+    /// performance penalty (provided that no new elements are added to the buffer in between
+    /// calls).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// // Create a new buffer, adding more elements than its capacity
+    /// let mut buf = CircularBuffer::<4, u32>::from_iter([1, 4, 3, 0, 2, 5]);
+    /// assert_eq!(buf, [3, 0, 2, 5]);
+    ///
+    /// // The buffer is disjoint: as_slices() returns two non-empty slices
+    /// assert_eq!(buf.as_slices(), (&[3, 0][..], &[2, 5][..]));
+    ///
+    /// // Make the buffer contiguous
+    /// assert_eq!(buf.make_contiguous(), &mut [3, 0, 2, 5]);
+    /// // as_slices() now returns a single non-empty slice
+    /// assert_eq!(buf.as_slices(), (&[3, 0, 2, 5][..], &[][..]));
+    /// // The buffer order of the elements in the buffer did not get modified
+    /// assert_eq!(buf, [3, 0, 2, 5]);
+    ///
+    /// // Make the buffer contiguous and sort its elements
+    /// buf.make_contiguous().sort();
+    /// assert_eq!(buf, [0, 2, 3, 5]);
+    /// ```
+    pub fn make_contiguous(&mut self) -> &mut [T] {
+        if N == 0 || self.size == 0 {
+            return &mut []
+        }
+
+        debug_assert!(self.start < N, "start out-of-bounds");
+        debug_assert!(self.size <= N, "size out-of-bounds");
+
+        let start = self.start;
+        let end = add_mod(self.start, self.size, N);
+
+        let slice = if start < end {
+            // Already contiguous; nothing to do
+            &mut self.items[start..end]
+        } else {
+            // Not contiguous; need to rotate
+            self.start = 0;
+            self.items.rotate_left(start);
+            &mut self.items[..self.size]
+        };
+
+        // SAFETY: The elements in the slice are guaranteed to be initialized
+        unsafe { slice_assume_init_mut(slice) }
+    }
+
     /// Returns a pair of slices which contain the elements of this buffer.
     ///
     /// The second slice may be empty if the internal buffer is contiguous.

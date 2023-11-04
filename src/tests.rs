@@ -46,6 +46,15 @@ macro_rules! assert_buf_eq {
     };
 }
 
+macro_rules! assert_buf_slices_eq {
+    ( $buf:ident , [ $( $front_elems:tt )* ] , [ $( $back_elems:tt )* ] ) => {
+        let mut expected_front = [ $($front_elems)* ];
+        let mut expected_back = [ $($back_elems)* ];
+        assert_eq!($buf.as_slices(), (&expected_front[..], &expected_back[..]));
+        assert_eq!($buf.as_mut_slices(), (&mut expected_front[..], &mut expected_back[..]));
+    }
+}
+
 #[test]
 fn attrs() {
     let mut buf = CircularBuffer::<4, u32>::new();
@@ -1435,6 +1444,52 @@ fn extend_from_slice_unwind_safety() {
     assert!(!tracker().is_tracked("clone of c"));
     assert!(!tracker().is_tracked("clone of d"));
 }
+
+#[test]
+fn make_contiguous_full() {
+    let mut buf: CircularBuffer<4, u32> = [1, 2, 3, 4].into_iter().collect();
+    assert_buf_slices_eq!(buf, [1, 2, 3, 4], []);
+
+    assert_eq!(buf.make_contiguous(), &mut [1, 2, 3, 4]);
+    assert_buf_slices_eq!(buf, [1, 2, 3, 4], []);
+    assert_buf_eq!(buf, [1, 2, 3, 4]);
+
+    buf.push_back(5);
+    assert_buf_slices_eq!(buf, [2, 3, 4], [5]);
+    assert_eq!(buf.make_contiguous(), &mut [2, 3, 4, 5]);
+    assert_buf_slices_eq!(buf, [2, 3, 4, 5], []);
+    assert_buf_eq!(buf, [2, 3, 4, 5]);
+
+    buf.extend([6, 7]);
+    assert_buf_slices_eq!(buf, [4, 5], [6, 7]);
+    assert_eq!(buf.make_contiguous(), &mut [4, 5, 6, 7]);
+    assert_buf_slices_eq!(buf, [4, 5, 6, 7], []);
+    assert_buf_eq!(buf, [4, 5, 6, 7]);
+
+    buf.extend([8, 9, 10]);
+    assert_buf_slices_eq!(buf, [7], [8, 9, 10]);
+    assert_eq!(buf.make_contiguous(), &mut [7, 8, 9, 10]);
+    assert_buf_slices_eq!(buf, [7, 8, 9, 10], []);
+    assert_buf_eq!(buf, [7, 8, 9, 10]);
+}
+
+#[test]
+fn make_contiguous_not_full() {
+    let mut buf: CircularBuffer<4, u32> = [1, 2].into_iter().collect();
+    assert_buf_slices_eq!(buf, [1, 2], []);
+
+    assert_eq!(buf.make_contiguous(), &mut [1, 2]);
+    assert_buf_slices_eq!(buf, [1, 2], []);
+    assert_buf_eq!(buf, [1, 2]);
+
+    buf.extend([3, 4, 5]);
+    buf.truncate_front(2);
+    assert_buf_slices_eq!(buf, [4], [5]);
+    assert_eq!(buf.make_contiguous(), &mut [4, 5]);
+    assert_buf_slices_eq!(buf, [4, 5], []);
+    assert_buf_eq!(buf, [4, 5]);
+}
+
 
 #[test]
 fn clone() {
