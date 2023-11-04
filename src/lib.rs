@@ -105,6 +105,7 @@
 //! | [`remove(i)`](CircularBuffer::remove)                                                                                                                  | *O*(*n* − *i*)                                                     |
 //! | [`truncate_back(i)`](CircularBuffer::truncate_back), [`truncate_front(i)`](CircularBuffer::truncate_front)                                             | *O*(*n* − *i*) for types that implement [`Drop`], *O*(1) otherwise |
 //! | [`clear()`](CircularBuffer::clear)                                                                                                                     | *O*(*n*) for types that implement [`Drop`], *O*(1) otherwise       |
+//! | [`drain(i..j)`](CircularBuffer::drain)                                                                                                                 | *O*(*n* − *j*)                                                           |
 //! | [`front()`](CircularBuffer::front), [`back()`](CircularBuffer::back), [`get()`](CircularBuffer::get)                                                   | *O*(1)                                                             |
 //! | [`swap()`](CircularBuffer::swap), [`swap_remove_front()`](CircularBuffer::swap_remove_front), [`swap_remove_back()`](CircularBuffer::swap_remove_back) | *O*(1)                                                             |
 //! | [`as_slices()`](CircularBuffer::as_slices), [`as_mut_slices()`](CircularBuffer::as_mut_slices)                                                         | *O*(1)                                                             |
@@ -170,6 +171,7 @@
 #![warn(unreachable_pub)]
 #![warn(unused_qualifications)]
 
+mod drain;
 mod iter;
 
 #[cfg(feature = "use_std")]
@@ -188,6 +190,7 @@ use core::ops::Range;
 use core::ops::RangeBounds;
 use core::ptr;
 
+pub use crate::drain::Drain;
 pub use crate::iter::IntoIter;
 pub use crate::iter::Iter;
 pub use crate::iter::IterMut;
@@ -577,11 +580,53 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         IterMut::over_range(self, range)
     }
 
-    // TODO #[inline]
-    // TODO #[must_use]
-    // TODO pub const fn drain(&mut self) -> Drain<'_, N, T> {
-    // TODO     todo!()
-    // TODO }
+    /// Removes the specified range from the buffer in bulk, returning the removed elements as an
+    /// iterator. If the iterator is dropped before being fully consumed, it drops the remaining
+    /// removed elements.
+    ///
+    /// # Panics
+    ///
+    /// If the start of the range is greater than the end, or if the end is greater than the length
+    /// of the buffer.
+    ///
+    /// # Leaking
+    ///
+    /// If the returned iterator goes out of scope without being dropped (for example, due to
+    /// calling [`mem::forget()`] on it), the buffer may have lost and leaked arbitrary elements,
+    /// including elements outside of the range.
+    ///
+    /// The current implementation leaks all the elements of the buffer if the iterator is leaked,
+    /// but this behavior may change in the future.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<6, char>::from_iter("abcdef".chars());
+    /// let drained = buf.drain(3..).collect::<Vec<char>>();
+    ///
+    /// assert_eq!(drained, ['d', 'e', 'f']);
+    /// assert_eq!(buf, ['a', 'b', 'c']);
+    /// ```
+    ///
+    /// Not consuming the draining iterator still removes the range of elements:
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<6, char>::from_iter("abcdef".chars());
+    /// let _ = buf.drain(3..);
+    ///
+    /// assert_eq!(buf, ['a', 'b', 'c']);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, N, T>
+        where R: RangeBounds<usize>
+    {
+        Drain::over_range(self, range)
+    }
 
     unstable_const_fn! {
         /// Returns a pair of slices which contain the elements of this buffer.

@@ -59,7 +59,7 @@ impl<const N: usize, T> fmt::Debug for IntoIter<N, T>
     }
 }
 
-fn translate_range_bounds<const N: usize, T, R>(buf: &CircularBuffer<N, T>, range: R) -> (usize, usize)
+pub(crate) fn translate_range_bounds<const N: usize, T, R>(buf: &CircularBuffer<N, T>, range: R) -> (usize, usize)
     where R: RangeBounds<usize>
 {
     let start = match range.start_bound() {
@@ -189,8 +189,8 @@ fn slice_take_last_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
 /// This struct is created by [`CircularBuffer::iter()`] and [`CircularBuffer::range()`]. See
 /// their documentation for more details.
 pub struct Iter<'a, T> {
-    right: &'a [T],
-    left: &'a [T],
+    pub(crate) right: &'a [T],
+    pub(crate) left: &'a [T],
 }
 
 impl<'a, T> Iter<'a, T> {
