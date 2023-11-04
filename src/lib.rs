@@ -873,7 +873,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
                 #[cfg(feature = "unstable")]
                 unsafe { ptr::drop_in_place(MaybeUninit::slice_assume_init_mut(self.0)); }
                 #[cfg(not(feature = "unstable"))]
-                unsafe { ptr::drop_in_place(&mut *(self.0 as *mut [MaybeUninit<T>] as *mut [T])); }
+                unsafe { ptr::drop_in_place(self.0 as *mut [MaybeUninit<T>] as *mut [T]); }
             }
         }
 
