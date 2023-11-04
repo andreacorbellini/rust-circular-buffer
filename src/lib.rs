@@ -2,11 +2,8 @@
 //!
 //! The main struct is [`CircularBuffer`]. It can live on the stack and does not require any heap
 //! memory allocation. A `CircularBuffer` is sequence of elements with a maximum capacity: elements
-//! can be added to the buffer, and by default once the maximum capacity is reached, the elements at the start
+//! can be added to the buffer, and once the maximum capacity is reached, the elements at the start
 //! of the buffer are discarded and overwritten.
-//!
-//! Besides the are fallible push methods with `try_` suffix that return `Err(pushed_value)` on capacity
-//! limit.
 //!
 //! [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
 //!
@@ -45,9 +42,7 @@
 //! ## Adding/removing elements
 //!
 //! * [`push_back()`](CircularBuffer::push_back)
-//! * [`try_push_back()`](CircularBuffer::try_push_back)
 //! * [`push_front()`](CircularBuffer::push_front)
-//! * [`try_push_front()`](CircularBuffer::try_push_front)
 //! * [`pop_back()`](CircularBuffer::pop_back)
 //! * [`pop_front()`](CircularBuffer::pop_front)
 //! * [`swap_remove_back()`](CircularBuffer::swap_remove_back)
@@ -64,6 +59,7 @@
 //! * [`into_iter()`](CircularBuffer::into_iter)
 //! * [`iter()`](CircularBuffer::iter), [`iter_mut()`](CircularBuffer::iter_mut)
 //! * [`range()`](CircularBuffer::range), [`range_mut()`](CircularBuffer::range_mut)
+//! * [`drain()`](CircularBuffer::drain)
 //!
 //! ## Writing/reading bytes
 //!
@@ -1027,7 +1023,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the back of the buffer.
     ///
-    /// If the buffer is full, the element at the front of the buffer is automatically dropped.
+    /// If the buffer is full, the element at the front of the buffer is automatically dropped and
+    /// overwritten.
+    ///
+    /// See also [`try_push_back()`](CircularBuffer::try_push_back) for a non-overwriting version
+    /// of this method.
     ///
     /// # Examples
     ///
@@ -1065,9 +1065,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the back of the buffer.
     ///
-    /// # Errors
+    /// If the buffer is full, the buffer is not modified and the given element is returned as an
+    /// error.
     ///
-    /// If the buffer is full, the method will return the pushed value as an error.
+    /// See also [`push_back()`](CircularBuffer::push_back) for a version of this method that
+    /// overwrites the front of the buffer when full.
     ///
     /// # Examples
     ///
@@ -1076,11 +1078,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// buf.try_push_back('a'); assert_eq!(buf, ['a']);
-    /// buf.try_push_back('b'); assert_eq!(buf, ['a', 'b']);
-    /// buf.try_push_back('c'); assert_eq!(buf, ['a', 'b', 'c']);
-    /// // The buffer is now full; adding more values causes error
-    /// assert_eq!(buf.try_push_back('d').unwrap_err(), 'd')
+    /// assert_eq!(buf.try_push_back('a'), Ok(())); assert_eq!(buf, ['a']);
+    /// assert_eq!(buf.try_push_back('b'), Ok(())); assert_eq!(buf, ['a', 'b']);
+    /// assert_eq!(buf.try_push_back('c'), Ok(())); assert_eq!(buf, ['a', 'b', 'c']);
+    /// // The buffer is now full; adding more values results in an error
+    /// assert_eq!(buf.try_push_back('d'), Err('d'))
     /// ```
     pub fn try_push_back(&mut self, item: T) -> Result<(), T> {
         if N == 0 {
@@ -1100,7 +1102,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the front of the buffer.
     ///
-    /// If the buffer is full, the element at the back of the buffer is automatically dropped.
+    /// If the buffer is full, the element at the back of the buffer is automatically dropped and
+    /// overwritten.
+    ///
+    /// See also [`try_push_front()`](CircularBuffer::try_push_front) for a non-overwriting version
+    /// of this method.
     ///
     /// # Examples
     ///
@@ -1139,9 +1145,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 
     /// Appends an element to the front of the buffer.
     ///
-    /// # Errors
+    /// If the buffer is full, the buffer is not modified and the given element is returned as an
+    /// error.
     ///
-    /// If the buffer is full, the method will return the pushed item as an error.
+    /// See also [`push_front()`](CircularBuffer::push_front) for a version of this method that
+    /// overwrites the back of the buffer when full.
     ///
     /// # Examples
     ///
@@ -1150,11 +1158,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// buf.try_push_front('a'); assert_eq!(buf, ['a']);
-    /// buf.try_push_front('b'); assert_eq!(buf, ['b', 'a']);
-    /// buf.try_push_front('c'); assert_eq!(buf, ['c', 'b', 'a']);
-    /// // The buffer is now full; adding more values causes error
-    /// assert_eq!(buf.try_push_front('d').unwrap_err(), 'd');
+    /// assert_eq!(buf.try_push_front('a'), Ok(())); assert_eq!(buf, ['a']);
+    /// assert_eq!(buf.try_push_front('b'), Ok(())); assert_eq!(buf, ['b', 'a']);
+    /// assert_eq!(buf.try_push_front('c'), Ok(())); assert_eq!(buf, ['c', 'b', 'a']);
+    /// // The buffer is now full; adding more values results in an error
+    /// assert_eq!(buf.try_push_front('d'), Err('d'));
     /// ```
     pub fn try_push_front(&mut self, item: T) -> Result<(), T> {
         if N == 0 {
