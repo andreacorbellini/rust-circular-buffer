@@ -1,5 +1,14 @@
 # Changelog
 
+## circular-buffer 0.1.5
+
+* Added `try_push_back()` and `try_push_front()` as non-overwriting
+  alternatives to `push_back()` and `push_front()` ([contributed by Rinat
+  Shigapov](https://github.com/andreacorbellini/rust-circular-buffer/pull/5)).
+* Added `drain()` to remove ranges of elements.
+* Added `make_contiguous()` to return a contiguous mutable slice of elements.
+* `Iter` and `IterMut` now implement the `Default` trait.
+
 ## circular-buffer 0.1.4
 
 * Fixed a bug in `range()` and `range_mut()` that made them return more
