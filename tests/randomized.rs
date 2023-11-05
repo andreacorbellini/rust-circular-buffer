@@ -238,7 +238,7 @@ impl<const N: usize, T> Perform<T> for CircularBuffer<N, T>
     }
 }
 
-impl<T> Perform<T> for VecDeque<T> 
+impl<T> Perform<T> for VecDeque<T>
     where T: Clone
 {
     fn perform(&mut self, action: Action<T>) -> Result<T> {
@@ -278,7 +278,7 @@ impl<T> Perform<T> for VecDeque<T>
     }
 }
 
-impl<T> Perform<T> for Reference<T> 
+impl<T> Perform<T> for Reference<T>
     where T: Clone
 {
     fn perform(&mut self, action: Action<T>) -> Result<T> {
