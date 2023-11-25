@@ -1336,6 +1336,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         // SAFETY: the pointers being moved are in a valid range; the elements behind those
         // pointers are guaranteed to be initialized
         unsafe {
+            // TODO: optimize for the case where `index < len - index` (i.e. when copying items to
+            // the right is cheaper than moving items to the left)
             let ptr = self.items.as_mut_ptr();
             if back_index >= index {
                 // Move the values at the right of `index` by 1 position to the left
