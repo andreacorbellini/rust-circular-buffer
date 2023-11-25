@@ -1779,7 +1779,7 @@ impl<const N: usize, const M: usize, T, U> PartialEq<CircularBuffer<M, U>> for C
             Ordering::Greater => {
                 let x = b_left.len();
                 let y = a_left.len() - x;
-                a_left[..x] == b_left[..] && a_right[x..] == b_left[..y] && a_right[..] == b_right[y..]
+                a_left[..x] == b_left[..] && a_left[x..] == b_right[..y] && a_right[..] == b_right[y..]
             },
             Ordering::Equal => {
                 debug_assert_eq!(a_left.len(), b_left.len());

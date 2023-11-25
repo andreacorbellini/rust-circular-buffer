@@ -1235,6 +1235,66 @@ fn drain_empty() {
 }
 
 #[test]
+fn eq_contiguous() {
+    let mut buf1 = CircularBuffer::<5, _>::from_iter([1, 2, 3]);
+    let mut buf2 = CircularBuffer::<5, _>::from_iter([1, 2, 3]);
+    assert!(is_contiguous(&buf1));
+    assert!(is_contiguous(&buf2));
+    assert_eq!(buf1, buf2);
+
+    buf1.push_back(4);
+    assert!(is_contiguous(&buf1));
+    assert!(is_contiguous(&buf2));
+    assert_ne!(buf1, buf2);
+
+    buf2.push_back(4);
+    assert!(is_contiguous(&buf1));
+    assert!(is_contiguous(&buf2));
+    assert_eq!(buf1, buf2);
+}
+
+#[test]
+fn eq_disjoint() {
+    let mut buf1 = CircularBuffer::<5, _>::from_iter([1, 2, 3, 4, 5]);
+    let mut buf2 = CircularBuffer::<5, _>::from_iter([0, 1, 2, 3, 4]);
+
+    buf1.push_back(6);
+    buf2.push_back(5);
+    assert!(!is_contiguous(&buf1));
+    assert!(!is_contiguous(&buf2));
+    assert_ne!(buf1, buf2);
+
+    buf2.push_back(6);
+    assert!(!is_contiguous(&buf1));
+    assert!(!is_contiguous(&buf2));
+    assert_eq!(buf1, buf2);
+
+    buf1.push_back(7);
+    buf2.push_back(7);
+    assert!(!is_contiguous(&buf1));
+    assert!(!is_contiguous(&buf2));
+    assert_eq!(buf1, buf2);
+
+    buf1.push_back(8);
+    buf2.push_back(8);
+    assert!(!is_contiguous(&buf1));
+    assert!(!is_contiguous(&buf2));
+    assert_eq!(buf1, buf2);
+
+    buf1.push_back(9);
+    buf2.push_back(9);
+    assert!(!is_contiguous(&buf1));
+    assert!(is_contiguous(&buf2));
+    assert_eq!(buf1, buf2);
+
+    buf1.push_back(10);
+    buf2.push_back(10);
+    assert!(is_contiguous(&buf1));
+    assert!(!is_contiguous(&buf2));
+    assert_eq!(buf1, buf2);
+}
+
+#[test]
 fn write() {
     let mut buf = CircularBuffer::<4, u8>::new();
     assert_buf_eq!(buf, [] as [u8; 0]);
