@@ -1,5 +1,10 @@
 # Changelog
 
+## circular-buffer 0.1.6
+
+* Fixed a bug in bug in bug in the `PartialEq` implementation that would lead
+  to a panic in some circumstances.
+
 ## circular-buffer 0.1.5
 
 * Added `try_push_back()` and `try_push_front()` as non-overwriting
