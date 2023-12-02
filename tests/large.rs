@@ -1,4 +1,4 @@
-use circular_buffer::CircularBuffer;
+use circular_buffer::{CircularBuffer, heap::HeapCircularBuffer};
 
 #[cfg(not(miri))]
 const SIZE: usize = 2 * 1024 * 1024; // 2 MiB
@@ -10,6 +10,43 @@ const SIZE: usize = 2 * 1024; // 2 KiB
 fn large_boxed() {
     let chunk = b"abcdefghijklmnopqrstuvxyz0123456789";
     let mut buf = CircularBuffer::<SIZE, u8>::boxed();
+    let mut vec = Vec::new();
+
+    assert_ne!(SIZE % chunk.len(), 0);
+
+    assert_eq!(buf.len(), 0);
+    assert!(buf.is_empty());
+    assert!(!buf.is_full());
+    assert_eq!(buf.as_slices().0, &[][..]);
+    assert_eq!(buf.as_slices().1, &[][..]);
+
+    for _ in 0..(SIZE / chunk.len()) {
+        buf.extend_from_slice(&chunk[..]);
+        vec.extend_from_slice(&chunk[..]);
+
+        assert_eq!(buf.len(), vec.len());
+        assert!(!buf.is_empty());
+        assert!(!buf.is_full());
+        assert_eq!(buf.as_slices().0, &vec[..]);
+        assert_eq!(buf.as_slices().1, &[][..]);
+    }
+
+    for _ in 0..(SIZE / chunk.len()) {
+        buf.extend_from_slice(&chunk[..]);
+        vec.extend_from_slice(&chunk[..]);
+
+        assert_eq!(buf.len(), SIZE);
+        assert!(!buf.is_empty());
+        assert!(buf.is_full());
+        assert_eq!(buf.as_slices().0, &vec[vec.len() - SIZE..SIZE]);
+        assert_eq!(buf.as_slices().1, &vec[SIZE..]);
+    }
+}
+
+#[test]
+fn large_heap() {
+    let chunk = b"abcdefghijklmnopqrstuvxyz0123456789";
+    let mut buf = HeapCircularBuffer::<u8>::with_capacity(SIZE);
     let mut vec = Vec::new();
 
     assert_ne!(SIZE % chunk.len(), 0);

@@ -164,6 +164,7 @@
 
 mod drain;
 mod iter;
+mod backend;
 
 #[cfg(feature = "use_std")]
 mod io;
@@ -171,15 +172,18 @@ mod io;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "use_std")]
+pub mod heap;
+
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::Hash;
-use core::hash::Hasher;
 use core::mem::MaybeUninit;
 use core::mem;
-use core::ops::Range;
 use core::ops::RangeBounds;
 use core::ptr;
+use backend::Backend;
+
 
 pub use crate::drain::Drain;
 pub use crate::iter::IntoIter;
@@ -207,6 +211,7 @@ macro_rules! unstable_const_impl {
         impl $(<$($generics)*>)? $trait for $type { $($tt)* }
     }
 }
+pub(crate) use unstable_const_impl;
 
 /// Returns `(x + y) % m` without risk of overflows if `x + y` cannot fit in `usize`.
 ///
@@ -253,10 +258,10 @@ unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
 /// using [`CircularBuffer::boxed()`] if you need the struct to be heap-allocated.
 ///
 /// See the [module-level documentation](self) for more details and examples.
+#[derive(Ord, Eq, Hash)]
+#[repr(transparent)]
 pub struct CircularBuffer<const N: usize, T> {
-    size: usize,
-    start: usize,
-    items: [MaybeUninit<T>; N],
+    backend: Backend<T, [MaybeUninit<T>; N]>,
 }
 
 impl<const N: usize, T> CircularBuffer<N, T> {
@@ -283,9 +288,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         #[cfg(not(feature = "unstable"))]
         {
             Self {
-                size: 0,
-                start: 0,
-                items: unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() },
+                backend: Backend {
+                    size: 0,
+                    start: 0,
+                    items: unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() },
+                },
             }
         }
     }
@@ -337,30 +344,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         unsafe {
             let layout = std::alloc::Layout::new::<Self>();
             let ptr = std::alloc::alloc(layout) as *mut Self;
-            std::ptr::addr_of_mut!((*ptr).size).write(0);
-            std::ptr::addr_of_mut!((*ptr).start).write(0);
+            std::ptr::addr_of_mut!((*ptr).backend.size).write(0);
+            std::ptr::addr_of_mut!((*ptr).backend.start).write(0);
             Box::from_raw(ptr)
         }
-    }
-
-    /// Returns the number of elements in the buffer.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<16, u32>::new();
-    /// assert_eq!(buf.len(), 0);
-    ///
-    /// buf.push_back(1);
-    /// buf.push_back(2);
-    /// buf.push_back(3);
-    /// assert_eq!(buf.len(), 3);
-    /// ```
-    #[inline]
-    pub const fn len(&self) -> usize {
-        self.size
     }
 
     /// Returns the capacity of the buffer.
@@ -379,190 +366,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     #[inline]
     pub const fn capacity(&self) -> usize {
         N
-    }
-
-
-    /// Returns `true` if the buffer contains 0 elements.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<16, u32>::new();
-    /// assert!(buf.is_empty());
-    ///
-    /// buf.push_back(1);
-    /// assert!(!buf.is_empty());
-    /// ```
-    #[inline]
-    pub const fn is_empty(&self) -> bool {
-        self.size == 0
-    }
-
-    /// Returns `true` if the number of elements in the buffer matches the buffer capacity.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<5, u32>::new();
-    /// assert!(!buf.is_full());
-    ///
-    /// buf.push_back(1);
-    /// assert!(!buf.is_full());
-    ///
-    /// buf.push_back(2);
-    /// buf.push_back(3);
-    /// buf.push_back(4);
-    /// buf.push_back(5);
-    /// assert!(buf.is_full());
-    /// ```
-    #[inline]
-    pub const fn is_full(&self) -> bool {
-        self.size == N
-    }
-
-    /// Returns an iterator over the elements of the buffer.
-    ///
-    /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from
-    /// back to front.
-    ///
-    /// # Examples
-    ///
-    /// Iterate from front to back:
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
-    /// let mut it = buf.iter();
-    ///
-    /// assert_eq!(it.next(), Some(&'a'));
-    /// assert_eq!(it.next(), Some(&'b'));
-    /// assert_eq!(it.next(), Some(&'c'));
-    /// assert_eq!(it.next(), None);
-    /// ```
-    ///
-    /// Iterate from back to front:
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
-    /// let mut it = buf.iter().rev();
-    ///
-    /// assert_eq!(it.next(), Some(&'c'));
-    /// assert_eq!(it.next(), Some(&'b'));
-    /// assert_eq!(it.next(), Some(&'a'));
-    /// assert_eq!(it.next(), None);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn iter(&self) -> Iter<'_, T> {
-        Iter::new(self)
-    }
-
-    /// Returns an iterator over the elements of the buffer that allows modifying each value.
-    ///
-    /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
-    /// front.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<5, u32>::from([1, 2, 3]);
-    /// for elem in buf.iter_mut() {
-    ///     *elem += 5;
-    /// }
-    /// assert_eq!(buf, [6, 7, 8]);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        IterMut::new(self)
-    }
-
-    /// Returns an iterator over the specified range of elements of the buffer.
-    ///
-    /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
-    /// front.
-    ///
-    /// # Panics
-    ///
-    /// If the start of the range is greater than the end, or if the end is greater than the length
-    /// of the buffer.
-    ///
-    /// # Examples
-    ///
-    /// Iterate from front to back:
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let buf = CircularBuffer::<16, char>::from_iter("abcdefghi".chars());
-    /// let mut it = buf.range(3..6);
-    ///
-    /// assert_eq!(it.next(), Some(&'d'));
-    /// assert_eq!(it.next(), Some(&'e'));
-    /// assert_eq!(it.next(), Some(&'f'));
-    /// assert_eq!(it.next(), None);
-    /// ```
-    ///
-    /// Iterate from back to front:
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let buf = CircularBuffer::<16, char>::from_iter("abcdefghi".chars());
-    /// let mut it = buf.range(3..6).rev();
-    ///
-    /// assert_eq!(it.next(), Some(&'f'));
-    /// assert_eq!(it.next(), Some(&'e'));
-    /// assert_eq!(it.next(), Some(&'d'));
-    /// assert_eq!(it.next(), None);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn range<R>(&self, range: R) -> Iter<'_, T>
-        where R: RangeBounds<usize>
-    {
-        Iter::over_range(self, range)
-    }
-
-    /// Returns an iterator over the specified range of elements of the buffer that allows
-    /// modifying each value.
-    ///
-    /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
-    /// front.
-    ///
-    /// # Panics
-    ///
-    /// If the start of the range is greater than the end, or if the end is greater than the length
-    /// of the buffer.
-    ///
-    /// # Examples
-    ///
-    /// Iterate from front to back:
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<16, i32>::from_iter([1, 2, 3, 4, 5, 6]);
-    /// for elem in buf.range_mut(..3) {
-    ///     *elem *= -1;
-    /// }
-    /// assert_eq!(buf, [-1, -2, -3, 4, 5, 6]);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn range_mut<R>(&mut self, range: R) -> IterMut<'_, T>
-        where R: RangeBounds<usize>
-    {
-        IterMut::over_range(self, range)
     }
 
     /// Removes the specified range from the buffer in bulk, returning the removed elements as an
@@ -607,928 +410,786 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn drain<R>(&mut self, range: R) -> Drain<'_, N, T>
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T, [MaybeUninit<T>; N]>
         where R: RangeBounds<usize>
     {
-        Drain::over_range(self, range)
+        self.backend.drain(range)
     }
 
-    /// Rearranges the internal memory of the buffer so that all elements are in a contiguous
-    /// slice, which is then returned.
-    ///
-    /// This method does not allocate and does not change the order of the inserted elements.
-    /// Because it returns a mutable slice, any [slice methods](slice) may be called on the
-    /// elements of the buffer, such as sorting methods.
-    ///
-    /// Once the internal storage is contiguous, the [`as_slices()`](CircularBuffer::as_slices) and
-    /// [`as_mut_slices()`](CircularBuffer::as_mut_slices) methods will return the entire contents
-    /// of the deque in a single slice. Adding new elements to the buffer may make the buffer
-    /// disjoint (not contiguous).
-    ///
-    /// # Complexity
-    ///
-    /// If the buffer is disjoint (not contiguous), this method takes *O*(*N*) time, where *N* is
-    /// the capacity of the buffer.
-    ///
-    /// If the buffer is already contiguous, this method takes *O*(1) time.
-    ///
-    /// This means that this method may be called multiple times on the same buffer without a
-    /// performance penalty (provided that no new elements are added to the buffer in between
-    /// calls).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// // Create a new buffer, adding more elements than its capacity
-    /// let mut buf = CircularBuffer::<4, u32>::from_iter([1, 4, 3, 0, 2, 5]);
-    /// assert_eq!(buf, [3, 0, 2, 5]);
-    ///
-    /// // The buffer is disjoint: as_slices() returns two non-empty slices
-    /// assert_eq!(buf.as_slices(), (&[3, 0][..], &[2, 5][..]));
-    ///
-    /// // Make the buffer contiguous
-    /// assert_eq!(buf.make_contiguous(), &mut [3, 0, 2, 5]);
-    /// // as_slices() now returns a single non-empty slice
-    /// assert_eq!(buf.as_slices(), (&[3, 0, 2, 5][..], &[][..]));
-    /// // The buffer order of the elements in the buffer did not get modified
-    /// assert_eq!(buf, [3, 0, 2, 5]);
-    ///
-    /// // Make the buffer contiguous and sort its elements
-    /// buf.make_contiguous().sort();
-    /// assert_eq!(buf, [0, 2, 3, 5]);
-    /// ```
-    pub fn make_contiguous(&mut self) -> &mut [T] {
-        if N == 0 || self.size == 0 {
-            return &mut []
+    impl_buffer!();
+}
+
+macro_rules! impl_buffer {
+    () => {
+        /// Returns the number of elements in the buffer.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(16, u32)]
+        /// assert_eq!(buf.len(), 0);
+        ///
+        /// buf.push_back(1);
+        /// buf.push_back(2);
+        /// buf.push_back(3);
+        /// assert_eq!(buf.len(), 3);
+        /// ```
+        #[inline]
+        pub const fn len(&self) -> usize {
+            self.backend.len()
         }
 
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-
-        let start = self.start;
-        let end = add_mod(self.start, self.size, N);
-
-        let slice = if start < end {
-            // Already contiguous; nothing to do
-            &mut self.items[start..end]
-        } else {
-            // Not contiguous; need to rotate
-            self.start = 0;
-            self.items.rotate_left(start);
-            &mut self.items[..self.size]
-        };
-
-        // SAFETY: The elements in the slice are guaranteed to be initialized
-        unsafe { slice_assume_init_mut(slice) }
-    }
-
-    /// Returns a pair of slices which contain the elements of this buffer.
-    ///
-    /// The second slice may be empty if the internal buffer is contiguous.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// buf.push_back('d');
-    ///
-    /// // Buffer is contiguous; second slice is empty
-    /// assert_eq!(buf.as_slices(), (&['a', 'b', 'c', 'd'][..], &[][..]));
-    ///
-    /// buf.push_back('e');
-    /// buf.push_back('f');
-    ///
-    /// // Buffer is disjoint; both slices are non-empty
-    /// assert_eq!(buf.as_slices(), (&['c', 'd'][..], &['e', 'f'][..]));
-    /// ```
-    #[inline]
-    pub fn as_slices(&self) -> (&[T], &[T]) {
-        if N == 0 || self.size == 0 {
-            return (&[], &[]);
+        /// Returns `true` if the buffer contains 0 elements.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(16, u32)]
+        /// assert!(buf.is_empty());
+        ///
+        /// buf.push_back(1);
+        /// assert!(!buf.is_empty());
+        /// ```
+        #[inline]
+        pub const fn is_empty(&self) -> bool {
+            self.backend.is_empty()
         }
 
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-
-        let start = self.start;
-        let end = add_mod(self.start, self.size, N);
-
-        let (front, back) = if start < end {
-            (&self.items[start..end], &[][..])
-        } else {
-            let (back, front) = self.items.split_at(start);
-            (front, &back[..end])
-        };
-
-        // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe {
-            (slice_assume_init_ref(front), slice_assume_init_ref(back))
-        }
-    }
-
-    /// Returns a pair of mutable slices which contain the elements of this buffer.
-    ///
-    /// These slices can be used to modify or replace the elements in the buffer.
-    ///
-    /// The second slice may be empty if the internal buffer is contiguous.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// buf.push_back('d');
-    /// buf.push_back('e');
-    /// buf.push_back('f');
-    ///
-    /// assert_eq!(buf, ['c', 'd', 'e', 'f']);
-    ///
-    /// let (left, right) = buf.as_mut_slices();
-    /// assert_eq!(left, &mut ['c', 'd'][..]);
-    /// assert_eq!(right, &mut ['e', 'f'][..]);
-    ///
-    /// left[0] = 'z';
-    ///
-    /// assert_eq!(buf, ['z', 'd', 'e', 'f']);
-    /// ```
-    #[inline]
-    pub fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        if N == 0 || self.size == 0 {
-            return (&mut [][..], &mut [][..]);
+        /// Returns `true` if the number of elements in the buffer matches the buffer capacity.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(5, u32)]
+        /// assert!(!buf.is_full());
+        ///
+        /// buf.push_back(1);
+        /// assert!(!buf.is_full());
+        ///
+        /// buf.push_back(2);
+        /// buf.push_back(3);
+        /// buf.push_back(4);
+        /// buf.push_back(5);
+        /// assert!(buf.is_full());
+        /// ```
+        #[inline]
+        pub const fn is_full(&self) -> bool {
+            self.len() == self.capacity()
         }
 
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-
-        let start = self.start;
-        let end = add_mod(self.start, self.size, N);
-
-        let (front, back) = if start < end {
-            (&mut self.items[start..end], &mut [][..])
-        } else {
-            let (back, front) = self.items.split_at_mut(start);
-            (front, &mut back[..end])
-        };
-
-        // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe {
-            (slice_assume_init_mut(front), slice_assume_init_mut(back))
-        }
-    }
-
-    #[inline]
-    fn front_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.start < N, "start out-of-bounds");
-        &mut self.items[self.start]
-    }
-
-    #[inline]
-    const fn front_maybe_uninit(&self) -> &MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-        debug_assert!(self.start < N, "start out-of-bounds");
-        &self.items[self.start]
-    }
-
-    #[inline]
-    const fn back_maybe_uninit(&self) -> &MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-        debug_assert!(self.start < N, "start out-of-bounds");
-        let back = add_mod(self.start, self.size - 1, N);
-        &self.items[back]
-    }
-
-    #[inline]
-    fn back_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-        debug_assert!(self.start < N, "start out-of-bounds");
-        let back = add_mod(self.start, self.size - 1, N);
-        &mut self.items[back]
-    }
-
-    #[inline]
-    const fn get_maybe_uninit(&self, index: usize) -> &MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(index < N, "index out-of-bounds");
-        debug_assert!(self.start < N, "start out-of-bounds");
-        let index = add_mod(self.start, index, N);
-        &self.items[index]
-    }
-
-    #[inline]
-    fn get_maybe_uninit_mut(&mut self, index: usize) -> &mut MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(index < N, "index out-of-bounds");
-        debug_assert!(self.start < N, "start out-of-bounds");
-        let index = add_mod(self.start, index, N);
-        &mut self.items[index]
-    }
-
-    #[inline]
-    fn slices_uninit_mut(&mut self) -> (&mut [MaybeUninit<T>], &mut [MaybeUninit<T>]) {
-        if N == 0 {
-            return (&mut [][..], &mut [][..]);
+        /// Returns an iterator over the elements of the buffer.
+        ///
+        /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from
+        /// back to front.
+        ///
+        /// # Examples
+        ///
+        /// Iterate from front to back:
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(5, char)]
+        /// buf.extend("abc".chars());
+        /// let mut it = buf.iter();
+        ///
+        /// assert_eq!(it.next(), Some(&'a'));
+        /// assert_eq!(it.next(), Some(&'b'));
+        /// assert_eq!(it.next(), Some(&'c'));
+        /// assert_eq!(it.next(), None);
+        /// ```
+        ///
+        /// Iterate from back to front:
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(5, char)]
+        /// buf.extend("abc".chars());
+        /// let mut it = buf.iter().rev();
+        ///
+        /// assert_eq!(it.next(), Some(&'c'));
+        /// assert_eq!(it.next(), Some(&'b'));
+        /// assert_eq!(it.next(), Some(&'a'));
+        /// assert_eq!(it.next(), None);
+        /// ```
+        #[inline]
+        #[must_use]
+        pub fn iter(&self) -> Iter<'_, T> {
+            self.backend.iter()
         }
 
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-
-        let start = self.start;
-        let end = add_mod(start, self.size, N);
-        if end < start {
-            (&mut self.items[end..start], &mut [][..])
-        } else {
-            let (left, right) = self.items.split_at_mut(end);
-            let left = &mut left[..start];
-            (right, left)
-        }
-    }
-
-    #[inline]
-    fn inc_start(&mut self) {
-        debug_assert!(self.start < N, "start out-of-bounds");
-        self.start = add_mod(self.start, 1, N);
-    }
-
-    #[inline]
-    fn dec_start(&mut self) {
-        debug_assert!(self.start < N, "start out-of-bounds");
-        self.start = sub_mod(self.start, 1, N);
-    }
-
-    #[inline]
-    fn inc_size(&mut self) {
-        debug_assert!(self.size <= N, "size out-of-bounds");
-        debug_assert!(self.size < N, "size at capacity limit");
-        self.size += 1;
-    }
-
-    #[inline]
-    fn dec_size(&mut self) {
-        debug_assert!(self.size > 0, "size is 0");
-        self.size -= 1;
-    }
-
-    #[inline]
-    unsafe fn drop_range(&mut self, range: Range<usize>) {
-        if range.is_empty() {
-            return;
+        /// Returns an iterator over the elements of the buffer that allows modifying each value.
+        ///
+        /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
+        /// front.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(5, u32)]
+        /// buf.extend([1, 2, 3]);
+        /// for elem in buf.iter_mut() {
+        ///     *elem += 5;
+        /// }
+        /// assert_eq!(buf, [6, 7, 8]);
+        /// ```
+        #[inline]
+        #[must_use]
+        pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+            self.backend.iter_mut()
         }
 
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-        debug_assert!(range.start < self.size, "start of range out-of-bounds");
-        debug_assert!(range.end <= self.size, "end of range out-of-bounds");
-        debug_assert!(range.start < range.end, "start of range is past its end");
-        debug_assert!(range.start == 0 || range.end == self.size,
-                      "range does not include boundary of the buffer");
-
-        // Drops all the items in the slice when dropped. This is needed to ensure that all
-        // elements are dropped in case a panic occurs during the drop of a single element.
-        struct Dropper<'a, T>(&'a mut [MaybeUninit<T>]);
-
-        impl<'a, T> Drop for Dropper<'a, T> {
-            #[inline]
-            fn drop(&mut self) {
-                // SAFETY: the caller of `drop_range` is responsible to check that this slice was
-                // initialized.
-                unsafe { ptr::drop_in_place(slice_assume_init_mut(self.0)); }
-            }
+        /// Returns an iterator over the specified range of elements of the buffer.
+        ///
+        /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
+        /// front.
+        ///
+        /// # Panics
+        ///
+        /// If the start of the range is greater than the end, or if the end is greater than the length
+        /// of the buffer.
+        ///
+        /// # Examples
+        ///
+        /// Iterate from front to back:
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(16, char)]
+        /// buf.extend("abcdefghi".chars());
+        /// let mut it = buf.range(3..6);
+        ///
+        /// assert_eq!(it.next(), Some(&'d'));
+        /// assert_eq!(it.next(), Some(&'e'));
+        /// assert_eq!(it.next(), Some(&'f'));
+        /// assert_eq!(it.next(), None);
+        /// ```
+        ///
+        /// Iterate from back to front:
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(16, char)]
+        /// buf.extend("abcdefghi".chars());
+        /// let mut it = buf.range(3..6).rev();
+        ///
+        /// assert_eq!(it.next(), Some(&'f'));
+        /// assert_eq!(it.next(), Some(&'e'));
+        /// assert_eq!(it.next(), Some(&'d'));
+        /// assert_eq!(it.next(), None);
+        /// ```
+        #[inline]
+        #[must_use]
+        pub fn range<R>(&self, range: R) -> Iter<'_, T>
+            where R: RangeBounds<usize>
+        {
+            self.backend.range(range)
         }
 
-        let drop_from = add_mod(self.start, range.start, N);
-        let drop_to = add_mod(self.start, range.end, N);
-
-        let (right, left) = if drop_from < drop_to {
-            (&mut self.items[drop_from..drop_to], &mut [][..])
-        } else {
-            let (left, right) = self.items.split_at_mut(drop_from);
-            let left = &mut left[..drop_to];
-            (right, left)
-        };
-
-        let _left = Dropper(left);
-        let _right = Dropper(right);
-    }
-
-    /// Returns a reference to the back element, or `None` if the buffer is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// assert_eq!(buf.back(), None);
-    ///
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// assert_eq!(buf.back(), Some(&'c'));
-    /// ```
-    #[inline]
-    pub fn back(&self) -> Option<&T> {
-        if N == 0 || self.size == 0 {
-            // Nothing to do
-            return None;
-        }
-        // SAFETY: `size` is non-zero; back element is guaranteed to be initialized
-        Some(unsafe { self.back_maybe_uninit().assume_init_ref() })
-    }
-
-    /// Returns a mutable reference to the back element, or `None` if the buffer is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// assert_eq!(buf.back_mut(), None);
-    ///
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// match buf.back_mut() {
-    ///     None => (),
-    ///     Some(x) => *x = 'z',
-    /// }
-    /// assert_eq!(buf, ['a', 'b', 'z']);
-    /// ```
-    #[inline]
-    pub fn back_mut(&mut self) -> Option<&mut T> {
-        if N == 0 || self.size == 0 {
-            // Nothing to do
-            return None;
-        }
-        // SAFETY: `size` is non-zero; back element is guaranteed to be initialized
-        Some(unsafe { self.back_maybe_uninit_mut().assume_init_mut() })
-    }
-
-    /// Returns a reference to the front element, or `None` if the buffer is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// assert_eq!(buf.front(), None);
-    ///
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// assert_eq!(buf.front(), Some(&'a'));
-    /// ```
-    #[inline]
-    pub fn front(&self) -> Option<&T> {
-        if N == 0 || self.size == 0 {
-            // Nothing to do
-            return None;
-        }
-        // SAFETY: `size` is non-zero; front element is guaranteed to be initialized
-        Some(unsafe { self.front_maybe_uninit().assume_init_ref() })
-    }
-
-    /// Returns a mutable reference to the front element, or `None` if the buffer is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// assert_eq!(buf.front_mut(), None);
-    ///
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// match buf.front_mut() {
-    ///     None => (),
-    ///     Some(x) => *x = 'z',
-    /// }
-    /// assert_eq!(buf, ['z', 'b', 'c']);
-    /// ```
-    #[inline]
-    pub fn front_mut(&mut self) -> Option<&mut T> {
-        if N == 0 || self.size == 0 {
-            // Nothing to do
-            return None;
-        }
-        // SAFETY: `size` is non-zero; front element is guaranteed to be initialized
-        Some(unsafe { self.front_maybe_uninit_mut().assume_init_mut() })
-    }
-
-    /// Returns a reference to the element at the given index, or `None` if the element does not
-    /// exist.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// assert_eq!(buf.get(1), None);
-    ///
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// assert_eq!(buf.get(1), Some(&'b'));
-    /// ```
-    #[inline]
-    pub fn get(&self, index: usize) -> Option<&T> {
-        if N == 0 || index >= self.size {
-            // Nothing to do
-            return None;
-        }
-        // SAFETY: `index` is in a valid range; it is guaranteed to point to an initialized element
-        Some(unsafe { self.get_maybe_uninit(index).assume_init_ref() })
-    }
-
-    /// Returns a mutable reference to the element at the given index, or `None` if the element
-    /// does not exist.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
-    /// assert_eq!(buf.get_mut(1), None);
-    ///
-    /// buf.push_back('a');
-    /// buf.push_back('b');
-    /// buf.push_back('c');
-    /// match buf.get_mut(1) {
-    ///     None => (),
-    ///     Some(x) => *x = 'z',
-    /// }
-    /// assert_eq!(buf, ['a', 'z', 'c']);
-    /// ```
-    #[inline]
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        if N == 0 || index >= self.size {
-            // Nothing to do
-            return None;
-        }
-        // SAFETY: `index` is in a valid range; it is guaranteed to point to an initialized element
-        Some(unsafe { self.get_maybe_uninit_mut(index).assume_init_mut() })
-    }
-
-    /// Appends an element to the back of the buffer.
-    ///
-    /// If the buffer is full, the element at the front of the buffer is automatically dropped and
-    /// overwritten.
-    ///
-    /// See also [`try_push_back()`](CircularBuffer::try_push_back) for a non-overwriting version
-    /// of this method.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
-    ///
-    /// buf.push_back('a'); assert_eq!(buf, ['a']);
-    /// buf.push_back('b'); assert_eq!(buf, ['a', 'b']);
-    /// buf.push_back('c'); assert_eq!(buf, ['a', 'b', 'c']);
-    /// // The buffer is now full; adding more values causes the front elements to be dropped
-    /// buf.push_back('d'); assert_eq!(buf, ['b', 'c', 'd']);
-    /// buf.push_back('e'); assert_eq!(buf, ['c', 'd', 'e']);
-    /// buf.push_back('f'); assert_eq!(buf, ['d', 'e', 'f']);
-    /// ```
-    pub fn push_back(&mut self, item: T) {
-        if N == 0 {
-            // Nothing to do
-            return;
-        }
-        if self.size >= N {
-            // At capacity; need to replace the front item
-            //
-            // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-            unsafe { ptr::drop_in_place(self.front_maybe_uninit_mut().as_mut_ptr()); }
-            self.front_maybe_uninit_mut().write(item);
-            self.inc_start();
-        } else {
-            // Some uninitialized slots left; append at the end
-            self.inc_size();
-            self.back_maybe_uninit_mut().write(item);
-        }
-    }
-
-    /// Appends an element to the back of the buffer.
-    ///
-    /// If the buffer is full, the buffer is not modified and the given element is returned as an
-    /// error.
-    ///
-    /// See also [`push_back()`](CircularBuffer::push_back) for a version of this method that
-    /// overwrites the front of the buffer when full.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
-    ///
-    /// assert_eq!(buf.try_push_back('a'), Ok(())); assert_eq!(buf, ['a']);
-    /// assert_eq!(buf.try_push_back('b'), Ok(())); assert_eq!(buf, ['a', 'b']);
-    /// assert_eq!(buf.try_push_back('c'), Ok(())); assert_eq!(buf, ['a', 'b', 'c']);
-    /// // The buffer is now full; adding more values results in an error
-    /// assert_eq!(buf.try_push_back('d'), Err('d'))
-    /// ```
-    pub fn try_push_back(&mut self, item: T) -> Result<(), T> {
-        if N == 0 {
-            // Nothing to do
-            return Ok(());
-        }
-        if self.size >= N {
-            // At capacity; return the pushed item as error
-            Err(item)
-        } else {
-            // Some uninitialized slots left; append at the end
-            self.inc_size();
-            self.back_maybe_uninit_mut().write(item);
-            Ok(())
-        }
-    }
-
-    /// Appends an element to the front of the buffer.
-    ///
-    /// If the buffer is full, the element at the back of the buffer is automatically dropped and
-    /// overwritten.
-    ///
-    /// See also [`try_push_front()`](CircularBuffer::try_push_front) for a non-overwriting version
-    /// of this method.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
-    ///
-    /// buf.push_front('a'); assert_eq!(buf, ['a']);
-    /// buf.push_front('b'); assert_eq!(buf, ['b', 'a']);
-    /// buf.push_front('c'); assert_eq!(buf, ['c', 'b', 'a']);
-    /// // The buffer is now full; adding more values causes the back elements to be dropped
-    /// buf.push_front('d'); assert_eq!(buf, ['d', 'c', 'b']);
-    /// buf.push_front('e'); assert_eq!(buf, ['e', 'd', 'c']);
-    /// buf.push_front('f'); assert_eq!(buf, ['f', 'e', 'd']);
-    /// ```
-    pub fn push_front(&mut self, item: T) {
-        if N == 0 {
-            // Nothing to do
-            return;
-        }
-        if self.size >= N {
-            // At capacity; need to replace the back item
-            //
-            // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-            unsafe { ptr::drop_in_place(self.back_maybe_uninit_mut().as_mut_ptr()); }
-            self.back_maybe_uninit_mut().write(item);
-            self.dec_start();
-        } else {
-            // Some uninitialized slots left; insert at the start
-            self.inc_size();
-            self.dec_start();
-            self.front_maybe_uninit_mut().write(item);
-        }
-    }
-
-    /// Appends an element to the front of the buffer.
-    ///
-    /// If the buffer is full, the buffer is not modified and the given element is returned as an
-    /// error.
-    ///
-    /// See also [`push_front()`](CircularBuffer::push_front) for a version of this method that
-    /// overwrites the back of the buffer when full.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
-    ///
-    /// assert_eq!(buf.try_push_front('a'), Ok(())); assert_eq!(buf, ['a']);
-    /// assert_eq!(buf.try_push_front('b'), Ok(())); assert_eq!(buf, ['b', 'a']);
-    /// assert_eq!(buf.try_push_front('c'), Ok(())); assert_eq!(buf, ['c', 'b', 'a']);
-    /// // The buffer is now full; adding more values results in an error
-    /// assert_eq!(buf.try_push_front('d'), Err('d'));
-    /// ```
-    pub fn try_push_front(&mut self, item: T) -> Result<(), T> {
-        if N == 0 {
-            // Nothing to do
-            return Ok(());
-        }
-        if self.size >= N {
-            // At capacity; return the pushed item as error
-            Err(item)
-        } else {
-            // Some uninitialized slots left; insert at the start
-            self.inc_size();
-            self.dec_start();
-            self.front_maybe_uninit_mut().write(item);
-            Ok(())
-        }
-    }
-
-    /// Removes and returns an element from the back of the buffer.
-    ///
-    /// If the buffer is empty, `None` is returned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<3, char>::from(['a', 'b', 'c']);
-    ///
-    /// assert_eq!(buf.pop_back(), Some('c'));
-    /// assert_eq!(buf.pop_back(), Some('b'));
-    /// assert_eq!(buf.pop_back(), Some('a'));
-    /// assert_eq!(buf.pop_back(), None);
-    /// ```
-    pub fn pop_back(&mut self) -> Option<T> {
-        if N == 0 || self.size == 0 {
-            // Nothing to do
-            return None;
+        /// Returns an iterator over the specified range of elements of the buffer that allows
+        /// modifying each value.
+        ///
+        /// The iterator advances from front to back. Use [`.rev()`](Iter::rev) to advance from back to
+        /// front.
+        ///
+        /// # Panics
+        ///
+        /// If the start of the range is greater than the end, or if the end is greater than the length
+        /// of the buffer.
+        ///
+        /// # Examples
+        ///
+        /// Iterate from front to back:
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(16, i32)]
+        /// buf.extend([1, 2, 3, 4, 5, 6]);
+        /// for elem in buf.range_mut(..3) {
+        ///     *elem *= -1;
+        /// }
+        /// assert_eq!(buf, [-1, -2, -3, 4, 5, 6]);
+        /// ```
+        #[inline]
+        #[must_use]
+        pub fn range_mut<R>(&mut self, range: R) -> IterMut<'_, T>
+            where R: RangeBounds<usize>
+        {
+            self.backend.range_mut(range)
         }
 
-        // SAFETY: if size is greater than 0, the back item is guaranteed to be initialized.
-        let back = unsafe { self.back_maybe_uninit().assume_init_read() };
-        self.dec_size();
-        Some(back)
-    }
-
-    /// Removes and returns an element from the front of the buffer.
-    ///
-    /// If the buffer is empty, `None` is returned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<3, char>::from(['a', 'b', 'c']);
-    ///
-    /// assert_eq!(buf.pop_front(), Some('a'));
-    /// assert_eq!(buf.pop_front(), Some('b'));
-    /// assert_eq!(buf.pop_front(), Some('c'));
-    /// assert_eq!(buf.pop_front(), None);
-    /// ```
-    pub fn pop_front(&mut self) -> Option<T> {
-        if N == 0 || self.size == 0 {
-            // Nothing to do
-            return None;
+        /// Rearranges the internal memory of the buffer so that all elements are in a contiguous
+        /// slice, which is then returned.
+        ///
+        /// This method does not allocate and does not change the order of the inserted elements.
+        /// Because it returns a mutable slice, any [slice methods](slice) may be called on the
+        /// elements of the buffer, such as sorting methods.
+        ///
+        /// Once the internal storage is contiguous, the [`as_slices()`](Self::as_slices) and
+        /// [`as_mut_slices()`](Self::as_mut_slices) methods will return the entire contents
+        /// of the deque in a single slice. Adding new elements to the buffer may make the buffer
+        /// disjoint (not contiguous).
+        ///
+        /// # Complexity
+        ///
+        /// If the buffer is disjoint (not contiguous), this method takes *O*(*N*) time, where *N* is
+        /// the capacity of the buffer.
+        ///
+        /// If the buffer is already contiguous, this method takes *O*(1) time.
+        ///
+        /// This means that this method may be called multiple times on the same buffer without a
+        /// performance penalty (provided that no new elements are added to the buffer in between
+        /// calls).
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        /// // Create a new buffer, adding more elements than its capacity
+        #[doc = NEW!(4, u32)]
+        /// buf.extend([1, 4, 3, 0, 2, 5]);
+        /// assert_eq!(buf, [3, 0, 2, 5]);
+        ///
+        /// // The buffer is disjoint: as_slices() returns two non-empty slices
+        /// assert_eq!(buf.as_slices(), (&[3, 0][..], &[2, 5][..]));
+        ///
+        /// // Make the buffer contiguous
+        /// assert_eq!(buf.make_contiguous(), &mut [3, 0, 2, 5]);
+        /// // as_slices() now returns a single non-empty slice
+        /// assert_eq!(buf.as_slices(), (&[3, 0, 2, 5][..], &[][..]));
+        /// // The buffer order of the elements in the buffer did not get modified
+        /// assert_eq!(buf, [3, 0, 2, 5]);
+        ///
+        /// // Make the buffer contiguous and sort its elements
+        /// buf.make_contiguous().sort();
+        /// assert_eq!(buf, [0, 2, 3, 5]);
+        /// ```
+        pub fn make_contiguous(&mut self) -> &mut [T] {
+        self.backend.make_contiguous()
         }
 
-        // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-        let back = unsafe { self.front_maybe_uninit().assume_init_read() };
-        self.dec_size();
-        self.inc_start();
-        Some(back)
-    }
-
-    /// Removes and returns an element at the specified index.
-    ///
-    /// If the index is out of bounds, `None` is returned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<3, char>::from(['a', 'b', 'c']);
-    ///
-    /// assert_eq!(buf.remove(1), Some('b'));
-    /// assert_eq!(buf, ['a', 'c']);
-    ///
-    /// assert_eq!(buf.remove(5), None);
-    /// ```
-    pub fn remove(&mut self, index: usize) -> Option<T> {
-        if N == 0 || index >= self.size {
-            return None;
+        /// Returns a pair of slices which contain the elements of this buffer.
+        ///
+        /// The second slice may be empty if the internal buffer is contiguous.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// buf.push_back('d');
+        ///
+        /// // Buffer is contiguous; second slice is empty
+        /// assert_eq!(buf.as_slices(), (&['a', 'b', 'c', 'd'][..], &[][..]));
+        ///
+        /// buf.push_back('e');
+        /// buf.push_back('f');
+        ///
+        /// // Buffer is disjoint; both slices are non-empty
+        /// assert_eq!(buf.as_slices(), (&['c', 'd'][..], &['e', 'f'][..]));
+        /// ```
+        #[inline]
+        pub fn as_slices(&self) -> (&[T], &[T]) {
+            self.backend.as_slices()
         }
 
-        let index = add_mod(self.start, index, N);
-        let back_index = add_mod(self.start, self.size - 1, N);
-
-        // SAFETY: `index` is in a valid range; the element is guaranteed to be initialized
-        let item = unsafe { self.items[index].assume_init_read() };
-
-        // SAFETY: the pointers being moved are in a valid range; the elements behind those
-        // pointers are guaranteed to be initialized
-        unsafe {
-            // TODO: optimize for the case where `index < len - index` (i.e. when copying items to
-            // the right is cheaper than moving items to the left)
-            let ptr = self.items.as_mut_ptr();
-            if back_index >= index {
-                // Move the values at the right of `index` by 1 position to the left
-                ptr::copy(ptr.add(index).add(1), ptr.add(index), back_index - index);
-            } else {
-                // Move the values at the right of `index` by 1 position to the left
-                ptr::copy(ptr.add(index).add(1), ptr.add(index), N - index);
-                // Move the leftmost value to the end of the array
-                ptr::copy(ptr, ptr.add(N - 1), 1);
-                // Move the values at the left of `back_index` by 1 position to the left
-                ptr::copy(ptr.add(1), ptr, back_index);
-            }
+         /// Returns a pair of mutable slices which contain the elements of this buffer.
+        ///
+        /// These slices can be used to modify or replace the elements in the buffer.
+        ///
+        /// The second slice may be empty if the internal buffer is contiguous.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// buf.push_back('d');
+        /// buf.push_back('e');
+        /// buf.push_back('f');
+        ///
+        /// assert_eq!(buf, ['c', 'd', 'e', 'f']);
+        ///
+        /// let (left, right) = buf.as_mut_slices();
+        /// assert_eq!(left, &mut ['c', 'd'][..]);
+        /// assert_eq!(right, &mut ['e', 'f'][..]);
+        ///
+        /// left[0] = 'z';
+        ///
+        /// assert_eq!(buf, ['z', 'd', 'e', 'f']);
+        /// ```
+        #[inline]
+        pub fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+            self.backend.as_mut_slices()
+        }
+        
+        /// Returns a reference to the back element, or `None` if the buffer is empty.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// assert_eq!(buf.back(), None);
+        ///
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// assert_eq!(buf.back(), Some(&'c'));
+        /// ```
+        #[inline]
+        pub fn back(&self) -> Option<&T> {
+            self.backend.back()
         }
 
-        self.dec_size();
-        Some(item)
-    }
-
-    /// Swap the element at index `i` with the element at index `j`.
-    ///
-    /// # Panics
-    ///
-    /// If either `i` or `j` is out of bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
-    /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
-    ///
-    /// buf.swap(0, 3);
-    /// assert_eq!(buf, ['d', 'b', 'c', 'a']);
-    /// ```
-    ///
-    /// Trying to swap an invalid index panics:
-    ///
-    /// ```should_panic
-    /// use circular_buffer::CircularBuffer;
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
-    /// buf.swap(0, 7);
-    /// ```
-    pub fn swap(&mut self, i: usize, j: usize) {
-        assert!(i < self.size, "i index out-of-bounds");
-        assert!(j < self.size, "j index out-of-bounds");
-        if i != j {
-            let i = add_mod(self.start, i, N);
-            let j = add_mod(self.start, j, N);
-            // SAFETY: these are valid pointers
-            unsafe { ptr::swap_nonoverlapping(&mut self.items[i], &mut self.items[j], 1) };
-        }
-    }
-
-    /// Removes the element at `index` and returns it, replacing it with the back of the buffer.
-    ///
-    /// Returns `None` if `index` is out-of-bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
-    /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
-    ///
-    /// assert_eq!(buf.swap_remove_back(2), Some('c'));
-    /// assert_eq!(buf, ['a', 'b', 'd']);
-    ///
-    /// assert_eq!(buf.swap_remove_back(7), None);
-    /// ```
-    pub fn swap_remove_back(&mut self, index: usize) -> Option<T> {
-        if index >= self.size {
-            return None;
-        }
-        self.swap(index, self.size - 1);
-        self.pop_back()
-    }
-
-    /// Removes the element at `index` and returns it, replacing it with the front of the buffer.
-    ///
-    /// Returns `None` if `index` is out-of-bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
-    /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
-    ///
-    /// assert_eq!(buf.swap_remove_front(2), Some('c'));
-    /// assert_eq!(buf, ['b', 'a', 'd']);
-    ///
-    /// assert_eq!(buf.swap_remove_front(7), None);
-    /// ```
-    pub fn swap_remove_front(&mut self, index: usize) -> Option<T> {
-        if index >= self.size {
-            return None;
-        }
-        self.swap(index, 0);
-        self.pop_front()
-    }
-
-    /// Shortens the buffer, keeping only the front `len` elements and dropping the rest.
-    ///
-    /// If `len` is equal or greater to the buffer's current length, this has no effect.
-    ///
-    /// Calling `truncate_back(0)` is equivalent to [`clear()`](Self::clear).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, u32>::from([10, 20, 30]);
-    ///
-    /// buf.truncate_back(1);
-    /// assert_eq!(buf, [10]);
-    ///
-    /// // Truncating to a length that is greater than the buffer's length has no effect
-    /// buf.truncate_back(8);
-    /// assert_eq!(buf, [10]);
-    /// ```
-    pub fn truncate_back(&mut self, len: usize) {
-        if N == 0 || len >= self.size {
-            // Nothing to do
-            return;
+        /// Returns a mutable reference to the back element, or `None` if the buffer is empty.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// assert_eq!(buf.back_mut(), None);
+        ///
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// match buf.back_mut() {
+        ///     None => (),
+        ///     Some(x) => *x = 'z',
+        /// }
+        /// assert_eq!(buf, ['a', 'b', 'z']);
+        /// ```
+        #[inline]
+        pub fn back_mut(&mut self) -> Option<&mut T> {
+            self.backend.back_mut()
         }
 
-        let drop_range = len..self.size;
-        // SAFETY: `drop_range` is a valid range, so elements within are guaranteed to be
-        // initialized. The `size` of the buffer is shrunk before dropping, so no value will be
-        // dropped twice in case of panics.
-        unsafe { self.drop_range(drop_range) };
-        self.size = len;
-    }
-
-    /// Shortens the buffer, keeping only the back `len` elements and dropping the rest.
-    ///
-    /// If `len` is equal or greater to the buffer's current length, this has no effect.
-    ///
-    /// Calling `truncate_front(0)` is equivalent to [`clear()`](Self::clear).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, u32>::from([10, 20, 30]);
-    ///
-    /// buf.truncate_front(1);
-    /// assert_eq!(buf, [30]);
-    ///
-    /// // Truncating to a length that is greater than the buffer's length has no effect
-    /// buf.truncate_front(8);
-    /// assert_eq!(buf, [30]);
-    /// ```
-    pub fn truncate_front(&mut self, len: usize) {
-        if N == 0 || len >= self.size {
-            // Nothing to do
-            return;
+        /// Returns a reference to the front element, or `None` if the buffer is empty.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// assert_eq!(buf.front(), None);
+        ///
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// assert_eq!(buf.front(), Some(&'a'));
+        /// ```
+        #[inline]
+        pub fn front(&self) -> Option<&T> {
+            self.backend.front()
         }
 
-        let drop_len = self.size - len;
-        let drop_range = 0..drop_len;
-        // SAFETY: `drop_range` is a valid range, so elements within are guaranteed to be
-        // initialized. The `start` of the buffer is shrunk before dropping, so no value will be
-        // dropped twice in case of panics.
-        unsafe { self.drop_range(drop_range) };
-        self.start = add_mod(self.start, drop_len, N);
-        self.size = len;
-    }
+        /// Returns a mutable reference to the front element, or `None` if the buffer is empty.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// assert_eq!(buf.front_mut(), None);
+        ///
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// match buf.front_mut() {
+        ///     None => (),
+        ///     Some(x) => *x = 'z',
+        /// }
+        /// assert_eq!(buf, ['z', 'b', 'c']);
+        /// ```
+        #[inline]
+        pub fn front_mut(&mut self) -> Option<&mut T> {
+            self.backend.front_mut()
+        }
 
-    /// Drops all the elements in the buffer.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf = CircularBuffer::<4, u32>::from([10, 20, 30]);
-    /// assert_eq!(buf, [10, 20, 30]);
-    /// buf.clear();
-    /// assert_eq!(buf, []);
-    /// ```
-    #[inline]
-    pub fn clear(&mut self) {
-        self.truncate_back(0)
+        /// Returns a reference to the element at the given index, or `None` if the element does not
+        /// exist.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// assert_eq!(buf.get(1), None);
+        ///
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// assert_eq!(buf.get(1), Some(&'b'));
+        /// ```
+        #[inline]
+        pub fn get(&self, index: usize) -> Option<&T> {
+            self.backend.get(index)
+        }
+
+        /// Returns a mutable reference to the element at the given index, or `None` if the element
+        /// does not exist.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, char)]
+        /// assert_eq!(buf.get_mut(1), None);
+        ///
+        /// buf.push_back('a');
+        /// buf.push_back('b');
+        /// buf.push_back('c');
+        /// match buf.get_mut(1) {
+        ///     None => (),
+        ///     Some(x) => *x = 'z',
+        /// }
+        /// assert_eq!(buf, ['a', 'z', 'c']);
+        /// ```
+        #[inline]
+        pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+            self.backend.get_mut(index)
+        }
+
+        /// Appends an element to the back of the buffer.
+        ///
+        /// If the buffer is full, the element at the front of the buffer is automatically dropped and
+        /// overwritten.
+        ///
+        /// See also [`try_push_back()`](Self::try_push_back) for a non-overwriting version
+        /// of this method.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(3, char)]
+        ///
+        /// buf.push_back('a'); assert_eq!(buf, ['a']);
+        /// buf.push_back('b'); assert_eq!(buf, ['a', 'b']);
+        /// buf.push_back('c'); assert_eq!(buf, ['a', 'b', 'c']);
+        /// // The buffer is now full; adding more values causes the front elements to be dropped
+        /// buf.push_back('d'); assert_eq!(buf, ['b', 'c', 'd']);
+        /// buf.push_back('e'); assert_eq!(buf, ['c', 'd', 'e']);
+        /// buf.push_back('f'); assert_eq!(buf, ['d', 'e', 'f']);
+        /// ```
+        pub fn push_back(&mut self, item: T) {
+            self.backend.push_back(item)
+        }
+
+        /// Appends an element to the back of the buffer.
+        ///
+        /// If the buffer is full, the buffer is not modified and the given element is returned as an
+        /// error.
+        ///
+        /// See also [`push_back()`](Self::push_back) for a version of this method that
+        /// overwrites the front of the buffer when full.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(3, char)]
+        ///
+        /// assert_eq!(buf.try_push_back('a'), Ok(())); assert_eq!(buf, ['a']);
+        /// assert_eq!(buf.try_push_back('b'), Ok(())); assert_eq!(buf, ['a', 'b']);
+        /// assert_eq!(buf.try_push_back('c'), Ok(())); assert_eq!(buf, ['a', 'b', 'c']);
+        /// // The buffer is now full; adding more values results in an error
+        /// assert_eq!(buf.try_push_back('d'), Err('d'))
+        /// ```
+        pub fn try_push_back(&mut self, item: T) -> Result<(), T> {
+            self.backend.try_push_back(item)
+        }
+
+        /// Appends an element to the front of the buffer.
+        ///
+        /// If the buffer is full, the element at the back of the buffer is automatically dropped and
+        /// overwritten.
+        ///
+        /// See also [`try_push_front()`](Self::try_push_front) for a non-overwriting version
+        /// of this method.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(3, char)]
+        ///
+        /// buf.push_front('a'); assert_eq!(buf, ['a']);
+        /// buf.push_front('b'); assert_eq!(buf, ['b', 'a']);
+        /// buf.push_front('c'); assert_eq!(buf, ['c', 'b', 'a']);
+        /// // The buffer is now full; adding more values causes the back elements to be dropped
+        /// buf.push_front('d'); assert_eq!(buf, ['d', 'c', 'b']);
+        /// buf.push_front('e'); assert_eq!(buf, ['e', 'd', 'c']);
+        /// buf.push_front('f'); assert_eq!(buf, ['f', 'e', 'd']);
+        /// ```
+        pub fn push_front(&mut self, item: T) {
+            self.backend.push_front(item)
+        }
+
+        /// Appends an element to the front of the buffer.
+        ///
+        /// If the buffer is full, the buffer is not modified and the given element is returned as an
+        /// error.
+        ///
+        /// See also [`push_front()`](Self::push_front) for a version of this method that
+        /// overwrites the back of the buffer when full.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(3, char)]
+        ///
+        /// assert_eq!(buf.try_push_front('a'), Ok(())); assert_eq!(buf, ['a']);
+        /// assert_eq!(buf.try_push_front('b'), Ok(())); assert_eq!(buf, ['b', 'a']);
+        /// assert_eq!(buf.try_push_front('c'), Ok(())); assert_eq!(buf, ['c', 'b', 'a']);
+        /// // The buffer is now full; adding more values results in an error
+        /// assert_eq!(buf.try_push_front('d'), Err('d'));
+        /// ```
+        pub fn try_push_front(&mut self, item: T) -> Result<(), T> {
+            self.backend.try_push_front(item)
+        }
+
+        /// Removes and returns an element from the back of the buffer.
+        ///
+        /// If the buffer is empty, `None` is returned.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(3, char)]
+        /// buf.extend(['a', 'b', 'c']);
+        ///
+        /// assert_eq!(buf.pop_back(), Some('c'));
+        /// assert_eq!(buf.pop_back(), Some('b'));
+        /// assert_eq!(buf.pop_back(), Some('a'));
+        /// assert_eq!(buf.pop_back(), None);
+        /// ```
+        pub fn pop_back(&mut self) -> Option<T> {
+            self.backend.pop_back()
+        }
+
+        /// Removes and returns an element from the front of the buffer.
+        ///
+        /// If the buffer is empty, `None` is returned.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(3, char)]
+        /// buf.extend(['a', 'b', 'c']);
+        ///
+        /// assert_eq!(buf.pop_front(), Some('a'));
+        /// assert_eq!(buf.pop_front(), Some('b'));
+        /// assert_eq!(buf.pop_front(), Some('c'));
+        /// assert_eq!(buf.pop_front(), None);
+        /// ```
+        pub fn pop_front(&mut self) -> Option<T> {
+            self.backend.pop_front()
+        }
+
+        /// Removes and returns an element at the specified index.
+        ///
+        /// If the index is out of bounds, `None` is returned.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(3, char)]
+        /// buf.extend(['a', 'b', 'c']);
+        ///
+        /// assert_eq!(buf.remove(1), Some('b'));
+        /// assert_eq!(buf, ['a', 'c']);
+        ///
+        /// assert_eq!(buf.remove(5), None);
+        /// ```
+        pub fn remove(&mut self, index: usize) -> Option<T> {
+            self.backend.remove(index)
+        }
+
+        /// Swap the element at index `i` with the element at index `j`.
+        ///
+        /// # Panics
+        ///
+        /// If either `i` or `j` is out of bounds.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(5, char)]
+        /// buf.extend(['a', 'b', 'c', 'd']);
+        /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
+        ///
+        /// buf.swap(0, 3);
+        /// assert_eq!(buf, ['d', 'b', 'c', 'a']);
+        /// ```
+        ///
+        /// Trying to swap an invalid index panics:
+        ///
+        /// ```should_panic
+        #[doc = USE!()]
+        #[doc = NEW!(5, char)]
+        /// buf.extend(['a', 'b', 'c', 'd']);
+        /// buf.swap(0, 7);
+        /// ```
+        pub fn swap(&mut self, i: usize, j: usize) {
+            self.backend.swap(i, j)
+        }
+
+        /// Removes the element at `index` and returns it, replacing it with the back of the buffer.
+        ///
+        /// Returns `None` if `index` is out-of-bounds.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(5, char)]
+        /// buf.extend(['a', 'b', 'c', 'd']);
+        /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
+        ///
+        /// assert_eq!(buf.swap_remove_back(2), Some('c'));
+        /// assert_eq!(buf, ['a', 'b', 'd']);
+        ///
+        /// assert_eq!(buf.swap_remove_back(7), None);
+        /// ```
+        pub fn swap_remove_back(&mut self, index: usize) -> Option<T> {
+            self.backend.swap_remove_back(index)
+        }
+
+        /// Removes the element at `index` and returns it, replacing it with the front of the buffer.
+        ///
+        /// Returns `None` if `index` is out-of-bounds.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(5, char)]
+        /// buf.extend(['a', 'b', 'c', 'd']);
+        /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
+        ///
+        /// assert_eq!(buf.swap_remove_front(2), Some('c'));
+        /// assert_eq!(buf, ['b', 'a', 'd']);
+        ///
+        /// assert_eq!(buf.swap_remove_front(7), None);
+        /// ```
+        pub fn swap_remove_front(&mut self, index: usize) -> Option<T> {
+        self.backend.swap_remove_front(index)
+        }
+
+        /// Shortens the buffer, keeping only the front `len` elements and dropping the rest.
+        ///
+        /// If `len` is equal or greater to the buffer's current length, this has no effect.
+        ///
+        /// Calling `truncate_back(0)` is equivalent to [`clear()`](Self::clear).
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, u32)]
+        /// buf.extend([10, 20, 30]);
+        ///
+        /// buf.truncate_back(1);
+        /// assert_eq!(buf, [10]);
+        ///
+        /// // Truncating to a length that is greater than the buffer's length has no effect
+        /// buf.truncate_back(8);
+        /// assert_eq!(buf, [10]);
+        /// ```
+        pub fn truncate_back(&mut self, len: usize) {
+            self.backend.truncate_back(len)
+        }
+
+        /// Shortens the buffer, keeping only the back `len` elements and dropping the rest.
+        ///
+        /// If `len` is equal or greater to the buffer's current length, this has no effect.
+        ///
+        /// Calling `truncate_front(0)` is equivalent to [`clear()`](Self::clear).
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, u32)]
+        /// buf.extend([10, 20, 30]);
+        ///
+        /// buf.truncate_front(1);
+        /// assert_eq!(buf, [30]);
+        ///
+        /// // Truncating to a length that is greater than the buffer's length has no effect
+        /// buf.truncate_front(8);
+        /// assert_eq!(buf, [30]);
+        /// ```
+        pub fn truncate_front(&mut self, len: usize) {
+            self.backend.truncate_front(len)
+        }
+
+        /// Drops all the elements in the buffer.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        #[doc = USE!()]
+        ///
+        #[doc = NEW!(4, u32)]
+        /// buf.extend([10, 20, 30]);
+        /// assert_eq!(buf, [10, 20, 30]);
+        /// buf.clear();
+        /// assert_eq!(buf, []);
+        /// ```
+        #[inline]
+        pub fn clear(&mut self) {
+            self.backend.clear()
+        }
     }
 }
+pub(crate) use impl_buffer;
 
 impl<const N: usize, T> CircularBuffer<N, T>
     where T: Clone
@@ -1550,97 +1211,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
     /// assert_eq!(buf, [3, 4, 5, 6, 7]);
     /// ```
     pub fn extend_from_slice(&mut self, other: &[T]) {
-        if N == 0 {
-            return;
-        }
-
-        debug_assert!(self.start < N, "start out-of-bounds");
-        debug_assert!(self.size <= N, "size out-of-bounds");
-
-        #[cfg(not(feature = "unstable"))]
-        fn write_uninit_slice_cloned<T: Clone>(dst: &mut [MaybeUninit<T>], src: &[T]) {
-            // Each call to `clone()` may panic, therefore we need to track how many elements we
-            // successfully cloned so that we can drop them in case of panic. This `Guard` struct
-            // does exactly that: it keeps track of how many items have been successfully cloned
-            // and drops them if the guard is dropped.
-            //
-            // This implementation was highly inspired by the implementation of
-            // `MaybeUninit::write_slice_cloned`
-            struct Guard<'a, T> {
-                dst: &'a mut [MaybeUninit<T>],
-                initialized: usize,
-            }
-
-            impl<'a, T> Drop for Guard<'a, T> {
-                fn drop(&mut self) {
-                    let initialized = &mut self.dst[..self.initialized];
-                    // SAFETY: this slice contain only initialized objects; `MaybeUninit<T>` has
-                    // the same alignment and size as `T`
-                    unsafe {
-                        let initialized = &mut *(initialized as *mut [MaybeUninit<T>] as *mut [T]);
-                        ptr::drop_in_place(initialized);
-                    }
-                }
-            }
-
-            debug_assert_eq!(dst.len(), src.len());
-            let len = dst.len();
-            let mut guard = Guard { dst, initialized: 0 };
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..len {
-                guard.dst[i].write(src[i].clone());
-                guard.initialized += 1;
-            }
-
-            // All the `clone()` calls succeded; get rid of the guard without running its `drop()`
-            // implementation
-            mem::forget(guard);
-        }
-
-        if other.len() < N {
-            // All the elements of `other` fit into the buffer
-            let free_size = N - self.size;
-            let final_size = if other.len() < free_size {
-                // All the elements of `other` fit at the back of the buffer
-                self.size + other.len()
-            } else {
-                // Some of the elements of `other` need to overwrite the front of the buffer
-                self.truncate_front(N - other.len());
-                N
-            };
-
-            let (right, left) = self.slices_uninit_mut();
-
-            let write_len = core::cmp::min(right.len(), other.len());
-            #[cfg(feature = "unstable")]
-            MaybeUninit::write_slice_cloned(&mut right[..write_len], &other[..write_len]);
-            #[cfg(not(feature = "unstable"))]
-            write_uninit_slice_cloned(&mut right[..write_len], &other[..write_len]);
-
-            let other = &other[write_len..];
-            debug_assert!(left.len() >= other.len());
-            let write_len = other.len();
-            #[cfg(feature = "unstable")]
-            MaybeUninit::write_slice_cloned(&mut left[..write_len], other);
-            #[cfg(not(feature = "unstable"))]
-            write_uninit_slice_cloned(&mut left[..write_len], other);
-
-            self.size = final_size;
-        } else {
-            // `other` overwrites the whole buffer; get only the last `N` elements from `other` and
-            // overwrite
-            self.clear();
-            self.start = 0;
-
-            let other = &other[other.len() - N..];
-            debug_assert_eq!(self.items.len(), other.len());
-            #[cfg(feature = "unstable")]
-            MaybeUninit::write_slice_cloned(&mut self.items, other);
-            #[cfg(not(feature = "unstable"))]
-            write_uninit_slice_cloned(&mut self.items, other);
-
-            self.size = N;
-        }
+        self.backend.extend_from_slice(other)
     }
 
     /// Clones the elements of the buffer into a new [`Vec`], leaving the buffer unchanged.
@@ -1659,10 +1230,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
     #[must_use]
     #[cfg(feature = "use_std")]
     pub fn to_vec(&self) -> Vec<T> {
-        let mut vec = Vec::with_capacity(self.size);
-        vec.extend(self.iter().cloned());
-        debug_assert_eq!(vec.len(), self.size);
-        vec
+        self.backend.to_vec()
     }
 }
 
@@ -1700,7 +1268,8 @@ impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<N, T> {
         unsafe { ptr::drop_in_place(&mut arr[..M - size]); }
         mem::forget(arr);
 
-        Self { size, start: 0, items: elems }
+        let backend = Backend { size, start: 0, items: elems };
+        Self { backend }
     }
 }
 
@@ -1719,8 +1288,7 @@ impl<const N: usize, T> Extend<T> for CircularBuffer<N, T> {
     fn extend<I>(&mut self, iter: I)
         where I: IntoIterator<Item = T>
     {
-        // TODO Optimize
-        iter.into_iter().for_each(|item| self.push_back(item));
+        self.backend.extend(iter)
     }
 }
 
@@ -1730,19 +1298,18 @@ impl<'a, const N: usize, T> Extend<&'a T> for CircularBuffer<N, T>
     fn extend<I>(&mut self, iter: I)
         where I: IntoIterator<Item = &'a T>
     {
-        // TODO Optimize
-        iter.into_iter().for_each(|item| self.push_back(*item));
+        self.backend.extend(iter)
     }
 }
 
 unstable_const_impl! {
     impl<{const N: usize, T}> const IntoIterator for CircularBuffer<N, T> {
         type Item = T;
-        type IntoIter = IntoIter<N, T>;
+        type IntoIter = IntoIter<T, [MaybeUninit<T>; N]>;
 
         #[inline]
         fn into_iter(self) -> Self::IntoIter {
-            IntoIter::new(self)
+            IntoIter::new(self.backend)
         }
     }
 }
@@ -1754,7 +1321,7 @@ unstable_const_impl! {
 
         #[inline]
         fn into_iter(self) -> Self::IntoIter {
-            Iter::new(self)
+            Iter::new(&self.backend)
         }
     }
 }
@@ -1763,49 +1330,15 @@ impl<const N: usize, const M: usize, T, U> PartialEq<CircularBuffer<M, U>> for C
     where T: PartialEq<U>
 {
     fn eq(&self, other: &CircularBuffer<M, U>) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        let (a_left, a_right) = self.as_slices();
-        let (b_left, b_right) = other.as_slices();
-
-        match a_left.len().cmp(&b_left.len()) {
-            Ordering::Less => {
-                let x = a_left.len();
-                let y = b_left.len() - x;
-                a_left[..] == b_left[..x] && a_right[..y] == b_left[x..] && a_right[y..] == b_right[..]
-            },
-            Ordering::Greater => {
-                let x = b_left.len();
-                let y = a_left.len() - x;
-                a_left[..x] == b_left[..] && a_left[x..] == b_right[..y] && a_right[..] == b_right[y..]
-            },
-            Ordering::Equal => {
-                debug_assert_eq!(a_left.len(), b_left.len());
-                debug_assert_eq!(a_right.len(), b_right.len());
-                a_left == b_left && a_right == b_right
-            },
-        }
+        self.backend.eq(&other.backend)
     }
 }
-
-impl<const N: usize, T> Eq for CircularBuffer<N, T> where T: Eq {}
 
 impl<const N: usize, T, U> PartialEq<[U]> for CircularBuffer<N, T>
     where T: PartialEq<U>
 {
     fn eq(&self, other: &[U]) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        let (a_left, a_right) = self.as_slices();
-        let (b_left, b_right) = other.split_at(a_left.len());
-
-        debug_assert_eq!(a_left.len(), b_left.len());
-        debug_assert_eq!(a_right.len(), b_right.len());
-        a_left == b_left && a_right == b_right
+        self.backend.eq(other)
     }
 }
 
@@ -1858,24 +1391,7 @@ impl<const N: usize, const M: usize, T, U> PartialOrd<CircularBuffer<M, U>> for 
     where T: PartialOrd<U>
 {
     fn partial_cmp(&self, other: &CircularBuffer<M, U>) -> Option<Ordering> {
-        self.iter().partial_cmp(other.iter())
-    }
-}
-
-impl<const N: usize, T> Ord for CircularBuffer<N, T>
-    where T: Ord
-{
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.iter().cmp(other.iter())
-    }
-}
-
-impl<const N: usize, T> Hash for CircularBuffer<N, T>
-    where T: Hash
-{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.size.hash(state);
-        self.iter().for_each(|item| item.hash(state));
+        self.backend.partial_cmp(&other.backend)
     }
 }
 
@@ -1894,18 +1410,20 @@ impl<const N: usize, T> Clone for CircularBuffer<N, T>
     }
 }
 
-impl<const N: usize, T> Drop for CircularBuffer<N, T> {
-    #[inline]
-    fn drop(&mut self) {
-        // `clear()` will make sure that every element is dropped in a safe way
-        self.clear();
-    }
-}
-
 impl<const N: usize, T> fmt::Debug for CircularBuffer<N, T>
     where T: fmt::Debug
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self).finish()
+        self.backend.fmt(f)
     }
 }
+
+macro_rules! USE {
+    () => { "use circular_buffer::CircularBuffer;" };
+}
+macro_rules! NEW {
+    ($N:literal,$ty:ty) => {
+        concat!("let mut buf = CircularBuffer::<",$N,", ",stringify!($ty),">::new();")
+    };
+}
+use {USE, NEW};
