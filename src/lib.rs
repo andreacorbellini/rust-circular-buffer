@@ -325,9 +325,11 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         #[cfg(feature = "unstable")]
         {
             Self {
-                size: 0,
-                start: 0,
-                items: MaybeUninit::uninit_array(),
+                backend: Backend {
+                    size: 0,
+                    start: 0,
+                    items: MaybeUninit::uninit_array(),
+                }
             }
         }
         #[cfg(not(feature = "unstable"))]
@@ -361,8 +363,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         unsafe {
             // SAFETY: the pointer contains enough memory to contain `Self` and `addr_of_mut`
             // ensures that the address written to is properly aligned.
-            std::ptr::addr_of_mut!((*ptr).size).write(0);
-            std::ptr::addr_of_mut!((*ptr).start).write(0);
+            std::ptr::addr_of_mut!((*ptr).backend.size).write(0);
+            std::ptr::addr_of_mut!((*ptr).backend.start).write(0);
 
             // SAFETY: `size` and `start` have been properly initialized to 0; `items` does not
             // need to be initialized if `size` is 0

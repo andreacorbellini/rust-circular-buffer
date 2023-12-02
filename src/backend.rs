@@ -638,9 +638,9 @@ impl <T, B> Backend<T, B>
             let other = &other[other.len() - self.capacity()..];
             debug_assert_eq!(self.items.as_slice().len(), other.len());
             #[cfg(feature = "unstable")]
-            MaybeUninit::write_slice_cloned(&mut self.items, other);
+            MaybeUninit::write_slice_cloned(self.items.as_slice_mut(), other);
             #[cfg(not(feature = "unstable"))]
-            write_uninit_slice_cloned(&mut self.items.as_slice_mut(), other);
+            write_uninit_slice_cloned(self.items.as_slice_mut(), other);
 
             self.size = self.capacity();
         }
