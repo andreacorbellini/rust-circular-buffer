@@ -15,10 +15,41 @@ use crate::backend::Backend;
 /// 
 /// [`CircularBuffer`]: crate::CircularBuffer
 /// [`HeapCircularBuffer`]: crate::heap::HeapCircularBuffer
-pub struct IntoIter<T, B>
+pub(crate) struct IntoIter<T, B>
     where B: AsSlice<Item = MaybeUninit<T>>
 {
     inner: Backend<T, B>,
+}
+
+impl<const N: usize, T> Clone for IntoIter<T, [MaybeUninit<T>; N]>
+    where T: Clone,
+{
+    fn clone(&self) -> Self {
+        use crate::CircularBuffer;
+        let buf = CircularBuffer::from_iter(self.inner.iter().cloned());
+        Self { inner: buf.into_backend() }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.inner.clear();
+        self.inner.extend(other.inner.iter().cloned());
+    }
+}
+
+impl<T> Clone for IntoIter<T, Box<[MaybeUninit<T>]>>
+    where T: Clone,
+{
+    fn clone(&self) -> Self {
+        use crate::heap::HeapCircularBuffer;
+        let mut buf = HeapCircularBuffer::with_capacity(self.inner.capacity());
+        buf.extend(self.inner.iter().cloned());
+        Self { inner: buf.into_backend() }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.inner.clear();
+        self.inner.extend(other.inner.iter().cloned());
+    }
 }
 
 impl<T, B> IntoIter<T, B>
@@ -76,6 +107,32 @@ impl<T, B> fmt::Debug for IntoIter<T, B>
         self.inner.fmt(f)
     }
 }
+
+/// An owning [iterator](std::iter::Iterator) over the elements of a
+/// [`CircularBuffer`]
+///
+/// This yields the elements of a `CircularBuffer` from fron to back.
+///
+/// This struct is created when iterating over a `CircularBuffer`. See the
+/// documentation for [`IntoIterator`] for more details.
+/// 
+/// [`CircularBuffer`]: crate::CircularBuffer
+#[derive(Clone)]
+pub struct StaticIntoIter<const N: usize, T>(pub(crate) IntoIter<T, [MaybeUninit<T>; N]>);
+super::impl_iter_traits!(<{const N: usize, T}> - StaticIntoIter<N, T>);
+
+/// An owning [iterator](std::iter::Iterator) over the elements of a
+/// [`HeapCircularBuffer`].
+///
+/// This yields the elements of a `CircularBuffer` from fron to back.
+///
+/// This struct is created when iterating over a `CircularBuffer`. See the
+/// documentation for [`IntoIterator`] for more details.
+/// 
+/// [`HeapCircularBuffer`]: crate::heap::HeapCircularBuffer
+#[derive(Clone)]
+pub struct HeapIntoIter<T>(pub(crate) IntoIter<T, Box<[MaybeUninit<T>]>>);
+super::impl_iter_traits!(<{T}> - HeapIntoIter<T>);
 
 pub(crate) fn translate_range_bounds<T, B, R>(buf: &Backend<T, B>, range: R) -> (usize, usize)
     where

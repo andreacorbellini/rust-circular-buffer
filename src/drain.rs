@@ -20,7 +20,7 @@ use crate::iter::translate_range_bounds;
 /// 
 /// [`CircularBuffer::drain()`]: crate::CircularBuffer::drain
 /// [`HeapCircularBuffer::drain()`]: crate::heap::HeapCircularBuffer::drain
-pub struct Drain<'a, T, B>
+pub(crate) struct Drain<'a, T, B>
     where B: AsSlice<Item = MaybeUninit<T>>
 {
     /// This is a pointer and not a reference (`&'a mut CircularBuffer`) because using a reference
@@ -382,3 +382,27 @@ impl<'a, T> Clone for CircularSlicePtr<'a, T> {
         *self
     }
 }
+
+
+/// A draining [iterator](std::iter::Iterator) that removes and returns elements
+/// from a `CircularBuffer`
+///
+/// This struct is created by [`CircularBuffer::drain()`]. See its documentation
+/// for more details.
+/// 
+/// [`CircularBuffer::drain()`]: crate::CircularBuffer::drain
+#[repr(transparent)]
+pub struct StaticDrain<'a, const N: usize, T>(pub(crate) Drain<'a, T, [MaybeUninit<T>; N]>);
+super::impl_iter_traits!(<{const N: usize, T}> - StaticDrain<'_, N, T>);
+
+
+/// A draining [iterator](std::iter::Iterator) that removes and returns elements
+/// from a `HeapCircularBuffer`.
+///
+/// This struct is created by [`HeapCircularBuffer::drain()`]. See its
+/// documentation for more details.
+///
+/// [`HeapCircularBuffer::drain()`]: crate::heap::HeapCircularBuffer::drain
+#[repr(transparent)]
+pub struct HeapDrain<'a, T>(pub(crate) Drain<'a, T, Box<[MaybeUninit<T>]>>);
+super::impl_iter_traits!(<{T}> - HeapDrain<'_, T>);

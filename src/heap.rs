@@ -2,8 +2,11 @@ use core::{ptr, fmt};
 use core::cmp::Ordering;
 use core::mem::{MaybeUninit, self};
 use core::ops::RangeBounds;
-use crate::{backend::Backend, Iter, IntoIter, IterMut, Drain};
+use crate::{backend::Backend, Iter, IterMut};
 use crate::unstable_const_impl;
+
+pub use crate::drain::HeapDrain;
+pub use crate::iter::HeapIntoIter;
 
 
 /// A fixed-size circular buffer allocated on the heap.
@@ -109,10 +112,14 @@ impl <T> HeapCircularBuffer<T> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T, Box<[MaybeUninit<T>]>>
+    pub fn drain<R>(&mut self, range: R) -> HeapDrain<'_, T>
         where R: RangeBounds<usize>
     {
-        self.backend.drain(range)
+        HeapDrain(self.backend.drain(range))
+    }
+
+    pub(crate) fn into_backend(self) -> Backend<T, Box<[MaybeUninit<T>]>> {
+        self.backend
     }
 
     super::impl_buffer!();
@@ -185,11 +192,11 @@ impl<'a, T> Extend<&'a T> for HeapCircularBuffer<T>
 unstable_const_impl! {
     impl<{T}> const IntoIterator for HeapCircularBuffer<T> {
         type Item = T;
-        type IntoIter = IntoIter<T, Box<[MaybeUninit<T>]>>;
+        type IntoIter = HeapIntoIter<T>;
 
         #[inline]
         fn into_iter(self) -> Self::IntoIter {
-            IntoIter::new(self.backend)
+            HeapIntoIter(self.backend.into_iter())
         }
     }
 }

@@ -185,8 +185,8 @@ use core::ptr;
 use backend::Backend;
 
 
-pub use crate::drain::Drain;
-pub use crate::iter::IntoIter;
+pub use crate::drain::StaticDrain as Drain;
+pub use crate::iter::StaticIntoIter as IntoIter;
 pub use crate::iter::Iter;
 pub use crate::iter::IterMut;
 
@@ -212,6 +212,51 @@ macro_rules! unstable_const_impl {
     }
 }
 pub(crate) use unstable_const_impl;
+
+macro_rules! impl_iter_traits {
+    ($( <{ $( $generics:tt )* }> )? - $type:ty) => {
+        impl $(<$($generics)*>)? Iterator for $type {
+            type Item = T;
+        
+            #[inline]
+            fn next(&mut self) -> Option<Self::Item> {
+                self.0.next()
+            }
+
+            #[inline]
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.0.size_hint()
+            }
+        }
+        
+        impl $(<$($generics)*>)? ExactSizeIterator for $type {
+            #[inline]
+            fn len(&self) -> usize {
+                self.0.len()
+            }
+        }
+        
+        impl $(<$($generics)*>)? FusedIterator for $type {}
+        
+        impl $(<$($generics)*>)? DoubleEndedIterator for $type {
+            #[inline]
+            fn next_back(&mut self) -> Option<Self::Item> {
+                self.0.next_back()
+            }
+        }
+        
+        
+        impl $(<$($generics)*>)? fmt::Debug for $type 
+            where T: fmt::Debug
+        {   
+            #[inline]
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+    };
+}
+pub(crate) use impl_iter_traits;
 
 /// Returns `(x + y) % m` without risk of overflows if `x + y` cannot fit in `usize`.
 ///
@@ -410,10 +455,14 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T, [MaybeUninit<T>; N]>
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, N, T>
         where R: RangeBounds<usize>
     {
-        self.backend.drain(range)
+        Drain(self.backend.drain(range))
+    }
+
+    pub(crate) fn into_backend(self) -> Backend<T, [MaybeUninit<T>; N]> {
+        self.backend
     }
 
     impl_buffer!();
@@ -1305,11 +1354,11 @@ impl<'a, const N: usize, T> Extend<&'a T> for CircularBuffer<N, T>
 unstable_const_impl! {
     impl<{const N: usize, T}> const IntoIterator for CircularBuffer<N, T> {
         type Item = T;
-        type IntoIter = IntoIter<T, [MaybeUninit<T>; N]>;
+        type IntoIter = IntoIter<N, T>;
 
         #[inline]
         fn into_iter(self) -> Self::IntoIter {
-            IntoIter::new(self.backend)
+            IntoIter(self.backend.into_iter())
         }
     }
 }

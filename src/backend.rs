@@ -5,7 +5,9 @@ use core::{fmt, ops::Range};
 use core::mem::MaybeUninit;
 use core::hash::{Hash, Hasher};
 
-use crate::{Iter, IterMut, add_mod, slice_assume_init_ref, slice_assume_init_mut, sub_mod, IntoIter, Drain};
+use crate::{add_mod, slice_assume_init_ref, slice_assume_init_mut, sub_mod};
+use crate::iter::{Iter, IterMut, IntoIter};
+use crate::drain::Drain;
 
 pub(crate) struct Backend<T, B>
     where B: AsSlice<Item = MaybeUninit<T>>
