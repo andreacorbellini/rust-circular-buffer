@@ -1,3 +1,48 @@
+//! This module provides [`HeapCircularBuffer`], a circular buffer variant with
+//! runtime determined capacity. This variant is only available in `std`
+//! environments under the `use_std` feature.
+//!
+//! # Examples
+//!
+//! ```
+//! use circular_buffer::heap::HeapCircularBuffer;
+//!
+//! // This does _not_ need to be known at compile time. It could
+//! // be loaded for example from a file or database query.
+//! let capacity = 5; 
+//! // Initialize a new, empty circular buffer with a capacity of `capacity` elements
+//! let mut buf = HeapCircularBuffer::<u32>::with_capacity(capacity);
+//!
+//! // Add a few elements
+//! buf.push_back(1);
+//! buf.push_back(2);
+//! buf.push_back(3);
+//! assert_eq!(buf, [1, 2, 3]);
+//!
+//! // Add more elements to fill the buffer capacity completely
+//! buf.push_back(4);
+//! buf.push_back(5);
+//! assert_eq!(buf, [1, 2, 3, 4, 5]);
+//!
+//! // Adding more elements than the buffer can contain causes the front elements to be
+//! // automatically dropped
+//! buf.push_back(6);
+//! assert_eq!(buf, [2, 3, 4, 5, 6]); // `1` got dropped to make room for `6`
+//! ```
+//!
+//! # Interface
+//! [`HeapCircularBuffer`] has the same interface as [`CircularBuffer`].
+//! Checkout the [struct documentation] and [crate documentation][Interface] for
+//! more details.
+//!
+//! # Time complexity
+//! See the [crate documentation][TimeComplexity] for more details
+//!
+//! [`CircularBuffer`]: crate::CircularBuffer
+//! [struct documentation]: HeapCircularBuffer
+//! [Interface]: crate#interface
+//! [TimeComplexity]: crate#time-complexity 
+
 use core::{ptr, fmt};
 use core::cmp::Ordering;
 use core::mem::{MaybeUninit, self};

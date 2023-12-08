@@ -1,11 +1,20 @@
 //! This crate implements a [circular buffer], also known as cyclic buffer, circular queue or ring.
 //!
-//! The main struct is [`CircularBuffer`]. It can live on the stack and does not require any heap
-//! memory allocation. A `CircularBuffer` is sequence of elements with a maximum capacity: elements
+//! A `CircularBuffer` is sequence of elements with a maximum capacity: elements
 //! can be added to the buffer, and once the maximum capacity is reached, the elements at the start
 //! of the buffer are discarded and overwritten.
 //!
+//! The main struct is [`CircularBuffer`], which can live on the stack and does
+//! not require any heap memory allocation. It can also be allocated on the heap
+//! using its [`CircularBuffer::boxed()`] constructor in `std` environments, but
+//! it still requires a compile-time fixed capacity.
+//! 
+//! As an alternative this crate also provides a heap-only variant
+//! [`HeapCircularBuffer`], which has a fixed, but at runtime determined
+//! capacity.
+//!
 //! [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
+//! [`HeapCircularBuffer`]: crate::heap::HeapCircularBuffer
 //!
 //! # Examples
 //!
@@ -34,10 +43,10 @@
 //!
 //! # Interface
 //!
-//! [`CircularBuffer`] provides methods akin the ones for the standard
+//! [`CircularBuffer`] and [`HeapCircularBuffer`] provide methods akin the ones for the standard
 //! [`VecDeque`](std::collections::VecDeque) and [`LinkedList`](std::collections::LinkedList). The
-//! list below includes the most common methods, but see the
-//! [`CircularBuffer` struct documentation](CircularBuffer) to see more.
+//! list below includes the most common methods, but see the struct documentation of
+//! [`CircularBuffer`] and [`HeapCircularBuffer`] to see more.
 //!
 //! ## Adding/removing elements
 //!
@@ -63,10 +72,10 @@
 //!
 //! ## Writing/reading bytes
 //!
-//! For the special case of a `CircularBuffer` containing `u8` elements, bytes can be written and
-//! read using the standard [`Write`](std::io::Write) and [`Read`](std::io::Read) traits. Writing
-//! past the buffer capacity will overwrite the bytes at the start of the buffer, and reading
-//! elements will consume elements from the buffer.
+//! For the special case of a `CircularBuffer` or `HeapCircularBuffer` containing `u8` elements,
+//! bytes can be written and read using the standard [`Write`](std::io::Write) and
+//! [`Read`](std::io::Read) traits. Writing past the buffer capacity will overwrite the bytes
+//! at the start of the buffer, and reading elements will consume elements from the buffer.
 //!
 //! ```
 //! use circular_buffer::CircularBuffer;
@@ -90,7 +99,7 @@
 //!
 //! # Time complexity
 //!
-//! Most of the methods implemented by [`CircularBuffer`] run in constant time. Some of the methods
+//! Most of the methods implemented by [`CircularBuffer`] and [`HeapCircularBuffer`] run in constant time. Some of the methods
 //! may run in linear time if the type of the elements implements [`Drop`], as each element needs
 //! to be deallocated one-by-one.
 //!
@@ -113,7 +122,8 @@
 //! This can provide optimal performance for small buffers as memory allocation can be avoided.
 //!
 //! For large buffers, or for buffers that need to be passed around often, it can be useful to
-//! allocate the buffer on the heap. Use a [`Box`](std::boxed) for that:
+//! allocate the buffer on the heap. You can either use a [`Box`](std::boxed) for that, if the
+//! capacity is known at compile-time:
 //!
 //! ```
 //! use circular_buffer::CircularBuffer;
@@ -129,6 +139,24 @@
 //! buf.truncate_back(128);
 //! assert_eq!(buf.len(), 128);
 //! ```
+//! 
+//! or a [`HeapCircularBuffer`], if the capacity is only known at runtime:
+//! 
+//! ```
+//! use circular_buffer::heap::HeapCircularBuffer;
+//!
+//! let mut buf = HeapCircularBuffer::<u32>::with_capacity(4096);
+//! assert_eq!(buf.len(), 0);
+//!
+//! for i in 0..1024 {
+//!     buf.push_back(i);
+//! }
+//! assert_eq!(buf.len(), 1024);
+//!
+//! buf.truncate_back(128);
+//! assert_eq!(buf.len(), 128);
+//! ```
+//! 
 //!
 //! # `no_std`
 //!
