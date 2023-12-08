@@ -6,16 +6,23 @@ use core::ops::Range;
 use core::ops::RangeBounds;
 use core::ptr::NonNull;
 use core::ptr;
-use crate::CircularBuffer;
 use crate::add_mod;
+use crate::backend::AsSlice;
+use crate::backend::Backend;
 use crate::iter::Iter;
 use crate::iter::translate_range_bounds;
 
 /// A draining [iterator](std::iter::Iterator) that removes and returns elements from a
-/// `CircularBuffer`.
+/// `CircularBuffer` or `HeapCircularBuffer`.
 ///
-/// This struct is created by [`CircularBuffer::drain()`]. See its documentation for more details.
-pub struct Drain<'a, const N: usize, T> {
+/// This struct is created by [`CircularBuffer::drain()`] or
+/// [`HeapCircularBuffer::drain()`]. See its documentation for more details.
+/// 
+/// [`CircularBuffer::drain()`]: crate::CircularBuffer::drain
+/// [`HeapCircularBuffer::drain()`]: crate::heap::HeapCircularBuffer::drain
+pub(crate) struct Drain<'a, T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     /// This is a pointer and not a reference (`&'a mut CircularBuffer`) because using a reference
     /// would make `Drain` an invariant over `CircularBuffer`, but instead we want `Drain` to be
     /// covariant over `CircularBuffer`.
@@ -25,7 +32,7 @@ pub struct Drain<'a, const N: usize, T> {
     /// buffer, storing them into a vector, and returning an iterable over the vector.
     /// Equivalently, `Drain` owns the drained elements, so it would be unnecessarily restrictive
     /// to make this type invariant over `CircularBuffer`.
-    buf: NonNull<CircularBuffer<N, T>>,
+    buf: NonNull<Backend<T, B>>,
     /// A backup of the size of the buffer. Necessary because `buf.size` is set to 0 during the
     /// lifetime of the `Drain` and is restored only during drop.
     buf_size: usize,
@@ -42,9 +49,11 @@ pub struct Drain<'a, const N: usize, T> {
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, const N: usize, T> Drain<'a, N, T> {
-    pub(crate) fn over_range<R>(buf: &'a mut CircularBuffer<N, T>, range: R) -> Self
-        where R: RangeBounds<usize>
+impl<'a, T, B> Drain<'a, T, B> 
+    where B: AsSlice<Item = MaybeUninit<T>>,
+{
+    pub(crate) fn over_range<R>(buf: &'a mut Backend<T, B>, range: R) -> Self
+        where R: RangeBounds<usize>,
     {
         let (start, end) = translate_range_bounds(buf, range);
 
@@ -81,34 +90,34 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
     /// the element at `index` must be considered as uninitialized memory and therefore the `index`
     /// must not be reused.
     unsafe fn read(&self, index: usize) -> T {
-        debug_assert!(index < N && index < self.buf_size,
+        let buf = self.buf.as_ref();
+        debug_assert!(index < buf.capacity() && index < self.buf_size,
                       "index out-of-bounds for buffer");
         debug_assert!(index >= self.range.start && index < self.range.end,
                       "index out-of-bounds for drain range");
         debug_assert!(index < self.iter.start || index >= self.iter.end,
                       "attempt to read an item that may be returned by the iterator");
-        let buf = self.buf.as_ref();
-        let index = add_mod(buf.start, index, N);
-        ptr::read(buf.items[index].assume_init_ref())
+        let index = add_mod(buf.start, index, buf.capacity());
+        ptr::read(buf.items.as_slice()[index].assume_init_ref())
     }
 
     fn as_slices(&self) -> (&[T], &[T]) {
-        if N == 0 || self.buf_size == 0 || self.iter.is_empty() {
+        let buf = unsafe { self.buf.as_ref() };
+        if buf.capacity() == 0 || self.buf_size == 0 || self.iter.is_empty() {
             return (&[][..], &[][..]);
         }
 
-        let buf = unsafe { self.buf.as_ref() };
 
-        debug_assert!(buf.start < N, "start out-of-bounds");
-        debug_assert!(self.buf_size <= N, "size out-of-bounds");
+        debug_assert!(buf.start < buf.capacity(), "start out-of-bounds");
+        debug_assert!(self.buf_size <= buf.capacity(), "size out-of-bounds");
 
-        let start = add_mod(buf.start, self.iter.start, N);
-        let end = add_mod(buf.start, self.iter.end, N);
+        let start = add_mod(buf.start, self.iter.start, buf.capacity());
+        let end = add_mod(buf.start, self.iter.end, buf.capacity());
 
         let (right, left) = if start < end {
-            (&buf.items[start..end], &[][..])
+            (&buf.items.as_slice()[start..end], &[][..])
         } else {
-            let (left, right) = buf.items.split_at(end);
+            let (left, right) = buf.items.as_slice().split_at(end);
             let right = &right[start - end..];
             (right, left)
         };
@@ -127,22 +136,22 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
     }
 
     fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        if N == 0 || self.buf_size == 0 || self.iter.is_empty() {
+        let buf = unsafe { self.buf.as_mut() };
+        if buf.capacity() == 0 || self.buf_size == 0 || self.iter.is_empty() {
             return (&mut [][..], &mut [][..]);
         }
 
-        let buf = unsafe { self.buf.as_mut() };
 
-        debug_assert!(buf.start < N, "start out-of-bounds");
-        debug_assert!(self.buf_size <= N, "size out-of-bounds");
+        debug_assert!(buf.start < buf.capacity(), "start out-of-bounds");
+        debug_assert!(self.buf_size <= buf.capacity(), "size out-of-bounds");
 
-        let start = add_mod(buf.start, self.iter.start, N);
-        let end = add_mod(buf.start, self.iter.end, N);
+        let start = add_mod(buf.start, self.iter.start, buf.capacity());
+        let end = add_mod(buf.start, self.iter.end, buf.capacity());
 
         let (right, left) = if start < end {
-            (&mut buf.items[start..end], &mut [][..])
+            (&mut buf.items.as_slice_mut()[start..end], &mut [][..])
         } else {
-            let (left, right) = buf.items.split_at_mut(end);
+            let (left, right) = buf.items.as_slice_mut().split_at_mut(end);
             let right = &mut right[start - end..];
             (right, left)
         };
@@ -161,7 +170,9 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
     }
 }
 
-impl<'a, const N: usize, T> Iterator for Drain<'a, N, T> {
+impl<'a, T, B> Iterator for Drain<'a, T, B> 
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     type Item = T;
 
     #[inline]
@@ -176,23 +187,31 @@ impl<'a, const N: usize, T> Iterator for Drain<'a, N, T> {
     }
 }
 
-impl<'a, const N: usize, T> ExactSizeIterator for Drain<'a, N, T> {
+impl<'a, T, B> ExactSizeIterator for Drain<'a, T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     #[inline]
     fn len(&self) -> usize {
         self.iter.len()
     }
 }
 
-impl<'a, const N: usize, T> FusedIterator for Drain<'a, N, T> {}
+impl<'a, T, B> FusedIterator for Drain<'a, T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{}
 
-impl<'a, const N: usize, T> DoubleEndedIterator for Drain<'a, N, T> {
+impl<'a, T, B> DoubleEndedIterator for Drain<'a, T, B> 
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     fn next_back(&mut self) -> Option<Self::Item> {
         // SAFETY: the element at the index is guaranteed to be initialized
         self.iter.next_back().map(|index| unsafe { self.read(index) })
     }
 }
 
-impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
+impl<'a, T, B> Drop for Drain<'a, T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     fn drop(&mut self) {
         // Drop the items that were not consumed
         struct Dropper<'a, T>(&'a mut [T]);
@@ -270,7 +289,7 @@ impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
         let buf = unsafe { self.buf.as_mut() };
         let mut remaining = self.buf_size - self.range.end;
 
-        let items = CircularSlicePtr::new(&mut buf.items).add(buf.start);
+        let items = CircularSlicePtr::new(buf.items.as_slice_mut()).add(buf.start);
         let mut hole = items.add(self.range.start);
         let mut backfill = items.add(self.range.end);
 
@@ -292,8 +311,11 @@ impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
     }
 }
 
-impl<'a, const N: usize, T> fmt::Debug for Drain<'a, N, T>
-    where T: fmt::Debug
+impl<'a, T, B> fmt::Debug for Drain<'a, T, B>
+    where
+        T: fmt::Debug,
+        B: AsSlice<Item = MaybeUninit<T>>
+
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -360,3 +382,27 @@ impl<'a, T> Clone for CircularSlicePtr<'a, T> {
         *self
     }
 }
+
+
+/// A draining [iterator](std::iter::Iterator) that removes and returns elements
+/// from a `CircularBuffer`
+///
+/// This struct is created by [`CircularBuffer::drain()`]. See its documentation
+/// for more details.
+/// 
+/// [`CircularBuffer::drain()`]: crate::CircularBuffer::drain
+#[repr(transparent)]
+pub struct StaticDrain<'a, const N: usize, T>(pub(crate) Drain<'a, T, [MaybeUninit<T>; N]>);
+super::impl_iter_traits!(<{const N: usize, T}> - StaticDrain<'_, N, T>);
+
+
+/// A draining [iterator](std::iter::Iterator) that removes and returns elements
+/// from a `HeapCircularBuffer`.
+///
+/// This struct is created by [`HeapCircularBuffer::drain()`]. See its
+/// documentation for more details.
+///
+/// [`HeapCircularBuffer::drain()`]: crate::heap::HeapCircularBuffer::drain
+#[repr(transparent)]
+pub struct HeapDrain<'a, T>(pub(crate) Drain<'a, T, Box<[MaybeUninit<T>]>>);
+super::impl_iter_traits!(<{T}> - HeapDrain<'_, T>);

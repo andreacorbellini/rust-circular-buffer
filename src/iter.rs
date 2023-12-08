@@ -1,27 +1,68 @@
 use core::fmt;
 use core::iter::FusedIterator;
+use core::mem::MaybeUninit;
 use core::ops::Bound;
 use core::ops::RangeBounds;
-use crate::CircularBuffer;
+use crate::backend::AsSlice;
+use crate::backend::Backend;
 
-/// An owning [iterator](std::iter::Iterator) over the elements of a [`CircularBuffer`].
+/// An owning [iterator](std::iter::Iterator) over the elements of a [`CircularBuffer`] or [`HeapCircularBuffer`].
 ///
 /// This yields the elements of a `CircularBuffer` from fron to back.
 ///
 /// This struct is created when iterating over a `CircularBuffer`. See the documentation for
 /// [`IntoIterator`] for more details.
-#[derive(Clone)]
-pub struct IntoIter<const N: usize, T> {
-    inner: CircularBuffer<N, T>,
+/// 
+/// [`CircularBuffer`]: crate::CircularBuffer
+/// [`HeapCircularBuffer`]: crate::heap::HeapCircularBuffer
+pub(crate) struct IntoIter<T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
+    inner: Backend<T, B>,
 }
 
-impl<const N: usize, T> IntoIter<N, T> {
-    pub(crate) const fn new(inner: CircularBuffer<N, T>) -> Self {
+impl<const N: usize, T> Clone for IntoIter<T, [MaybeUninit<T>; N]>
+    where T: Clone,
+{
+    fn clone(&self) -> Self {
+        use crate::CircularBuffer;
+        let buf = CircularBuffer::from_iter(self.inner.iter().cloned());
+        Self { inner: buf.into_backend() }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.inner.clear();
+        self.inner.extend(other.inner.iter().cloned());
+    }
+}
+
+impl<T> Clone for IntoIter<T, Box<[MaybeUninit<T>]>>
+    where T: Clone,
+{
+    fn clone(&self) -> Self {
+        use crate::heap::HeapCircularBuffer;
+        let mut buf = HeapCircularBuffer::with_capacity(self.inner.capacity());
+        buf.extend(self.inner.iter().cloned());
+        Self { inner: buf.into_backend() }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        self.inner.clear();
+        self.inner.extend(other.inner.iter().cloned());
+    }
+}
+
+impl<T, B> IntoIter<T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
+    pub(crate) const fn new(inner: Backend<T, B>) -> Self {
         Self { inner }
     }
 }
 
-impl<const N: usize, T> Iterator for IntoIter<N, T> {
+impl<T, B> Iterator for IntoIter<T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -35,31 +76,68 @@ impl<const N: usize, T> Iterator for IntoIter<N, T> {
     }
 }
 
-impl<const N: usize, T> ExactSizeIterator for IntoIter<N, T> {
+impl<T, B> ExactSizeIterator for IntoIter<T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
 }
 
-impl<const N: usize, T> FusedIterator for IntoIter<N, T> {}
+impl<T, B> FusedIterator for IntoIter<T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{}
 
-impl<const N: usize, T> DoubleEndedIterator for IntoIter<N, T> {
+impl<T, B> DoubleEndedIterator for IntoIter<T, B>
+    where B: AsSlice<Item = MaybeUninit<T>>
+{
     fn next_back(&mut self) -> Option<Self::Item> {
         self.inner.pop_back()
     }
 }
 
-impl<const N: usize, T> fmt::Debug for IntoIter<N, T>
-    where T: fmt::Debug
+impl<T, B> fmt::Debug for IntoIter<T, B>
+    where
+        T: fmt::Debug,
+        B: AsSlice<Item = MaybeUninit<T>>
+
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)
     }
 }
 
-pub(crate) fn translate_range_bounds<const N: usize, T, R>(buf: &CircularBuffer<N, T>, range: R) -> (usize, usize)
-    where R: RangeBounds<usize>
+/// An owning [iterator](std::iter::Iterator) over the elements of a
+/// [`CircularBuffer`]
+///
+/// This yields the elements of a `CircularBuffer` from fron to back.
+///
+/// This struct is created when iterating over a `CircularBuffer`. See the
+/// documentation for [`IntoIterator`] for more details.
+/// 
+/// [`CircularBuffer`]: crate::CircularBuffer
+#[derive(Clone)]
+pub struct StaticIntoIter<const N: usize, T>(pub(crate) IntoIter<T, [MaybeUninit<T>; N]>);
+super::impl_iter_traits!(<{const N: usize, T}> - StaticIntoIter<N, T>);
+
+/// An owning [iterator](std::iter::Iterator) over the elements of a
+/// [`HeapCircularBuffer`].
+///
+/// This yields the elements of a `CircularBuffer` from fron to back.
+///
+/// This struct is created when iterating over a `CircularBuffer`. See the
+/// documentation for [`IntoIterator`] for more details.
+/// 
+/// [`HeapCircularBuffer`]: crate::heap::HeapCircularBuffer
+#[derive(Clone)]
+pub struct HeapIntoIter<T>(pub(crate) IntoIter<T, Box<[MaybeUninit<T>]>>);
+super::impl_iter_traits!(<{T}> - HeapIntoIter<T>);
+
+pub(crate) fn translate_range_bounds<T, B, R>(buf: &Backend<T, B>, range: R) -> (usize, usize)
+    where
+        R: RangeBounds<usize>,
+        B: AsSlice<Item = MaybeUninit<T>>
 {
     let start = match range.start_bound() {
         Bound::Included(x) => *x,
@@ -183,10 +261,16 @@ fn slice_take_last_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
     Some(item)
 }
 
-/// An [iterator](std::iter::Iterator) over the elements of a `CircularBuffer`.
+/// An [iterator](std::iter::Iterator) over the elements of a `CircularBuffer` or `HeapCircularBuffer`.
 ///
-/// This struct is created by [`CircularBuffer::iter()`] and [`CircularBuffer::range()`]. See
-/// their documentation for more details.
+/// This struct is created by [`CircularBuffer::iter()`],
+/// [`CircularBuffer::range()`], [`CircularBuffer::iter()`] and
+/// [`CircularBuffer::range()`]. See their documentation for more details.
+/// 
+/// [`CircularBuffer::iter()`]: crate::CircularBuffer::iter
+/// [`CircularBuffer::range()`]: crate::CircularBuffer::range
+/// [`HeapCircularBuffer::iter()`]: crate::heap::HeapCircularBuffer::iter
+/// [`HeapCircularBuffer::range()`]: crate::heap::HeapCircularBuffer::range
 pub struct Iter<'a, T> {
     pub(crate) right: &'a [T],
     pub(crate) left: &'a [T],
@@ -197,13 +281,17 @@ impl<'a, T> Iter<'a, T> {
         Self { right: &[], left: &[] }
     }
 
-    pub(crate) fn new<const N: usize>(buf: &'a CircularBuffer<N, T>) -> Self {
+    pub(crate) fn new<B>(buf: &'a Backend<T, B>) -> Self
+        where B: AsSlice<Item = MaybeUninit<T>>
+    {
         let (right, left) = buf.as_slices();
         Self { right, left }
     }
 
-    pub(crate) fn over_range<const N: usize, R>(buf: &'a CircularBuffer<N, T>, range: R) -> Self
-        where R: RangeBounds<usize>
+    pub(crate) fn over_range<B, R>(buf: &'a Backend<T, B>, range: R) -> Self
+        where
+            R: RangeBounds<usize>,
+            B: AsSlice<Item = MaybeUninit<T>>
     {
         let (start, end) = translate_range_bounds(buf, range);
         if start >= end {
@@ -305,10 +393,17 @@ impl<'a, T> fmt::Debug for Iter<'a, T>
     }
 }
 
-/// A mutable [iterator](std::iter::Iterator) over the elements of a `CircularBuffer`.
+/// A mutable [iterator](std::iter::Iterator) over the elements of a `CircularBuffer` or `HeapCircularBuffer`.
 ///
-/// This struct is created by [`CircularBuffer::iter_mut()`] and [`CircularBuffer::range_mut()`].
-/// See their documentation for more details.
+/// This struct is created by [`CircularBuffer::iter_mut()`],
+/// [`CircularBuffer::range_mut()`], [`HeapCircularBuffer::iter_mut()`] and
+/// [`HeapCircularBuffer::range_mut()`]. See their documentation for more
+/// details.
+/// 
+/// [`CircularBuffer::iter_mut()`]: crate::CircularBuffer::iter_mut
+/// [`CircularBuffer::range_mut()`]: crate::CircularBuffer::range_mut
+/// [`HeapCircularBuffer::iter_mut()`]: crate::heap::HeapCircularBuffer::iter_mut
+/// [`HeapCircularBuffer::range_mut()`]: crate::heap::HeapCircularBuffer::range_mut
 pub struct IterMut<'a, T> {
     right: &'a mut [T],
     left: &'a mut [T],
@@ -319,13 +414,17 @@ impl<'a, T> IterMut<'a, T> {
         Self { right: &mut [], left: &mut [] }
     }
 
-    pub(crate) fn new<const N: usize>(buf: &'a mut CircularBuffer<N, T>) -> Self {
+    pub(crate) fn new<B>(buf: &'a mut Backend<T, B>) -> Self
+        where B: AsSlice<Item = MaybeUninit<T>>
+    {
         let (right, left) = buf.as_mut_slices();
         Self { right, left }
     }
 
-    pub(crate) fn over_range<const N: usize, R>(buf: &'a mut CircularBuffer<N, T>, range: R) -> Self
-        where R: RangeBounds<usize>
+    pub(crate) fn over_range<B, R>(buf: &'a mut Backend<T, B>, range: R) -> Self
+        where
+            R: RangeBounds<usize>,
+            B: AsSlice<Item = MaybeUninit<T>>
     {
         let (start, end) = translate_range_bounds(buf, range);
         if start >= end {
