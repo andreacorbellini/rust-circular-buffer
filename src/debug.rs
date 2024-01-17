@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 impl<const N: usize, T> Debug for CircularBuffer<N, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
