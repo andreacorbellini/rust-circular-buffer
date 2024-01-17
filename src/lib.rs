@@ -35,7 +35,7 @@
 //! # Interface
 //!
 //! [`CircularBuffer`] provides methods akin the ones for the standard
-//! [`VecDeque`](std::collections::VecDeque) and [`LinkedList`](std::collections::LinkedList). The
+//! [`VecDeque`](alloc::collections::VecDeque) and [`LinkedList`](alloc::collections::LinkedList). The
 //! list below includes the most common methods, but see the
 //! [`CircularBuffer` struct documentation](CircularBuffer) to see more.
 //!
@@ -113,7 +113,7 @@
 //! This can provide optimal performance for small buffers as memory allocation can be avoided.
 //!
 //! For large buffers, or for buffers that need to be passed around often, it can be useful to
-//! allocate the buffer on the heap. Use a [`Box`](std::boxed) for that:
+//! allocate the buffer on the heap. Use a [`Box`](alloc::boxed) for that:
 //!
 //! ```
 //! use circular_buffer::CircularBuffer;
@@ -154,13 +154,19 @@
 #![cfg_attr(feature = "unstable", feature(one_sided_range))]
 #![cfg_attr(feature = "unstable", feature(slice_take))]
 
-#![cfg_attr(all(feature = "unstable", feature = "use_std"), feature(new_uninit))]
+#![cfg_attr(all(feature = "unstable", feature = "alloc"), feature(new_uninit))]
 
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(pointer_structural_match)]
 #![warn(unreachable_pub)]
 #![warn(unused_qualifications)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(feature = "alloc")]
+pub use alloc::{boxed::Box, vec::Vec};
 
 mod drain;
 mod iter;
@@ -249,7 +255,7 @@ unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
 
 /// A fixed-size circular buffer.
 ///
-/// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
+/// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](alloc::boxed)
 /// using [`CircularBuffer::boxed()`] if you need the struct to be heap-allocated.
 ///
 /// See the [module-level documentation](self) for more details and examples.
@@ -300,7 +306,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// assert_eq!(buf.len(), 0);
     /// ```
     #[must_use]
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "alloc")]
     #[cfg(feature = "unstable")]
     pub fn boxed() -> Box<Self> {
         let mut uninit: Box<MaybeUninit<Self>> = Box::new_uninit();
@@ -309,8 +315,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         unsafe {
             // SAFETY: the pointer contains enough memory to contain `Self` and `addr_of_mut`
             // ensures that the address written to is properly aligned.
-            std::ptr::addr_of_mut!((*ptr).size).write(0);
-            std::ptr::addr_of_mut!((*ptr).start).write(0);
+            core::ptr::addr_of_mut!((*ptr).size).write(0);
+            core::ptr::addr_of_mut!((*ptr).start).write(0);
 
             // SAFETY: `size` and `start` have been properly initialized to 0; `items` does not
             // need to be initialized if `size` is 0
@@ -328,17 +334,17 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// assert_eq!(buf.len(), 0);
     /// ```
     #[must_use]
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "alloc")]
     #[cfg(not(feature = "unstable"))]
     pub fn boxed() -> Box<Self> {
         // SAFETY: this is emulating the code above, just using direct allocation and raw pointers
         // instead of MaybeUninit. Only `size` and `start` need to be initialized to 0; `items`
         // does not need to be initialized if `size` is 0.
         unsafe {
-            let layout = std::alloc::Layout::new::<Self>();
-            let ptr = std::alloc::alloc(layout) as *mut Self;
-            std::ptr::addr_of_mut!((*ptr).size).write(0);
-            std::ptr::addr_of_mut!((*ptr).start).write(0);
+            let layout = alloc::alloc::Layout::new::<Self>();
+            let ptr = alloc::alloc::alloc(layout) as *mut Self;
+            core::ptr::addr_of_mut!((*ptr).size).write(0);
+            core::ptr::addr_of_mut!((*ptr).start).write(0);
             Box::from_raw(ptr)
         }
     }
@@ -1657,7 +1663,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
     /// assert_eq!(vec, [1, 2, 3]);
     /// ```
     #[must_use]
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "alloc")]
     pub fn to_vec(&self) -> Vec<T> {
         let mut vec = Vec::with_capacity(self.size);
         vec.extend(self.iter().cloned());

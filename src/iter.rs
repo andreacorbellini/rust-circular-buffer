@@ -4,7 +4,7 @@ use core::ops::Bound;
 use core::ops::RangeBounds;
 use crate::CircularBuffer;
 
-/// An owning [iterator](std::iter::Iterator) over the elements of a [`CircularBuffer`].
+/// An owning [iterator](core::iter::Iterator) over the elements of a [`CircularBuffer`].
 ///
 /// This yields the elements of a `CircularBuffer` from fron to back.
 ///
@@ -183,7 +183,7 @@ fn slice_take_last_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
     Some(item)
 }
 
-/// An [iterator](std::iter::Iterator) over the elements of a `CircularBuffer`.
+/// An [iterator](core::iter::Iterator) over the elements of a `CircularBuffer`.
 ///
 /// This struct is created by [`CircularBuffer::iter()`] and [`CircularBuffer::range()`]. See
 /// their documentation for more details.
@@ -305,7 +305,7 @@ impl<'a, T> fmt::Debug for Iter<'a, T>
     }
 }
 
-/// A mutable [iterator](std::iter::Iterator) over the elements of a `CircularBuffer`.
+/// A mutable [iterator](core::iter::Iterator) over the elements of a `CircularBuffer`.
 ///
 /// This struct is created by [`CircularBuffer::iter_mut()`] and [`CircularBuffer::range_mut()`].
 /// See their documentation for more details.
