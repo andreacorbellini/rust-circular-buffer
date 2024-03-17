@@ -136,13 +136,21 @@
 //! # `no_std`
 //!
 //! This crate can be used in a [`no_std` environment], although the I/O features and
-//! heap-allocation features won't be available in `no_std` mode. By default, this crate uses
-//! `std`; to use this crate in `no_std` mode, disable the default features for this crate in your
-//! `Cargo.toml`:
+//! heap-allocation features won't be available by default in `no_std` mode. By default, this crate
+//! uses `std`; to use this crate in `no_std` mode, disable the default features for this crate in
+//! your `Cargo.toml`:
 //!
 //! ```text
 //! [dependencies]
 //! circular-buffer = { version = "0.1", features = [] }
+//! ```
+//!
+//! When using `no_std` mode, this crate supports heap-allocation features through the [`alloc`
+//! crate](alloc). To enable the use of the `alloc` crate, enable the `alloc` feature:
+//!
+//! ```text
+//! [dependencies]
+//! circular-buffer = { version = "0.1", features = ["alloc"] }
 //! ```
 //!
 //! [`no_std` environment]: https://docs.rust-embedded.org/book/intro/no-std.html
