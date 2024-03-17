@@ -1,3 +1,6 @@
+// Copyright © 2023, 2024 Andrea Corbellini and contributors
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Compare the correctness of `CircularBuffer` against a reference implementation (that is assumed
 /// to be fully correct).
 ///

@@ -1,3 +1,6 @@
+// Copyright © 2023, 2024 Andrea Corbellini and contributors
+// SPDX-License-Identifier: BSD-3-Clause
+
 use core::fmt;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;

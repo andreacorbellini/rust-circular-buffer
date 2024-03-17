@@ -1,3 +1,6 @@
+// Copyright © 2023, 2024 Andrea Corbellini and contributors
+// SPDX-License-Identifier: BSD-3-Clause
+
 #![allow(clippy::extra_unused_lifetimes)]
 
 /// Tests to verify that certain types offered by the crate are [covariant].
