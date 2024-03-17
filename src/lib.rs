@@ -682,7 +682,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// assert_eq!(buf, ['a', 'b', 'c']);
     /// ```
     #[inline]
-    #[must_use]
     pub fn drain<R>(&mut self, range: R) -> Drain<'_, N, T>
         where R: RangeBounds<usize>
     {
