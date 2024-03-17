@@ -15,6 +15,11 @@ For more information and examples, check out the [documentation]!
 [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
 [documentation]: https://docs.rs/circular-buffer/latest/circular_buffer/
 
+# Changelog
+
+For a full list of changes between releases, visit
+[GitHub](https://github.com/andreacorbellini/rust-circular-buffer/releases).
+
 # Example
 
 ```rust
