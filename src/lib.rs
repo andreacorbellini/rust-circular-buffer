@@ -35,9 +35,9 @@
 //! # Interface
 //!
 //! [`CircularBuffer`] provides methods akin the ones for the standard
-//! [`VecDeque`](alloc::collections::VecDeque) and [`LinkedList`](alloc::collections::LinkedList). The
-//! list below includes the most common methods, but see the
-//! [`CircularBuffer` struct documentation](CircularBuffer) to see more.
+//! [`VecDeque`](std::collections::VecDeque) and [`LinkedList`](std::collections::LinkedList). The
+//! list below includes the most common methods, but see the [`CircularBuffer` struct
+//! documentation](CircularBuffer) to see more.
 //!
 //! ## Adding/removing elements
 //!
@@ -113,7 +113,7 @@
 //! This can provide optimal performance for small buffers as memory allocation can be avoided.
 //!
 //! For large buffers, or for buffers that need to be passed around often, it can be useful to
-//! allocate the buffer on the heap. Use a [`Box`](alloc::boxed) for that:
+//! allocate the buffer on the heap. Use a [`Box`](std::boxed) for that:
 //!
 //! ```
 //! use circular_buffer::CircularBuffer;
@@ -257,7 +257,7 @@ unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
 
 /// A fixed-size circular buffer.
 ///
-/// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](alloc::boxed)
+/// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
 /// using [`CircularBuffer::boxed()`] if you need the struct to be heap-allocated.
 ///
 /// See the [module-level documentation](self) for more details and examples.
