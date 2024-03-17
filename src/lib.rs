@@ -671,7 +671,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// assert_eq!(buf.make_contiguous(), &mut [3, 0, 2, 5]);
     /// // as_slices() now returns a single non-empty slice
     /// assert_eq!(buf.as_slices(), (&[3, 0, 2, 5][..], &[][..]));
-    /// // The buffer order of the elements in the buffer did not get modified
+    /// // The order of the elements in the buffer did not get modified
     /// assert_eq!(buf, [3, 0, 2, 5]);
     ///
     /// // Make the buffer contiguous and sort its elements
