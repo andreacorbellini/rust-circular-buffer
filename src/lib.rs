@@ -189,9 +189,9 @@ pub use crate::iter::IterMut;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(feature = "alloc")]
+#[cfg(all(not(feature = "use_std"), feature = "alloc"))]
 use alloc::boxed::Box;
-#[cfg(feature = "alloc")]
+#[cfg(all(not(feature = "use_std"), feature = "alloc"))]
 use alloc::vec::Vec;
 
 #[cfg(feature = "unstable")]
