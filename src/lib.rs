@@ -278,51 +278,6 @@ unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
     { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
 }
 
-/// Guards a partially initialized slice to ensure that initialized elements are dropped on panic.
-///
-/// This struct is meant to be used to aid methods that iteratively add elements to uninitialized
-/// slots of `CircularBuffer`. Because adding an element may panic (depending on how the element is
-/// generated), it is important to know how many elements were successfully added prior to the
-/// panic. When a panic occurs, the successfully added elements need to be dropped.
-///
-/// This struct keeps track of how many elements have been added and drops them automatically when
-/// it goes out of some. [`mem::forget`] should be called on it once all elements have been added.
-///
-/// This implementation was highly inspired by the implementation of
-/// `MaybeUninit::write_slice_cloned`.
-///
-/// # Examples
-///
-/// ```ignore
-/// let dst: &mut [MaybeUninit<T>] = ...;
-/// let mut guard = Guard { dst, initialized: 0 };
-///
-/// for i in 0..dst.len() {
-///     guard.dst[i] = may_panic(); // if a panic occurs now, the elements in
-///                                 // `&guard.dst[..guard.initialized]` will be dropped
-///     guard.initialized += 1;
-/// }
-///
-/// // All elements have been added, dispose of the guard so that no element gets dropped
-/// mem::forget(guard);
-/// ```
-struct Guard<'a, T> {
-    dst: &'a mut [MaybeUninit<T>],
-    initialized: usize,
-}
-
-impl<'a, T> Drop for Guard<'a, T> {
-    fn drop(&mut self) {
-        let initialized = &mut self.dst[..self.initialized];
-        // SAFETY: this slice contain only initialized objects; `MaybeUninit<T>` has the same
-        // alignment and size as `T`
-        unsafe {
-            let initialized = &mut *(initialized as *mut [MaybeUninit<T>] as *mut [T]);
-            ptr::drop_in_place(initialized);
-        }
-    }
-}
-
 /// A fixed-size circular buffer.
 ///
 /// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
