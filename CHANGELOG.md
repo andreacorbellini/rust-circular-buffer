@@ -4,11 +4,9 @@
 
 ### New features
 
-* Implemented the traits
-  [`Index<usize>`](https://doc.rust-lang.org/std/ops/trait.Index.html) and
-  [`IndexMut<usize>`](https://doc.rust-lang.org/std/ops/trait.IndexMut.html)
-  for `CircularBuffer`. Now elements of the buffer can be accessed and modified
-  with indexing operations (`buf[index]`), like in the following example:
+* Implemented the traits [`Index<usize>`](https://doc.rust-lang.org/std/ops/trait.Index.html) and
+  [`IndexMut<usize>`](https://doc.rust-lang.org/std/ops/trait.IndexMut.html) for `CircularBuffer`. Now elements of the
+  buffer can be accessed and modified with indexing operations (`buf[index]`), like in the following example:
 
   ```rust
   use circular_buffer::CircularBuffer;
@@ -18,21 +16,18 @@
   assert_eq!(buf[1], 'd');
   ```
 
-* Added new methods to fill the whole buffer, or the spare capacity of the
-  buffer:
+* Added new methods to fill the whole buffer, or the spare capacity of the buffer:
   [`fill()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill),
   [`fill_with()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill_with),
   [`fill_spare()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill_spare),
   [`fill_spare_with()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill_spare_with).
 
-* Added a new `alloc` feature that brings heap-allocation features to `no_std`
-  environments through the [`alloc`](https://doc.rust-lang.org/stable/alloc/)
-  crate ([contributed by
+* Added a new `alloc` feature that brings heap-allocation features to `no_std` environments through the
+  [`alloc`](https://doc.rust-lang.org/stable/alloc/) crate ([contributed by
   Haoud](https://github.com/andreacorbellini/rust-circular-buffer/pull/11)).
 
-* Implemented the
-  [`BufRead`](https://doc.rust-lang.org/std/io/trait.BufRead.html) trait for
-  `CircularBuffer` (not available in `no_std` environments).
+* Implemented the [`BufRead`](https://doc.rust-lang.org/std/io/trait.BufRead.html) trait for `CircularBuffer` (not
+  available in `no_std` environments).
 
 ### Bug fixes
 
@@ -40,8 +35,8 @@
   [`remove()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.remove).
 
 * Removed `#[must_use]` from
-  [`drain()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.drain):
-  it is perfectly acceptable to ignore the return value from this method.
+  [`drain()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.drain): it is
+  perfectly acceptable to ignore the return value from this method.
 
 ### Other changes
 
@@ -49,36 +44,56 @@
 
 ## circular-buffer 0.1.6
 
-* Fixed a bug in bug in bug in the `PartialEq` implementation that would lead
-  to a panic in some circumstances.
+* Fixed a bug in bug in bug in the [`PartialEq`](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html) implementation
+  that would lead to a panic in some circumstances.
 
 ## circular-buffer 0.1.5
 
-* Added `try_push_back()` and `try_push_front()` as non-overwriting
-  alternatives to `push_back()` and `push_front()` ([contributed by Rinat
-  Shigapov](https://github.com/andreacorbellini/rust-circular-buffer/pull/5)).
-* Added `drain()` to remove ranges of elements.
-* Added `make_contiguous()` to return a contiguous mutable slice of elements.
-* `Iter` and `IterMut` now implement the `Default` trait.
+* Added
+  [`try_push_back()`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.CircularBuffer.html#method.try_push_back)
+  and
+  [`try_push_front()`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.CircularBuffer.html#method.try_push_front)
+  as non-overwriting alternatives to
+  [`push_back()`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.CircularBuffer.html#method.push_back) and
+  [`push_front()`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.CircularBuffer.html#method.push_front)
+  ([contributed by Rinat Shigapov in GH-5](https://github.com/andreacorbellini/rust-circular-buffer/pull/5)).
+
+* Added [`drain()`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.CircularBuffer.html#method.drain) to
+  remove ranges of elements.
+
+* Added
+  [`make_contiguous()`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.CircularBuffer.html#method.make_contiguous)
+  to return a contiguous mutable slice of elements.
+
+* [`Iter`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.Iter.html) and
+  [`IterMut`](https://docs.rs/circular-buffer/0.1.5/circular_buffer/struct.IterMut.html) now implement the
+  [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) trait.
 
 ## circular-buffer 0.1.4
 
-* Fixed a bug in `range()` and `range_mut()` that made them return more
-  elements than requested in some circumstances.
+* Fixed a bug in
+  [`range()`](https://docs.rs/circular-buffer/0.1.4/circular_buffer/struct.CircularBuffer.html#method.range) and
+  [`range_mut()`](https://docs.rs/circular-buffer/0.1.4/circular_buffer/struct.CircularBuffer.html#method.range_mut)
+  that made them return more elements than requested in some circumstances.
 
 ## circular-buffer 0.1.3
 
-* Fixed `range()` and `range_mut()` when passing an empty range ([contributed
-  by Icxolu](https://github.com/andreacorbellini/rust-circular-buffer/pull/4)).
+* Fixed [`range()`](https://docs.rs/circular-buffer/0.1.3/circular_buffer/struct.CircularBuffer.html#method.range) and
+  [`range_mut()`](https://docs.rs/circular-buffer/0.1.3/circular_buffer/struct.CircularBuffer.html#method.range_mut)
+  when passing an empty range ([contributed by Icxolu in
+  GH-4](https://github.com/andreacorbellini/rust-circular-buffer/pull/4)).
 
 ## circular-buffer 0.1.2
 
-* Made `extend_from_slice()` safe by ensuring that all cloned elements get
-  dropped in case a panic occurs.
-* Optimized all `PartialEq` implementations.
-* Fixed a [strict-provenance](https://github.com/rust-lang/rust/issues/95228)
-  error in `swap()` ([contributed by René
-  Kijewski](https://github.com/andreacorbellini/rust-circular-buffer/pull/2)).
+* Made
+  [`extend_from_slice()`](https://docs.rs/circular-buffer/0.1.2/circular_buffer/struct.CircularBuffer.html#method.extend_from_slice)
+  safer by ensuring that all cloned elements get dropped in case a panic occurs.
+
+* Optimized all [`PartialEq`](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html) implementations.
+
+* Fixed a [strict-provenance](https://github.com/rust-lang/rust/issues/95228) error in
+  [`swap()`](https://docs.rs/circular-buffer/0.1.2/circular_buffer/struct.CircularBuffer.html#method.swap) ([contributed
+  by René Kijewski in GH-2](https://github.com/andreacorbellini/rust-circular-buffer/pull/2)).
 
 ## circular-buffer 0.1.1
 
