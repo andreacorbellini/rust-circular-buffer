@@ -198,6 +198,8 @@ use core::hash::Hash;
 use core::hash::Hasher;
 use core::mem::MaybeUninit;
 use core::mem;
+use core::ops::Index;
+use core::ops::IndexMut;
 use core::ops::Range;
 use core::ops::RangeBounds;
 use core::ptr;
@@ -1977,6 +1979,22 @@ impl<'a, const N: usize, T> Extend<&'a T> for CircularBuffer<N, T>
     {
         // TODO Optimize
         iter.into_iter().for_each(|item| self.push_back(*item));
+    }
+}
+
+impl<const N: usize, T> Index<usize> for CircularBuffer<N, T> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).expect("index out-of-bounds")
+    }
+}
+
+impl<const N: usize, T> IndexMut<usize> for CircularBuffer<N, T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index).expect("index out-of-bounds")
     }
 }
 

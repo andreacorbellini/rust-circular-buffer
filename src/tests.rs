@@ -47,6 +47,10 @@ macro_rules! assert_buf_eq {
                 (None, None)                          => break,
             }
         }
+
+        for i in 0..expected.len() {
+            assert_eq!($buf[i], expected[i]);
+        }
     };
 }
 
@@ -402,7 +406,69 @@ fn get() {
     assert_eq!(buf.get(2), Some(&7));
     assert_eq!(buf.get(3), Some(&8));
     assert_eq!(buf.get(4), None);
+}
 
+#[test]
+fn index() {
+    let mut buf = CircularBuffer::<4, u32>::new();
+    assert_buf_eq!(buf, [] as [u32; 0]);
+
+    assert!(std::panic::catch_unwind(|| buf[0]).is_err());
+    assert!(std::panic::catch_unwind(|| buf[1]).is_err());
+    assert!(std::panic::catch_unwind(|| buf[2]).is_err());
+    assert!(std::panic::catch_unwind(|| buf[3]).is_err());
+    assert!(std::panic::catch_unwind(|| buf[4]).is_err());
+    assert!(std::panic::catch_unwind(|| buf[5]).is_err());
+
+    buf.push_back(1); assert_buf_eq!(buf, [1]);
+    assert_eq!(buf[0], 1);
+    assert!(std::panic::catch_unwind(|| buf[1]).is_err());
+
+    buf.push_back(2); assert_buf_eq!(buf, [1, 2]);
+    assert_eq!(buf[0], 1);
+    assert_eq!(buf[1], 2);
+    assert!(std::panic::catch_unwind(|| buf[2]).is_err());
+
+    buf.push_back(3); assert_buf_eq!(buf, [1, 2, 3]);
+    assert_eq!(buf[0], 1);
+    assert_eq!(buf[1], 2);
+    assert_eq!(buf[2], 3);
+    assert!(std::panic::catch_unwind(|| buf[3]).is_err());
+
+    buf.push_back(4); assert_buf_eq!(buf, [1, 2, 3, 4]);
+    assert_eq!(buf[0], 1);
+    assert_eq!(buf[1], 2);
+    assert_eq!(buf[2], 3);
+    assert_eq!(buf[3], 4);
+    assert!(std::panic::catch_unwind(|| buf[4]).is_err());
+
+    buf.push_back(5); assert_buf_eq!(buf, [2, 3, 4, 5]);
+    assert_eq!(buf[0], 2);
+    assert_eq!(buf[1], 3);
+    assert_eq!(buf[2], 4);
+    assert_eq!(buf[3], 5);
+    assert!(std::panic::catch_unwind(|| buf[4]).is_err());
+
+    buf.push_back(6); assert_buf_eq!(buf, [3, 4, 5, 6]);
+    assert_eq!(buf[0], 3);
+    assert_eq!(buf[1], 4);
+    assert_eq!(buf[2], 5);
+    assert_eq!(buf[3], 6);
+    assert!(std::panic::catch_unwind(|| buf[4]).is_err());
+
+    buf.push_back(7); assert_buf_eq!(buf, [4, 5, 6, 7]);
+    assert_eq!(buf[0], 4);
+    assert_eq!(buf[1], 5);
+    assert_eq!(buf[2], 6);
+    assert_eq!(buf[3], 7);
+    assert!(std::panic::catch_unwind(|| buf[4]).is_err());
+
+    buf.push_back(8); assert_buf_eq!(buf, [5, 6, 7, 8]);
+    assert_eq!(buf[0], 5);
+    assert_eq!(buf[1], 6);
+    assert_eq!(buf[2], 7);
+    assert_eq!(buf[3], 8);
+    assert!(std::panic::catch_unwind(|| buf[4]).is_err());
 }
 
 #[test]
