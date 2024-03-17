@@ -23,6 +23,12 @@ use std::ops::DerefMut;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
+#[cfg(not(miri))]
+const ROUNDS: usize = 200_000;
+
+#[cfg(miri)]
+const ROUNDS: usize = 200;
+
 #[derive(Clone, Debug)]
 enum Action<T> {
     BackMut(T),
@@ -311,7 +317,7 @@ fn test<const N: usize, T>()
     let mut buffer = CircularBuffer::<N, T>::boxed();
     let mut rng = rand::thread_rng();
 
-    for _ in 0..200_000 {
+    for _ in 0..ROUNDS {
         // Generate a random action
         let action: Action<T> = if reference.is_empty() {
             <Standard as Distribution<Action<T>>>::sample(&Standard, &mut rng)
