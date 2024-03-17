@@ -9,11 +9,6 @@ use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::measurement::Measurement;
 
-fn fill<const N: usize, T: Default>(buf: &mut CircularBuffer<N, T>) {
-    while buf.len() < N {
-        buf.push_front(T::default())
-    }
-}
 
 fn bench_push(c: &mut Criterion) {
     let mut group = c.benchmark_group("push");
@@ -45,7 +40,7 @@ fn bench_pop(c: &mut Criterion) {
         group: &mut BenchmarkGroup<'_, M>,
         buf: &mut CircularBuffer<N, u32>,
     ) {
-        fill(buf);
+        buf.fill(0);
         group.throughput(Throughput::Elements(N as u64));
         group.bench_function("pop_back", |b| b.iter(|| {
             let mut buf = buf.clone();
