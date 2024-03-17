@@ -6,6 +6,7 @@
 use crate::CircularBuffer;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
+use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -1506,6 +1507,139 @@ fn extend_from_slice_unwind_safety() {
     tracker().assert_dropped("clone of b");
     assert!(!tracker().is_tracked("clone of c"));
     assert!(!tracker().is_tracked("clone of d"));
+}
+
+#[test]
+fn fill_efficiency() {
+    #[derive(Default, Debug)]
+    struct Cloneable {
+        num_clones: RefCell<usize>,
+        is_clone: bool,
+    }
+
+    impl Clone for Cloneable {
+        fn clone(&self) -> Self {
+            if self.is_clone {
+                panic!("cannot create clone of another clone");
+            }
+            *self.num_clones.borrow_mut() += 1;
+            Self {
+                num_clones: RefCell::default(),
+                is_clone: true,
+            }
+        }
+    }
+
+    let mut buf = CircularBuffer::<6, Cloneable>::new();
+
+    buf.fill(Cloneable::default());
+    assert_eq!(buf.len(), buf.capacity());
+
+    // The last element should be the original `value` that we passed. As such, the number of
+    // clones created should be `len - 1`
+    assert_eq!(*buf.back().unwrap().num_clones.borrow(), buf.len() - 1);
+
+    // Only the last element should have been cloned; the other elements should have not been
+    // cloned
+    for elem in buf.iter().take(buf.len() - 1) {
+        assert_eq!(*elem.num_clones.borrow(), 0);
+    }
+}
+
+#[test]
+fn fill_unwind_safety() {
+    // This needs to be `static` to be used in `fn clone()` below
+    static mut TRACKER: Option<DropTracker<String>> = None;
+
+    // SAFETY: the assumption is that this test function will be called only once
+    unsafe { TRACKER.replace(DropTracker::new()); }
+
+    fn tracker() -> &'static DropTracker<String> {
+        unsafe { TRACKER.as_ref().unwrap() }
+    }
+
+    fn tracker_mut() -> &'static mut DropTracker<String> {
+        unsafe { TRACKER.as_mut().unwrap() }
+    }
+
+    #[derive(Debug)]
+    struct FaultyClonable {
+        drop_item: DropItem<String>,
+        num_clones: RefCell<usize>,
+        panic_at: usize,
+    }
+
+    impl Clone for FaultyClonable {
+        fn clone(&self) -> Self {
+            *self.num_clones.borrow_mut() += 1;
+            let num_clones = *self.num_clones.borrow();
+            if num_clones >= self.panic_at {
+                panic!("clone failed :(");
+            }
+            Self {
+                drop_item: tracker_mut().track(format!("clone #{} of {}",
+                                                       num_clones,
+                                                       self.drop_item)),
+                num_clones: RefCell::default(),
+                panic_at: self.panic_at,
+            }
+        }
+    }
+
+    let mut buf = CircularBuffer::<6, FaultyClonable>::new();
+
+    let value = FaultyClonable {
+        drop_item: tracker_mut().track("value".to_string()),
+        num_clones: RefCell::default(),
+        panic_at: 4,
+    };
+    let res = std::panic::catch_unwind(move || buf.fill(value));
+    assert!(res.is_err());
+
+    tracker().assert_dropped("value");
+    tracker().assert_dropped("clone #1 of value");
+    tracker().assert_dropped("clone #2 of value");
+    tracker().assert_dropped("clone #3 of value");
+    assert!(!tracker().is_tracked("clone #4 of value"));
+    assert!(!tracker().is_tracked("clone #5 of value"));
+}
+
+#[test]
+fn fill_with_unwind_safety() {
+    // This needs to be `static` to be used in `fn closure()` below
+    static mut TRACKER: Option<DropTracker<u32>> = None;
+
+    // SAFETY: the assumption is that this test function will be called only once
+    unsafe { TRACKER.replace(DropTracker::new()); }
+
+    fn tracker() -> &'static DropTracker<u32> {
+        unsafe { TRACKER.as_ref().unwrap() }
+    }
+
+    fn tracker_mut() -> &'static mut DropTracker<u32> {
+        unsafe { TRACKER.as_mut().unwrap() }
+    }
+
+    let mut buf = CircularBuffer::<6, DropItem<u32>>::new();
+
+    let res = std::panic::catch_unwind(move || {
+        let mut counter = 0u32;
+        buf.fill_with(|| {
+            counter += 1;
+            if counter > 4 {
+                panic!("closure failed :(");
+            }
+            tracker_mut().track(counter)
+        })
+    });
+    assert!(res.is_err());
+
+    tracker().assert_dropped(&1);
+    tracker().assert_dropped(&2);
+    tracker().assert_dropped(&3);
+    tracker().assert_dropped(&4);
+    assert!(!tracker().is_tracked(&5));
+    assert!(!tracker().is_tracked(&6));
 }
 
 #[test]
