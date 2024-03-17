@@ -1,5 +1,52 @@
 # Changelog
 
+## circular-buffer 0.1.7
+
+### New features
+
+* Implemented the traits
+  [`Index<usize>`](https://doc.rust-lang.org/std/ops/trait.Index.html) and
+  [`IndexMut<usize>`](https://doc.rust-lang.org/std/ops/trait.IndexMut.html)
+  for `CircularBuffer`. Now elements of the buffer can be accessed and modified
+  with indexing operations (`buf[index]`), like in the following example:
+
+  ```rust
+  use circular_buffer::CircularBuffer;
+  let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c']);
+  assert_eq!(buf[0], 'a');
+  buf[1] = 'd';
+  assert_eq!(buf[1], 'd');
+  ```
+
+* Added new methods to fill the whole buffer, or the spare capacity of the
+  buffer:
+  [`fill()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill),
+  [`fill_with()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill_with),
+  [`fill_spare()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill_spare),
+  [`fill_spare_with()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.fill_spare_with).
+
+* Added a new `alloc` feature that brings heap-allocation features to `no_std`
+  environments through the [`alloc`](https://doc.rust-lang.org/stable/alloc/)
+  crate ([contributed by
+  Haoud](https://github.com/andreacorbellini/rust-circular-buffer/pull/11)).
+
+* Implemented the
+  [`BufRead`](https://doc.rust-lang.org/std/io/trait.BufRead.html) trait for
+  `CircularBuffer` (not available in `no_std` environments).
+
+### Bug fixes
+
+* Fixed an out-of-bounds read in
+  [`remove()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.remove).
+
+* Removed `#[must_use]` from
+  [`drain()`](https://docs.rs/circular-buffer/0.1.7/circular_buffer/struct.CircularBuffer.html#method.drain):
+  it is perfectly acceptable to ignore the return value from this method.
+
+### Other changes
+
+* Raised the minimum rustc version to 1.65
+
 ## circular-buffer 0.1.6
 
 * Fixed a bug in bug in bug in the `PartialEq` implementation that would lead
