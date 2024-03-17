@@ -632,7 +632,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// use circular_buffer::CircularBuffer;
     ///
     /// let mut buf = CircularBuffer::<6, char>::from_iter("abcdef".chars());
-    /// let _ = buf.drain(3..);
+    /// buf.drain(3..);
     ///
     /// assert_eq!(buf, ['a', 'b', 'c']);
     /// ```
