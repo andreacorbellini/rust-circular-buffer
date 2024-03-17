@@ -162,12 +162,6 @@
 #![warn(unreachable_pub)]
 #![warn(unused_qualifications)]
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
-
-#[cfg(feature = "alloc")]
-pub use alloc::{boxed::Box, vec::Vec};
-
 mod drain;
 mod iter;
 
@@ -191,6 +185,14 @@ pub use crate::drain::Drain;
 pub use crate::iter::IntoIter;
 pub use crate::iter::Iter;
 pub use crate::iter::IterMut;
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 #[cfg(feature = "unstable")]
 macro_rules! unstable_const_impl {
