@@ -266,6 +266,51 @@ unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
     { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
 }
 
+/// Guards a partially initialized slice to ensure that initialized elements are dropped on panic.
+///
+/// This struct is meant to be used to aid methods that iteratively add elements to uninitialized
+/// slots of `CircularBuffer`. Because adding an element may panic (depending on how the element is
+/// generated), it is important to know how many elements were successfully added prior to the
+/// panic. When a panic occurs, the successfully added elements need to be dropped.
+///
+/// This struct keeps track of how many elements have been added and drops them automatically when
+/// it goes out of some. [`mem::forget`] should be called on it once all elements have been added.
+///
+/// This implementation was highly inspired by the implementation of
+/// `MaybeUninit::write_slice_cloned`.
+///
+/// # Examples
+///
+/// ```ignore
+/// let dst: &mut [MaybeUninit<T>] = ...;
+/// let mut guard = Guard { dst, initialized: 0 };
+///
+/// for i in 0..dst.len() {
+///     guard.dst[i] = may_panic(); // if a panic occurs now, the elements in
+///                                 // `&guard.dst[..guard.initialized]` will be dropped
+///     guard.initialized += 1;
+/// }
+///
+/// // All elements have been added, dispose of the guard so that no element gets dropped
+/// mem::forget(guard);
+/// ```
+struct Guard<'a, T> {
+    dst: &'a mut [MaybeUninit<T>],
+    initialized: usize,
+}
+
+impl<'a, T> Drop for Guard<'a, T> {
+    fn drop(&mut self) {
+        let initialized = &mut self.dst[..self.initialized];
+        // SAFETY: this slice contain only initialized objects; `MaybeUninit<T>` has the same
+        // alignment and size as `T`
+        unsafe {
+            let initialized = &mut *(initialized as *mut [MaybeUninit<T>] as *mut [T]);
+            ptr::drop_in_place(initialized);
+        }
+    }
+}
+
 /// A fixed-size circular buffer.
 ///
 /// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
@@ -1459,6 +1504,177 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         }
         self.swap(index, 0);
         self.pop_front()
+    }
+
+    /// Fills the entire capacity of `self` with elements by cloning `value`.
+    ///
+    /// The elements already present in the buffer (if any) are all replaced by clones of `value`,
+    /// and the spare capacity of the buffer is also filled with clones of `value`.
+    ///
+    /// This is equivalent to clearing the buffer and adding clones of `value` until reaching the
+    /// maximum capacity.
+    ///
+    /// If you want to replace only the existing elements of the buffer, without affecting the
+    /// spare capacity, use [`as_mut_slices()`](CircularBuffer::as_mut_slices) and call
+    /// [`slice::fill()`]([]::fill) on the resulting slices.
+    ///
+    /// See also: [`fill_with()`](CircularBuffer::fill_with),
+    /// [`fill_spare()`](CircularBuffer::fill_spare),
+    /// [`fill_spare_with()`](CircularBuffer::fill_spare_with).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// assert_eq!(buf, [1, 2, 3]);
+    ///
+    /// buf.fill(9);
+    /// assert_eq!(buf, [9, 9, 9, 9, 9, 9, 9, 9, 9, 9]);
+    /// ```
+    ///
+    /// If you want to replace existing elements only:
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// assert_eq!(buf, [1, 2, 3]);
+    ///
+    /// let (front, back) = buf.as_mut_slices();
+    /// front.fill(9);
+    /// back.fill(9);
+    /// assert_eq!(buf, [9, 9, 9]);
+    /// ```
+    pub fn fill(&mut self, value: T) where T: Clone {
+        self.clear();
+        self.fill_spare(value);
+    }
+
+    /// Fills the entire capacity of `self` with elements by calling a closure.
+    ///
+    /// The elements already present in the buffer (if any) are all replaced by the result of the
+    /// closure, and the spare capacity of the buffer is also filled with the result of the
+    /// closure.
+    ///
+    /// This is equivalent to clearing the buffer and adding the result of the closure until
+    /// reaching the maximum capacity.
+    ///
+    /// If you want to replace only the existing elements of the buffer, without affecting the
+    /// spare capacity, use [`as_mut_slices()`](CircularBuffer::as_mut_slices) and call
+    /// [`slice::fill_with()`]([]::fill_with) on the resulting slices.
+    ///
+    /// See also: [`fill()`](CircularBuffer::fill), [`fill_spare()`](CircularBuffer::fill_spare),
+    /// [`fill_spare_with()`](CircularBuffer::fill_spare_with).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// assert_eq!(buf, [1, 2, 3]);
+    ///
+    /// let mut x = 2;
+    /// buf.fill_with(|| {
+    ///     x *= 2;
+    ///     x
+    /// });
+    /// assert_eq!(buf, [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]);
+    /// ```
+    ///
+    /// If you want to replace existing elements only:
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// assert_eq!(buf, [1, 2, 3]);
+    ///
+    /// let mut x = 2;
+    /// let (front, back) = buf.as_mut_slices();
+    /// front.fill_with(|| {
+    ///     x *= 2;
+    ///     x
+    /// });
+    /// back.fill_with(|| {
+    ///     x *= 2;
+    ///     x
+    /// });
+    /// assert_eq!(buf, [4, 8, 16]);
+    /// ```
+    pub fn fill_with<F>(&mut self, f: F) where F: FnMut() -> T {
+        self.clear();
+        self.fill_spare_with(f);
+    }
+
+    /// Fills the spare capacity of `self` with elements by cloning `value`.
+    ///
+    /// The elements already present in the buffer (if any) are unaffected.
+    ///
+    /// This is equivalent to adding clones of `value` to the buffer until reaching the maximum
+    /// capacity.
+    ///
+    /// See also: [`fill()`](CircularBuffer::fill), [`fill_with()`](CircularBuffer::fill_with),
+    /// [`fill_spare_with()`](CircularBuffer::fill_spare_with).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// assert_eq!(buf, [1, 2, 3]);
+    ///
+    /// buf.fill_spare(9);
+    /// assert_eq!(buf, [1, 2, 3, 9, 9, 9, 9, 9, 9, 9]);
+    /// ```
+    pub fn fill_spare(&mut self, value: T) where T: Clone {
+        if N == 0 || self.size == N {
+            return;
+        }
+        // TODO Optimize
+        while self.size < N - 1 {
+            self.push_back(value.clone());
+        }
+        self.push_back(value);
+    }
+
+
+    /// Fills the spare capacity of `self` with elements by calling a closure.
+    ///
+    /// The elements already present in the buffer (if any) are unaffected.
+    ///
+    /// This is equivalent adding the result of the closure to the buffer until reaching the
+    /// maximum capacity.
+    ///
+    /// See also: [`fill()`](CircularBuffer::fill), [`fill_with()`](CircularBuffer::fill_with),
+    /// [`fill_spare()`](CircularBuffer::fill_spare).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// assert_eq!(buf, [1, 2, 3]);
+    ///
+    /// let mut x = 2;
+    /// buf.fill_spare_with(|| {
+    ///     x *= 2;
+    ///     x
+    /// });
+    /// assert_eq!(buf, [1, 2, 3, 4, 8, 16, 32, 64, 128, 256]);
+    /// ```
+    pub fn fill_spare_with<F>(&mut self, mut f: F) where F: FnMut() -> T {
+        if N == 0 {
+            return;
+        }
+        // TODO Optimize
+        while self.size < N {
+            self.push_back(f());
+        }
     }
 
     /// Shortens the buffer, keeping only the front `len` elements and dropping the rest.
