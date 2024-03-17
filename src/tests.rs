@@ -10,6 +10,7 @@ use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::io::BufRead;
 use std::io::Read;
 use std::io::Write;
 use std::ops::Bound;
@@ -1399,6 +1400,34 @@ fn read() {
     assert_buf_eq!(buf, [b'c', b'd', b'e', b'f']);
     assert_eq!(read_all(&mut buf), [b'c', b'd', b'e', b'f']);
     assert_buf_eq!(buf, [] as [u8; 0]);
+}
+
+#[test]
+fn read_buf() {
+    let mut buf = CircularBuffer::<4, u8>::new();
+    assert_buf_eq!(buf, [] as [u8; 0]);
+    assert_eq!(buf.fill_buf().unwrap(), b"");
+
+    buf.push_back(b'a');
+    buf.push_back(b'b');
+    assert_buf_eq!(buf, [b'a', b'b']);
+    assert_eq!(buf.fill_buf().unwrap(), b"ab");
+
+    buf.push_back(b'c');
+    buf.push_back(b'd');
+    buf.push_back(b'e');
+    buf.push_back(b'f');
+    assert_buf_eq!(buf, [b'c', b'd', b'e', b'f']);
+    assert_eq!(buf.fill_buf().unwrap(), b"cd");
+
+    buf.consume(2);
+    assert_eq!(buf.fill_buf().unwrap(), b"ef");
+
+    buf.consume(2);
+    assert_eq!(buf.fill_buf().unwrap(), b"");
+
+    buf.consume(2);
+    assert_eq!(buf.fill_buf().unwrap(), b"");
 }
 
 #[test]
