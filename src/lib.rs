@@ -1768,7 +1768,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
             // and drops them if the guard is dropped.
             //
             // This implementation was highly inspired by the implementation of
-            // `MaybeUninit::write_slice_cloned`
+            // `MaybeUninit::clone_from_slice`
             struct Guard<'a, T> {
                 dst: &'a mut [MaybeUninit<T>],
                 initialized: usize,
@@ -1816,7 +1816,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
 
             let write_len = core::cmp::min(right.len(), other.len());
             #[cfg(feature = "unstable")]
-            MaybeUninit::write_slice_cloned(&mut right[..write_len], &other[..write_len]);
+            MaybeUninit::clone_from_slice(&mut right[..write_len], &other[..write_len]);
             #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut right[..write_len], &other[..write_len]);
 
@@ -1824,7 +1824,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
             debug_assert!(left.len() >= other.len());
             let write_len = other.len();
             #[cfg(feature = "unstable")]
-            MaybeUninit::write_slice_cloned(&mut left[..write_len], other);
+            MaybeUninit::clone_from_slice(&mut left[..write_len], other);
             #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut left[..write_len], other);
 
@@ -1838,7 +1838,7 @@ impl<const N: usize, T> CircularBuffer<N, T>
             let other = &other[other.len() - N..];
             debug_assert_eq!(self.items.len(), other.len());
             #[cfg(feature = "unstable")]
-            MaybeUninit::write_slice_cloned(&mut self.items, other);
+            MaybeUninit::clone_from_slice(&mut self.items, other);
             #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut self.items, other);
 
