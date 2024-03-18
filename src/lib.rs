@@ -77,6 +77,7 @@
 //! elements will consume elements from the buffer.
 //!
 //! ```
+//! # #![allow(unused_must_use)]
 //! use circular_buffer::CircularBuffer;
 //! use std::io::Read;
 //! use std::io::Write;
@@ -182,6 +183,7 @@
 #![warn(pointer_structural_match)]
 #![warn(unreachable_pub)]
 #![warn(unused_qualifications)]
+#![doc(test(attr(deny(warnings))))]
 
 mod drain;
 mod iter;
@@ -404,7 +406,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// ```
     /// use circular_buffer::CircularBuffer;
-    /// let mut buf = CircularBuffer::<16, u32>::new();
+    /// let buf = CircularBuffer::<16, u32>::new();
     /// assert_eq!(buf.capacity(), 16);
     /// ```
     #[inline]
