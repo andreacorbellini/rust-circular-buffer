@@ -17,8 +17,11 @@ default = ["use_std"]
 use_std = ["alloc"]
 alloc = []
 unstable = []
+embedded_io = ["embedded-io", "embedded-io-async"]
 
 [dependencies]
+embedded-io = { version = "0.6", default-features = false, optional = true }
+embedded-io-async = { version = "0.6", default-features = false, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

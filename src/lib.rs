@@ -191,6 +191,9 @@ mod iter;
 #[cfg(feature = "use_std")]
 mod io;
 
+#[cfg(feature = "embedded_io")]
+mod embedded_io;
+
 #[cfg(test)]
 mod tests;
 
