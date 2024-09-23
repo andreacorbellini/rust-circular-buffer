@@ -191,6 +191,9 @@ mod iter;
 #[cfg(feature = "use_std")]
 mod io;
 
+#[cfg(any(feature = "embedded-io", feature = "embedded-io-async"))]
+mod embedded_io;
+
 #[cfg(test)]
 mod tests;
 
