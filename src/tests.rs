@@ -1,7 +1,7 @@
 // Copyright © 2023, 2024 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-#![cfg(test)]
+#![allow(static_mut_refs)]
 
 use crate::CircularBuffer;
 use drop_tracker::DropItem;
