@@ -171,6 +171,17 @@
 //! ```
 //!
 //! [`no_std` environment]: https://docs.rust-embedded.org/book/intro/no-std.html
+//!
+//! # Cargo feature flags
+//!
+//! * `std`: enables support for the [`std` library](https://doc.rust-lang.org/std/) (enabled by
+//!   default).
+//! * `alloc`: enables support for the [`alloc` crate](https://doc.rust-lang.org/alloc/) (enabled
+//!   by default).
+//! * `embedded-io`: enables implementation for the
+//!   [`embedded_io`](https://docs.rs/embedded-io/) traits.
+//! * `embedded-io-async`: enables implementation for the
+//!   [`embedded_io_async`](https://docs.rs/embedded-io-async) traits.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
