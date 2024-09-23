@@ -159,7 +159,7 @@
 //!
 //! ```text
 //! [dependencies]
-//! circular-buffer = { version = "0.1", features = [] }
+//! circular-buffer = { version = "0.1", default-features = false }
 //! ```
 //!
 //! When using `no_std` mode, this crate supports heap-allocation features through the [`alloc`
@@ -167,7 +167,7 @@
 //!
 //! ```text
 //! [dependencies]
-//! circular-buffer = { version = "0.1", features = ["alloc"] }
+//! circular-buffer = { version = "0.1", default-features = false, features = ["alloc"] }
 //! ```
 //!
 //! [`no_std` environment]: https://docs.rust-embedded.org/book/intro/no-std.html
