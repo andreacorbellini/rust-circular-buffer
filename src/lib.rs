@@ -169,7 +169,6 @@
 #![cfg_attr(not(feature = "use_std"), no_std)]
 
 #![cfg_attr(feature = "unstable", feature(const_maybe_uninit_uninit_array))]
-#![cfg_attr(feature = "unstable", feature(const_trait_impl))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
@@ -220,28 +219,6 @@ extern crate alloc;
 use alloc::boxed::Box;
 #[cfg(all(not(feature = "use_std"), feature = "alloc"))]
 use alloc::vec::Vec;
-
-#[cfg(feature = "unstable")]
-macro_rules! unstable_const_impl {
-    (
-        $( #[ $meta:meta ] )*
-        impl $( <{ $( $generics:tt )* }> )? const $trait:ident for $type:ty { $( $tt:tt )* }
-    ) => {
-        $(#[$meta])*
-        impl $(<$($generics)*>)? const $trait for $type { $($tt)* }
-    }
-}
-
-#[cfg(not(feature = "unstable"))]
-macro_rules! unstable_const_impl {
-    (
-        $( #[ $meta:meta ] )*
-        impl $( <{ $( $generics:tt )* }> )? const $trait:ident for $type:ty { $( $tt:tt )* }
-    ) => {
-        $(#[$meta])*
-        impl $(<$($generics)*>)? $trait for $type { $($tt)* }
-    }
-}
 
 /// Returns `(x + y) % m` without risk of overflows if `x + y` cannot fit in `usize`.
 ///
@@ -1871,12 +1848,10 @@ impl<const N: usize, T> CircularBuffer<N, T>
     }
 }
 
-unstable_const_impl! {
-    impl<{const N: usize, T}> const Default for CircularBuffer<N, T> {
-        #[inline]
-        fn default() -> Self {
-            Self::new()
-        }
+impl<const N: usize, T> Default for CircularBuffer<N, T> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1956,27 +1931,23 @@ impl<const N: usize, T> IndexMut<usize> for CircularBuffer<N, T> {
     }
 }
 
-unstable_const_impl! {
-    impl<{const N: usize, T}> const IntoIterator for CircularBuffer<N, T> {
-        type Item = T;
-        type IntoIter = IntoIter<N, T>;
+impl<const N: usize, T> IntoIterator for CircularBuffer<N, T> {
+    type Item = T;
+    type IntoIter = IntoIter<N, T>;
 
-        #[inline]
-        fn into_iter(self) -> Self::IntoIter {
-            IntoIter::new(self)
-        }
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter::new(self)
     }
 }
 
-unstable_const_impl! {
-    impl<{'a, const N: usize, T}> const IntoIterator for &'a CircularBuffer<N, T> {
-        type Item = &'a T;
-        type IntoIter = Iter<'a, T>;
+impl<'a, const N: usize, T> IntoIterator for &'a CircularBuffer<N, T> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
 
-        #[inline]
-        fn into_iter(self) -> Self::IntoIter {
-            Iter::new(self)
-        }
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        Iter::new(self)
     }
 }
 
