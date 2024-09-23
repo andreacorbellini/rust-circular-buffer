@@ -1,29 +1,35 @@
-
-
-use core::convert::Infallible;
+// Copyright © 2024 Andrea Corbellini and contributors
+// SPDX-License-Identifier: BSD-3-Clause
 
 use crate::CircularBuffer;
+use core::convert::Infallible;
 
-impl<const N: usize> embedded_io::ErrorType for CircularBuffer<N,u8>
-{
+#[cfg(feature = "embedded-io")]
+use embedded_io::ErrorType;
+
+#[cfg(all(feature = "embedded-io-async", not(feature = "embedded-io")))]
+use embedded_io_async::ErrorType;
+
+impl<const N: usize> ErrorType for CircularBuffer<N, u8> {
     type Error = Infallible;
 }
 
-impl<const N: usize>  embedded_io::Write for CircularBuffer<N,u8>{
+#[cfg(feature = "embedded-io")]
+impl<const N: usize> embedded_io::Write for CircularBuffer<N, u8> {
     #[inline]
-    fn write(&mut self, src: &[u8]) -> Result<usize,Self::Error> {
+    fn write(&mut self, src: &[u8]) -> Result<usize, Self::Error> {
         self.extend_from_slice(src);
         Ok(src.len())
     }
 
     #[inline]
-    fn flush(&mut self) -> Result<(),Self::Error> {
+    fn flush(&mut self) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
-impl<const N: usize>  embedded_io::Read for CircularBuffer<N,u8>
-{
+#[cfg(feature = "embedded-io")]
+impl<const N: usize> embedded_io::Read for CircularBuffer<N, u8> {
     fn read(&mut self, dst: &mut [u8]) -> Result<usize, Self::Error> {
         let (mut front, mut back) = self.as_slices();
         let mut count = front.read(dst)?;
@@ -33,15 +39,8 @@ impl<const N: usize>  embedded_io::Read for CircularBuffer<N,u8>
     }
 }
 
-
-
-impl<const N: usize>  embedded_io::BufRead for CircularBuffer<N,u8>
-{
-    fn consume(&mut self, amt: usize) {
-        let amt = core::cmp::min(amt, self.len());
-        self.drain(..amt);
-    }
-
+#[cfg(feature = "embedded-io")]
+impl<const N: usize> embedded_io::BufRead for CircularBuffer<N, u8> {
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         let (front, back) = self.as_slices();
         if !front.is_empty() {
@@ -50,13 +49,16 @@ impl<const N: usize>  embedded_io::BufRead for CircularBuffer<N,u8>
             Ok(back)
         }
     }
+
+    fn consume(&mut self, amt: usize) {
+        let amt = core::cmp::min(amt, self.len());
+        self.drain(..amt);
+    }
 }
 
-
-
-
-impl<const N: usize> embedded_io_async::Write for CircularBuffer<N,u8>{
-    async fn flush(&mut self) ->Result<(), Self::Error> {
+#[cfg(feature = "embedded-io-async")]
+impl<const N: usize> embedded_io_async::Write for CircularBuffer<N, u8> {
+    async fn flush(&mut self) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -66,8 +68,8 @@ impl<const N: usize> embedded_io_async::Write for CircularBuffer<N,u8>{
     }
 }
 
-
-impl<const N: usize> embedded_io_async::Read for CircularBuffer<N,u8>{
+#[cfg(feature = "embedded-io-async")]
+impl<const N: usize> embedded_io_async::Read for CircularBuffer<N, u8> {
     async fn read(&mut self, dst: &mut [u8]) -> Result<usize, Self::Error> {
         let (mut front, mut back) = self.as_slices();
         let mut count = front.read(dst).await?;
@@ -77,15 +79,9 @@ impl<const N: usize> embedded_io_async::Read for CircularBuffer<N,u8>{
     }
 }
 
-
-
-impl<const N: usize> embedded_io_async::BufRead for CircularBuffer<N,u8>{
-    fn consume(&mut self, amt: usize) {
-        let amt = core::cmp::min(amt, self.len());
-        self.drain(..amt);
-    }
-
-   async fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
+#[cfg(feature = "embedded-io-async")]
+impl<const N: usize> embedded_io_async::BufRead for CircularBuffer<N, u8> {
+    async fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         let (front, back) = self.as_slices();
         if !front.is_empty() {
             Ok(front)
@@ -93,6 +89,9 @@ impl<const N: usize> embedded_io_async::BufRead for CircularBuffer<N,u8>{
             Ok(back)
         }
     }
+
+    fn consume(&mut self, amt: usize) {
+        let amt = core::cmp::min(amt, self.len());
+        self.drain(..amt);
+    }
 }
-
-
