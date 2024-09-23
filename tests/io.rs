@@ -1,4 +1,4 @@
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 mod std {
     use circular_buffer::CircularBuffer;
     use std::io::BufRead;

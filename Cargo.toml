@@ -13,9 +13,14 @@ keywords = ["circular-buffer", "buffer", "queue", "fifo", "small"]
 categories = ["data-structures", "no-std"]
 
 [features]
-default = ["use_std"]
-use_std = ["alloc"]
+default = ["std"]
+
 alloc = []
+std = ["alloc"]
+
+# Deprecated in favor of `std`
+use_std = ["std"]
+
 unstable = []
 
 [dependencies]

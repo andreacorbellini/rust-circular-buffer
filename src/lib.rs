@@ -78,7 +78,7 @@
 //!
 //! ```
 //! # #[allow(unused_must_use)]
-//! # #[cfg(feature = "use_std")]
+//! # #[cfg(feature = "std")]
 //! # {
 //! use circular_buffer::CircularBuffer;
 //! use std::io::Read;
@@ -133,7 +133,7 @@
 //! allocate the buffer on the heap. Use a [`Box`](std::boxed) for that:
 //!
 //! ```
-//! # #[cfg(feature = "use_std")]
+//! # #[cfg(feature = "std")]
 //! # {
 //! use circular_buffer::CircularBuffer;
 //!
@@ -172,7 +172,7 @@
 //!
 //! [`no_std` environment]: https://docs.rust-embedded.org/book/intro/no-std.html
 
-#![cfg_attr(not(feature = "use_std"), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #![cfg_attr(feature = "unstable", feature(const_maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
@@ -192,7 +192,7 @@
 mod drain;
 mod iter;
 
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 mod io;
 
 #[cfg(any(feature = "embedded-io", feature = "embedded-io-async"))]
@@ -221,9 +221,9 @@ pub use crate::iter::IterMut;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(all(not(feature = "use_std"), feature = "alloc"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::boxed::Box;
-#[cfg(all(not(feature = "use_std"), feature = "alloc"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
 
 /// Returns `(x + y) % m` without risk of overflows if `x + y` cannot fit in `usize`.
