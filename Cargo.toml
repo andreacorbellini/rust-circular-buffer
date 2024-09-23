@@ -36,3 +36,14 @@ smol = { version = "2.0", default-features = false }
 [[bench]]
 name = "benchmark"
 harness = false
+
+[package.metadata.cargo-all-features]
+denylist = [
+    # `use_std` is an alias for `std`, so there's no point in testing it
+    "use_std",
+]
+
+skip_feature_sets = [
+    # `std` requires `alloc`, so there's no point in testing both at the same time
+    ["std", "alloc"],
+]
