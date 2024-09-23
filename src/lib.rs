@@ -180,7 +180,6 @@
 
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
-#![warn(pointer_structural_match)]
 #![warn(unreachable_pub)]
 #![warn(unused_qualifications)]
 #![doc(test(attr(deny(warnings))))]
