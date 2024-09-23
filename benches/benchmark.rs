@@ -28,6 +28,7 @@ fn bench_push(c: &mut Criterion) {
 
     do_bench(&mut group, &mut CircularBuffer::<10, u32>::new());
     do_bench(&mut group, &mut CircularBuffer::<100, u32>::new());
+    #[cfg(feature = "std")]
     do_bench(&mut group, &mut CircularBuffer::<1000, u32>::boxed());
 
     group.finish();
@@ -58,6 +59,7 @@ fn bench_pop(c: &mut Criterion) {
 
     do_bench(&mut group, &mut CircularBuffer::<10, u32>::new());
     do_bench(&mut group, &mut CircularBuffer::<100, u32>::new());
+    #[cfg(feature = "std")]
     do_bench(&mut group, &mut CircularBuffer::<1000, u32>::boxed());
 
     group.finish();
