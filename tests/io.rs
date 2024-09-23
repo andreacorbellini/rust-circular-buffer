@@ -164,7 +164,7 @@ mod embedded_io_async {
 
     #[test]
     fn write() {
-        smol::block_on(async {
+        futures_lite::block_on(async {
             let mut buf = CircularBuffer::<4, u8>::new();
             assert_eq!(buf, [] as [u8; 0]);
 
@@ -177,7 +177,7 @@ mod embedded_io_async {
 
     #[test]
     fn read() {
-        smol::block_on(async {
+        futures_lite::block_on(async {
             async fn read_all<R: Read>(mut buf: R) -> Vec<u8> {
                 let mut vec = Vec::new();
                 loop {
@@ -214,7 +214,7 @@ mod embedded_io_async {
 
     #[test]
     fn read_buf() {
-        smol::block_on(async {
+        futures_lite::block_on(async {
             let mut buf = CircularBuffer::<4, u8>::new();
             assert_eq!(buf, [] as [u8; 0]);
             assert_eq!(buf.fill_buf().await.unwrap(), b"");
