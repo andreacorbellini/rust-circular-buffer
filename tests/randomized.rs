@@ -3,6 +3,8 @@
 
 #![allow(static_mut_refs)]
 
+#![cfg(feature = "use_std")]
+
 //! Compare the correctness of `CircularBuffer` against a reference implementation (that is assumed
 //! to be fully correct).
 //!

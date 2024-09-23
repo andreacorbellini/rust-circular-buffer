@@ -77,7 +77,9 @@
 //! elements will consume elements from the buffer.
 //!
 //! ```
-//! # #![allow(unused_must_use)]
+//! # #[allow(unused_must_use)]
+//! # #[cfg(feature = "use_std")]
+//! # {
 //! use circular_buffer::CircularBuffer;
 //! use std::io::Read;
 //! use std::io::Write;
@@ -95,6 +97,7 @@
 //! buf.read_to_string(&mut s).expect("failed to read from buffer");
 //! assert_eq!(s, "round");
 //! assert_eq!(buf, b"");
+//! # }
 //! ```
 //!
 //! # Time complexity
@@ -130,6 +133,8 @@
 //! allocate the buffer on the heap. Use a [`Box`](std::boxed) for that:
 //!
 //! ```
+//! # #[cfg(feature = "use_std")]
+//! # {
 //! use circular_buffer::CircularBuffer;
 //!
 //! let mut buf = CircularBuffer::<4096, u32>::boxed();
@@ -142,6 +147,7 @@
 //!
 //! buf.truncate_back(128);
 //! assert_eq!(buf.len(), 128);
+//! # }
 //! ```
 //!
 //! # `no_std`

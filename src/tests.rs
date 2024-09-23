@@ -3,6 +3,8 @@
 
 #![allow(static_mut_refs)]
 
+#![cfg(feature = "use_std")]
+
 use crate::CircularBuffer;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
