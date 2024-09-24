@@ -94,7 +94,8 @@
 //! assert_eq!(buf, b"round");
 //!
 //! let mut s = String::new();
-//! buf.read_to_string(&mut s).expect("failed to read from buffer");
+//! buf.read_to_string(&mut s)
+//!     .expect("failed to read from buffer");
 //! assert_eq!(s, "round");
 //! assert_eq!(buf, b"");
 //! # }
@@ -1139,13 +1140,20 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// buf.push_back('a'); assert_eq!(buf, ['a']);
-    /// buf.push_back('b'); assert_eq!(buf, ['a', 'b']);
-    /// buf.push_back('c'); assert_eq!(buf, ['a', 'b', 'c']);
+    /// buf.push_back('a');
+    /// assert_eq!(buf, ['a']);
+    /// buf.push_back('b');
+    /// assert_eq!(buf, ['a', 'b']);
+    /// buf.push_back('c');
+    /// assert_eq!(buf, ['a', 'b', 'c']);
+    ///
     /// // The buffer is now full; adding more values causes the front elements to be dropped
-    /// buf.push_back('d'); assert_eq!(buf, ['b', 'c', 'd']);
-    /// buf.push_back('e'); assert_eq!(buf, ['c', 'd', 'e']);
-    /// buf.push_back('f'); assert_eq!(buf, ['d', 'e', 'f']);
+    /// buf.push_back('d');
+    /// assert_eq!(buf, ['b', 'c', 'd']);
+    /// buf.push_back('e');
+    /// assert_eq!(buf, ['c', 'd', 'e']);
+    /// buf.push_back('f');
+    /// assert_eq!(buf, ['d', 'e', 'f']);
     /// ```
     pub fn push_back(&mut self, item: T) {
         if N == 0 {
@@ -1183,9 +1191,13 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// assert_eq!(buf.try_push_back('a'), Ok(())); assert_eq!(buf, ['a']);
-    /// assert_eq!(buf.try_push_back('b'), Ok(())); assert_eq!(buf, ['a', 'b']);
-    /// assert_eq!(buf.try_push_back('c'), Ok(())); assert_eq!(buf, ['a', 'b', 'c']);
+    /// assert_eq!(buf.try_push_back('a'), Ok(()));
+    /// assert_eq!(buf, ['a']);
+    /// assert_eq!(buf.try_push_back('b'), Ok(()));
+    /// assert_eq!(buf, ['a', 'b']);
+    /// assert_eq!(buf.try_push_back('c'), Ok(()));
+    /// assert_eq!(buf, ['a', 'b', 'c']);
+    ///
     /// // The buffer is now full; adding more values results in an error
     /// assert_eq!(buf.try_push_back('d'), Err('d'))
     /// ```
@@ -1220,13 +1232,20 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// buf.push_front('a'); assert_eq!(buf, ['a']);
-    /// buf.push_front('b'); assert_eq!(buf, ['b', 'a']);
-    /// buf.push_front('c'); assert_eq!(buf, ['c', 'b', 'a']);
+    /// buf.push_front('a');
+    /// assert_eq!(buf, ['a']);
+    /// buf.push_front('b');
+    /// assert_eq!(buf, ['b', 'a']);
+    /// buf.push_front('c');
+    /// assert_eq!(buf, ['c', 'b', 'a']);
+    ///
     /// // The buffer is now full; adding more values causes the back elements to be dropped
-    /// buf.push_front('d'); assert_eq!(buf, ['d', 'c', 'b']);
-    /// buf.push_front('e'); assert_eq!(buf, ['e', 'd', 'c']);
-    /// buf.push_front('f'); assert_eq!(buf, ['f', 'e', 'd']);
+    /// buf.push_front('d');
+    /// assert_eq!(buf, ['d', 'c', 'b']);
+    /// buf.push_front('e');
+    /// assert_eq!(buf, ['e', 'd', 'c']);
+    /// buf.push_front('f');
+    /// assert_eq!(buf, ['f', 'e', 'd']);
     /// ```
     pub fn push_front(&mut self, item: T) {
         if N == 0 {
@@ -1265,9 +1284,13 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// let mut buf = CircularBuffer::<3, char>::new();
     ///
-    /// assert_eq!(buf.try_push_front('a'), Ok(())); assert_eq!(buf, ['a']);
-    /// assert_eq!(buf.try_push_front('b'), Ok(())); assert_eq!(buf, ['b', 'a']);
-    /// assert_eq!(buf.try_push_front('c'), Ok(())); assert_eq!(buf, ['c', 'b', 'a']);
+    /// assert_eq!(buf.try_push_front('a'), Ok(()));
+    /// assert_eq!(buf, ['a']);
+    /// assert_eq!(buf.try_push_front('b'), Ok(()));
+    /// assert_eq!(buf, ['b', 'a']);
+    /// assert_eq!(buf.try_push_front('c'), Ok(()));
+    /// assert_eq!(buf, ['c', 'b', 'a']);
+    ///
     /// // The buffer is now full; adding more values results in an error
     /// assert_eq!(buf.try_push_front('d'), Err('d'));
     /// ```
