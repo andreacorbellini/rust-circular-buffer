@@ -1,5 +1,11 @@
 # Changelog
 
+## circular-buffer 0.1.9
+
+* This release does not introduce any new features or bug fixes. It only
+  changes the dev-dependencies used by unit tests ([contributed by Ben
+  Beasley](https://github.com/andreacorbellini/rust-circular-buffer/pull/16)).
+
 ## circular-buffer 0.1.8
 
 ### New features
@@ -7,7 +13,7 @@
 * Added optional support for
   [`embedded-io`](https://crates.io/crates/embedded-io) and
   [`embedded-io-async`](https://crates.io/crates/embedded-io-async)
-  ([contribyted by
+  ([contributed by
   DaneSlattery](https://github.com/andreacorbellini/rust-circular-buffer/pull/15)).
 
 ### Other changes
