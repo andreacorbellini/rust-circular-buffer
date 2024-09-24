@@ -6,16 +6,15 @@
 /// Tests to verify that certain types offered by the crate are [covariant].
 ///
 /// [covariant]: https://doc.rust-lang.org/nomicon/subtyping.html
-
 use circular_buffer::CircularBuffer;
-use circular_buffer::Iter;
 use circular_buffer::Drain;
+use circular_buffer::Iter;
 
 /// Verify that `CircularBuffer<N, T>` is covariant over `T`
 #[test]
 fn circular_buffer<'a>() {
     let buf = CircularBuffer::<1, &'static str>::new();
-    let _: CircularBuffer::<1, &'a str> = buf;
+    let _: CircularBuffer<1, &'a str> = buf;
 }
 
 /// Verify that `Iter<'_, T>` is covariant over `T`

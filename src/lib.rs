@@ -184,16 +184,13 @@
 //!   [`embedded_io_async`](https://docs.rs/embedded-io-async) traits.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![cfg_attr(feature = "unstable", feature(const_maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
 #![cfg_attr(feature = "unstable", feature(one_sided_range))]
 #![cfg_attr(feature = "unstable", feature(slice_take))]
-
 #![cfg_attr(all(feature = "unstable", feature = "alloc"), feature(new_uninit))]
-
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(unreachable_pub)]
@@ -216,8 +213,8 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::hash::Hash;
 use core::hash::Hasher;
-use core::mem::MaybeUninit;
 use core::mem;
+use core::mem::MaybeUninit;
 use core::ops::Index;
 use core::ops::IndexMut;
 use core::ops::Range;
@@ -263,17 +260,25 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
 #[inline]
 const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
     #[cfg(feature = "unstable")]
-    { MaybeUninit::slice_assume_init_ref(slice) }
+    {
+        MaybeUninit::slice_assume_init_ref(slice)
+    }
     #[cfg(not(feature = "unstable"))]
-    { &*(slice as *const [MaybeUninit<T>] as *const [T]) }
+    {
+        &*(slice as *const [MaybeUninit<T>] as *const [T])
+    }
 }
 
 #[inline]
 unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
     #[cfg(feature = "unstable")]
-    { MaybeUninit::slice_assume_init_mut(slice) }
+    {
+        MaybeUninit::slice_assume_init_mut(slice)
+    }
     #[cfg(not(feature = "unstable"))]
-    { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
+    {
+        &mut *(slice as *mut [MaybeUninit<T>] as *mut [T])
+    }
 }
 
 /// A fixed-size circular buffer.
@@ -409,7 +414,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     pub const fn capacity(&self) -> usize {
         N
     }
-
 
     /// Returns `true` if the buffer contains 0 elements.
     ///
@@ -557,7 +561,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     #[inline]
     #[must_use]
     pub fn range<R>(&self, range: R) -> Iter<'_, T>
-        where R: RangeBounds<usize>
+    where
+        R: RangeBounds<usize>,
     {
         Iter::over_range(self, range)
     }
@@ -589,7 +594,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     #[inline]
     #[must_use]
     pub fn range_mut<R>(&mut self, range: R) -> IterMut<'_, T>
-        where R: RangeBounds<usize>
+    where
+        R: RangeBounds<usize>,
     {
         IterMut::over_range(self, range)
     }
@@ -636,7 +642,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     #[inline]
     pub fn drain<R>(&mut self, range: R) -> Drain<'_, N, T>
-        where R: RangeBounds<usize>
+    where
+        R: RangeBounds<usize>,
     {
         Drain::over_range(self, range)
     }
@@ -689,7 +696,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     pub fn make_contiguous(&mut self) -> &mut [T] {
         if N == 0 || self.size == 0 {
-            return &mut []
+            return &mut [];
         }
 
         debug_assert!(self.start < N, "start out-of-bounds");
@@ -756,9 +763,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe {
-            (slice_assume_init_ref(front), slice_assume_init_ref(back))
-        }
+        unsafe { (slice_assume_init_ref(front), slice_assume_init_ref(back)) }
     }
 
     /// Returns a pair of mutable slices which contain the elements of this buffer.
@@ -810,9 +815,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe {
-            (slice_assume_init_mut(front), slice_assume_init_mut(back))
-        }
+        unsafe { (slice_assume_init_mut(front), slice_assume_init_mut(back)) }
     }
 
     #[inline]
@@ -922,8 +925,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         debug_assert!(range.start < self.size, "start of range out-of-bounds");
         debug_assert!(range.end <= self.size, "end of range out-of-bounds");
         debug_assert!(range.start < range.end, "start of range is past its end");
-        debug_assert!(range.start == 0 || range.end == self.size,
-                      "range does not include boundary of the buffer");
+        debug_assert!(
+            range.start == 0 || range.end == self.size,
+            "range does not include boundary of the buffer"
+        );
 
         // Drops all the items in the slice when dropped. This is needed to ensure that all
         // elements are dropped in case a panic occurs during the drop of a single element.
@@ -934,7 +939,9 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             fn drop(&mut self) {
                 // SAFETY: the caller of `drop_range` is responsible to check that this slice was
                 // initialized.
-                unsafe { ptr::drop_in_place(slice_assume_init_mut(self.0)); }
+                unsafe {
+                    ptr::drop_in_place(slice_assume_init_mut(self.0));
+                }
             }
         }
 
@@ -1149,7 +1156,9 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             // At capacity; need to replace the front item
             //
             // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-            unsafe { ptr::drop_in_place(self.front_maybe_uninit_mut().as_mut_ptr()); }
+            unsafe {
+                ptr::drop_in_place(self.front_maybe_uninit_mut().as_mut_ptr());
+            }
             self.front_maybe_uninit_mut().write(item);
             self.inc_start();
         } else {
@@ -1228,7 +1237,9 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             // At capacity; need to replace the back item
             //
             // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
-            unsafe { ptr::drop_in_place(self.back_maybe_uninit_mut().as_mut_ptr()); }
+            unsafe {
+                ptr::drop_in_place(self.back_maybe_uninit_mut().as_mut_ptr());
+            }
             self.back_maybe_uninit_mut().write(item);
             self.dec_start();
         } else {
@@ -1511,7 +1522,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// back.fill(9);
     /// assert_eq!(buf, [9, 9, 9]);
     /// ```
-    pub fn fill(&mut self, value: T) where T: Clone {
+    pub fn fill(&mut self, value: T)
+    where
+        T: Clone,
+    {
         self.clear();
         self.fill_spare(value);
     }
@@ -1568,7 +1582,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// });
     /// assert_eq!(buf, [4, 8, 16]);
     /// ```
-    pub fn fill_with<F>(&mut self, f: F) where F: FnMut() -> T {
+    pub fn fill_with<F>(&mut self, f: F)
+    where
+        F: FnMut() -> T,
+    {
         self.clear();
         self.fill_spare_with(f);
     }
@@ -1594,7 +1611,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// buf.fill_spare(9);
     /// assert_eq!(buf, [1, 2, 3, 9, 9, 9, 9, 9, 9, 9]);
     /// ```
-    pub fn fill_spare(&mut self, value: T) where T: Clone {
+    pub fn fill_spare(&mut self, value: T)
+    where
+        T: Clone,
+    {
         if N == 0 || self.size == N {
             return;
         }
@@ -1604,7 +1624,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         }
         self.push_back(value);
     }
-
 
     /// Fills the spare capacity of `self` with elements by calling a closure.
     ///
@@ -1631,7 +1650,10 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// });
     /// assert_eq!(buf, [1, 2, 3, 4, 8, 16, 32, 64, 128, 256]);
     /// ```
-    pub fn fill_spare_with<F>(&mut self, mut f: F) where F: FnMut() -> T {
+    pub fn fill_spare_with<F>(&mut self, mut f: F)
+    where
+        F: FnMut() -> T,
+    {
         if N == 0 {
             return;
         }
@@ -1730,7 +1752,8 @@ impl<const N: usize, T> CircularBuffer<N, T> {
 }
 
 impl<const N: usize, T> CircularBuffer<N, T>
-    where T: Clone
+where
+    T: Clone,
 {
     /// Clones and appends all the elements from the slice to the back of the buffer.
     ///
@@ -1776,7 +1799,8 @@ impl<const N: usize, T> CircularBuffer<N, T>
                     // SAFETY: this slice contain only initialized objects; `MaybeUninit<T>` has
                     // the same alignment and size as `T`
                     unsafe {
-                        let initialized = &mut *(initialized as *mut [MaybeUninit<T>] as *mut [T]);
+                        let initialized =
+                            &mut *(initialized as *mut [MaybeUninit<T>] as *mut [T]);
                         ptr::drop_in_place(initialized);
                     }
                 }
@@ -1784,7 +1808,10 @@ impl<const N: usize, T> CircularBuffer<N, T>
 
             debug_assert_eq!(dst.len(), src.len());
             let len = dst.len();
-            let mut guard = Guard { dst, initialized: 0 };
+            let mut guard = Guard {
+                dst,
+                initialized: 0,
+            };
             #[allow(clippy::needless_range_loop)]
             for i in 0..len {
                 guard.dst[i].write(src[i].clone());
@@ -1887,23 +1914,32 @@ impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<N, T> {
         //   that contains exactly `size` elements
         // - `elems_ptr` points to a memory location that contains exactly `N` elements, and `N` is
         //   greater than or equal to `size`
-        unsafe { ptr::copy_nonoverlapping(arr_ptr.add(M - size), elems_ptr, size); }
+        unsafe {
+            ptr::copy_nonoverlapping(arr_ptr.add(M - size), elems_ptr, size);
+        }
 
         // Prevent destructors from running on those elements that we've taken ownership of; only
         // destroy the elements that were discareded
         //
         // SAFETY: All elements in `arr` are initialized; `forget` will make sure that destructors
         // are not run twice
-        unsafe { ptr::drop_in_place(&mut arr[..M - size]); }
+        unsafe {
+            ptr::drop_in_place(&mut arr[..M - size]);
+        }
         mem::forget(arr);
 
-        Self { size, start: 0, items: elems }
+        Self {
+            size,
+            start: 0,
+            items: elems,
+        }
     }
 }
 
 impl<const N: usize, T> FromIterator<T> for CircularBuffer<N, T> {
     fn from_iter<I>(iter: I) -> Self
-        where I: IntoIterator<Item = T>
+    where
+        I: IntoIterator<Item = T>,
     {
         // TODO Optimize
         let mut buf = Self::new();
@@ -1914,7 +1950,8 @@ impl<const N: usize, T> FromIterator<T> for CircularBuffer<N, T> {
 
 impl<const N: usize, T> Extend<T> for CircularBuffer<N, T> {
     fn extend<I>(&mut self, iter: I)
-        where I: IntoIterator<Item = T>
+    where
+        I: IntoIterator<Item = T>,
     {
         // TODO Optimize
         iter.into_iter().for_each(|item| self.push_back(item));
@@ -1922,10 +1959,12 @@ impl<const N: usize, T> Extend<T> for CircularBuffer<N, T> {
 }
 
 impl<'a, const N: usize, T> Extend<&'a T> for CircularBuffer<N, T>
-    where T: Copy
+where
+    T: Copy,
 {
     fn extend<I>(&mut self, iter: I)
-        where I: IntoIterator<Item = &'a T>
+    where
+        I: IntoIterator<Item = &'a T>,
     {
         // TODO Optimize
         iter.into_iter().for_each(|item| self.push_back(*item));
@@ -1969,7 +2008,8 @@ impl<'a, const N: usize, T> IntoIterator for &'a CircularBuffer<N, T> {
 }
 
 impl<const N: usize, const M: usize, T, U> PartialEq<CircularBuffer<M, U>> for CircularBuffer<N, T>
-    where T: PartialEq<U>
+where
+    T: PartialEq<U>,
 {
     fn eq(&self, other: &CircularBuffer<M, U>) -> bool {
         if self.len() != other.len() {
@@ -1983,18 +2023,22 @@ impl<const N: usize, const M: usize, T, U> PartialEq<CircularBuffer<M, U>> for C
             Ordering::Less => {
                 let x = a_left.len();
                 let y = b_left.len() - x;
-                a_left[..] == b_left[..x] && a_right[..y] == b_left[x..] && a_right[y..] == b_right[..]
-            },
+                a_left[..] == b_left[..x]
+                    && a_right[..y] == b_left[x..]
+                    && a_right[y..] == b_right[..]
+            }
             Ordering::Greater => {
                 let x = b_left.len();
                 let y = a_left.len() - x;
-                a_left[..x] == b_left[..] && a_left[x..] == b_right[..y] && a_right[..] == b_right[y..]
-            },
+                a_left[..x] == b_left[..]
+                    && a_left[x..] == b_right[..y]
+                    && a_right[..] == b_right[y..]
+            }
             Ordering::Equal => {
                 debug_assert_eq!(a_left.len(), b_left.len());
                 debug_assert_eq!(a_right.len(), b_right.len());
                 a_left == b_left && a_right == b_right
-            },
+            }
         }
     }
 }
@@ -2002,7 +2046,8 @@ impl<const N: usize, const M: usize, T, U> PartialEq<CircularBuffer<M, U>> for C
 impl<const N: usize, T> Eq for CircularBuffer<N, T> where T: Eq {}
 
 impl<const N: usize, T, U> PartialEq<[U]> for CircularBuffer<N, T>
-    where T: PartialEq<U>
+where
+    T: PartialEq<U>,
 {
     fn eq(&self, other: &[U]) -> bool {
         if self.len() != other.len() {
@@ -2019,7 +2064,8 @@ impl<const N: usize, T, U> PartialEq<[U]> for CircularBuffer<N, T>
 }
 
 impl<const N: usize, const M: usize, T, U> PartialEq<[U; M]> for CircularBuffer<N, T>
-    where T: PartialEq<U>
+where
+    T: PartialEq<U>,
 {
     #[inline]
     fn eq(&self, other: &[U; M]) -> bool {
@@ -2028,7 +2074,8 @@ impl<const N: usize, const M: usize, T, U> PartialEq<[U; M]> for CircularBuffer<
 }
 
 impl<'a, const N: usize, T, U> PartialEq<&'a [U]> for CircularBuffer<N, T>
-    where T: PartialEq<U>
+where
+    T: PartialEq<U>,
 {
     #[inline]
     fn eq(&self, other: &&'a [U]) -> bool {
@@ -2037,7 +2084,8 @@ impl<'a, const N: usize, T, U> PartialEq<&'a [U]> for CircularBuffer<N, T>
 }
 
 impl<'a, const N: usize, T, U> PartialEq<&'a mut [U]> for CircularBuffer<N, T>
-    where T: PartialEq<U>
+where
+    T: PartialEq<U>,
 {
     #[inline]
     fn eq(&self, other: &&'a mut [U]) -> bool {
@@ -2046,7 +2094,8 @@ impl<'a, const N: usize, T, U> PartialEq<&'a mut [U]> for CircularBuffer<N, T>
 }
 
 impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a [U; M]> for CircularBuffer<N, T>
-    where T: PartialEq<U>
+where
+    T: PartialEq<U>,
 {
     #[inline]
     fn eq(&self, other: &&'a [U; M]) -> bool {
@@ -2055,7 +2104,8 @@ impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a [U; M]> for Circula
 }
 
 impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a mut [U; M]> for CircularBuffer<N, T>
-    where T: PartialEq<U>
+where
+    T: PartialEq<U>,
 {
     #[inline]
     fn eq(&self, other: &&'a mut [U; M]) -> bool {
@@ -2064,7 +2114,8 @@ impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a mut [U; M]> for Cir
 }
 
 impl<const N: usize, const M: usize, T, U> PartialOrd<CircularBuffer<M, U>> for CircularBuffer<N, T>
-    where T: PartialOrd<U>
+where
+    T: PartialOrd<U>,
 {
     fn partial_cmp(&self, other: &CircularBuffer<M, U>) -> Option<Ordering> {
         self.iter().partial_cmp(other.iter())
@@ -2072,7 +2123,8 @@ impl<const N: usize, const M: usize, T, U> PartialOrd<CircularBuffer<M, U>> for 
 }
 
 impl<const N: usize, T> Ord for CircularBuffer<N, T>
-    where T: Ord
+where
+    T: Ord,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.iter().cmp(other.iter())
@@ -2080,7 +2132,8 @@ impl<const N: usize, T> Ord for CircularBuffer<N, T>
 }
 
 impl<const N: usize, T> Hash for CircularBuffer<N, T>
-    where T: Hash
+where
+    T: Hash,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.size.hash(state);
@@ -2089,7 +2142,8 @@ impl<const N: usize, T> Hash for CircularBuffer<N, T>
 }
 
 impl<const N: usize, T> Clone for CircularBuffer<N, T>
-    where T: Clone
+where
+    T: Clone,
 {
     fn clone(&self) -> Self {
         // TODO Optimize
@@ -2112,7 +2166,8 @@ impl<const N: usize, T> Drop for CircularBuffer<N, T> {
 }
 
 impl<const N: usize, T> fmt::Debug for CircularBuffer<N, T>
-    where T: fmt::Debug
+where
+    T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self).finish()

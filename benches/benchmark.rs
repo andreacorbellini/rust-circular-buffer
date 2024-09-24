@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 use circular_buffer::CircularBuffer;
-use criterion::BenchmarkGroup;
-use criterion::Criterion;
-use criterion::Throughput;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::measurement::Measurement;
-
+use criterion::BenchmarkGroup;
+use criterion::Criterion;
+use criterion::Throughput;
 
 fn bench_push(c: &mut Criterion) {
     let mut group = c.benchmark_group("push");
@@ -18,12 +17,16 @@ fn bench_push(c: &mut Criterion) {
         buf: &mut CircularBuffer<N, u32>,
     ) {
         group.throughput(Throughput::Elements(N as u64));
-        group.bench_function("push_back", |b| b.iter(|| {
-            buf.push_back(1);
-        }));
-        group.bench_function("push_front", |b| b.iter(|| {
-            buf.push_front(1);
-        }));
+        group.bench_function("push_back", |b| {
+            b.iter(|| {
+                buf.push_back(1);
+            })
+        });
+        group.bench_function("push_front", |b| {
+            b.iter(|| {
+                buf.push_front(1);
+            })
+        });
     }
 
     do_bench(&mut group, &mut CircularBuffer::<10, u32>::new());
@@ -43,18 +46,22 @@ fn bench_pop(c: &mut Criterion) {
     ) {
         buf.fill(0);
         group.throughput(Throughput::Elements(N as u64));
-        group.bench_function("pop_back", |b| b.iter(|| {
-            let mut buf = buf.clone();
-            for _ in 0..buf.capacity() {
-                buf.pop_back();
-            }
-        }));
-        group.bench_function("pop_front", |b| b.iter(|| {
-            let mut buf = buf.clone();
-            for _ in 0..buf.capacity() {
-                buf.pop_front();
-            }
-        }));
+        group.bench_function("pop_back", |b| {
+            b.iter(|| {
+                let mut buf = buf.clone();
+                for _ in 0..buf.capacity() {
+                    buf.pop_back();
+                }
+            })
+        });
+        group.bench_function("pop_front", |b| {
+            b.iter(|| {
+                let mut buf = buf.clone();
+                for _ in 0..buf.capacity() {
+                    buf.pop_front();
+                }
+            })
+        });
     }
 
     do_bench(&mut group, &mut CircularBuffer::<10, u32>::new());

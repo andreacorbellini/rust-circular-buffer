@@ -1,18 +1,18 @@
 // Copyright © 2023, 2024 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
+use crate::add_mod;
+use crate::iter::translate_range_bounds;
+use crate::iter::Iter;
+use crate::CircularBuffer;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 use core::ops::Range;
 use core::ops::RangeBounds;
-use core::ptr::NonNull;
 use core::ptr;
-use crate::CircularBuffer;
-use crate::add_mod;
-use crate::iter::Iter;
-use crate::iter::translate_range_bounds;
+use core::ptr::NonNull;
 
 /// A draining [iterator](core::iter::Iterator) that removes and returns elements from a
 /// `CircularBuffer`.
@@ -47,7 +47,8 @@ pub struct Drain<'a, const N: usize, T> {
 
 impl<'a, const N: usize, T> Drain<'a, N, T> {
     pub(crate) fn over_range<R>(buf: &'a mut CircularBuffer<N, T>, range: R) -> Self
-        where R: RangeBounds<usize>
+    where
+        R: RangeBounds<usize>,
     {
         let (start, end) = translate_range_bounds(buf, range);
 
@@ -84,12 +85,18 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
     /// the element at `index` must be considered as uninitialized memory and therefore the `index`
     /// must not be reused.
     unsafe fn read(&self, index: usize) -> T {
-        debug_assert!(index < N && index < self.buf_size,
-                      "index out-of-bounds for buffer");
-        debug_assert!(index >= self.range.start && index < self.range.end,
-                      "index out-of-bounds for drain range");
-        debug_assert!(index < self.iter.start || index >= self.iter.end,
-                      "attempt to read an item that may be returned by the iterator");
+        debug_assert!(
+            index < N && index < self.buf_size,
+            "index out-of-bounds for buffer"
+        );
+        debug_assert!(
+            index >= self.range.start && index < self.range.end,
+            "index out-of-bounds for drain range"
+        );
+        debug_assert!(
+            index < self.iter.start || index >= self.iter.end,
+            "attempt to read an item that may be returned by the iterator"
+        );
         let buf = self.buf.as_ref();
         let index = add_mod(buf.start, index, N);
         ptr::read(buf.items[index].assume_init_ref())
@@ -119,13 +126,17 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
         // SAFETY: The elements in these slices are guaranteed to be initialized
         #[cfg(feature = "unstable")]
         unsafe {
-            (MaybeUninit::slice_assume_init_ref(right),
-             MaybeUninit::slice_assume_init_ref(left))
+            (
+                MaybeUninit::slice_assume_init_ref(right),
+                MaybeUninit::slice_assume_init_ref(left),
+            )
         }
         #[cfg(not(feature = "unstable"))]
         unsafe {
-            (&*(right as *const [MaybeUninit<T>] as *const [T]),
-             &*(left as *const [MaybeUninit<T>] as *const [T]))
+            (
+                &*(right as *const [MaybeUninit<T>] as *const [T]),
+                &*(left as *const [MaybeUninit<T>] as *const [T]),
+            )
         }
     }
 
@@ -153,13 +164,17 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
         // SAFETY: The elements in these slices are guaranteed to be initialized
         #[cfg(feature = "unstable")]
         unsafe {
-            (MaybeUninit::slice_assume_init_mut(right),
-             MaybeUninit::slice_assume_init_mut(left))
+            (
+                MaybeUninit::slice_assume_init_mut(right),
+                MaybeUninit::slice_assume_init_mut(left),
+            )
         }
         #[cfg(not(feature = "unstable"))]
         unsafe {
-            (&mut *(right as *mut [MaybeUninit<T>] as *mut [T]),
-             &mut *(left as *mut [MaybeUninit<T>] as *mut [T]))
+            (
+                &mut *(right as *mut [MaybeUninit<T>] as *mut [T]),
+                &mut *(left as *mut [MaybeUninit<T>] as *mut [T]),
+            )
         }
     }
 }
@@ -191,7 +206,9 @@ impl<'a, const N: usize, T> FusedIterator for Drain<'a, N, T> {}
 impl<'a, const N: usize, T> DoubleEndedIterator for Drain<'a, N, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         // SAFETY: the element at the index is guaranteed to be initialized
-        self.iter.next_back().map(|index| unsafe { self.read(index) })
+        self.iter
+            .next_back()
+            .map(|index| unsafe { self.read(index) })
     }
 }
 
@@ -205,7 +222,9 @@ impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
                 // SAFETY: the slice is guaranteed to be valid for read and writes as the `Drain`
                 // holds a mutable reference to the `CircularBuffer` that contains the data
                 // referenced by the slices.
-                unsafe { ptr::drop_in_place(self.0); }
+                unsafe {
+                    ptr::drop_in_place(self.0);
+                }
             }
         }
 
@@ -279,9 +298,10 @@ impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
 
         // This loop should run at most 3 times as explained above
         while remaining > 0 {
-            let copy_len = hole.available_len()
-                               .min(backfill.available_len())
-                               .min(remaining);
+            let copy_len = hole
+                .available_len()
+                .min(backfill.available_len())
+                .min(remaining);
             // SAFETY: both pointers are properly aligned, and are valid for read and writes.
             unsafe { ptr::copy(backfill.as_ptr(), hole.as_mut_ptr(), copy_len) };
 
@@ -296,7 +316,8 @@ impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
 }
 
 impl<'a, const N: usize, T> fmt::Debug for Drain<'a, N, T>
-    where T: fmt::Debug
+where
+    T: fmt::Debug,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #![allow(static_mut_refs)]
-
 #![cfg(feature = "std")]
 
 //! Compare the correctness of `CircularBuffer` against a reference implementation (that is assumed
@@ -15,10 +14,10 @@
 use circular_buffer::CircularBuffer;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
-use rand::Rng;
 use rand::distributions::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::Uniform;
+use rand::Rng;
 use std::collections::VecDeque;
 use std::fmt;
 use std::mem;
@@ -57,11 +56,13 @@ enum Action<T> {
 }
 
 impl<T> Distribution<Action<T>> for Standard
-    where Standard: Distribution<T>
+where
+    Standard: Distribution<T>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Action<T> {
         fn random_vec<T, R: Rng + ?Sized>(rng: &mut R) -> Vec<T>
-            where Standard: Distribution<T>
+        where
+            Standard: Distribution<T>,
         {
             let size = rng.gen_range(0..128);
             let mut vec = Vec::with_capacity(size);
@@ -87,11 +88,13 @@ impl<T> Distribution<Action<T>> for Standard
 }
 
 impl<T> Distribution<Action<T>> for Uniform<usize>
-    where Standard: Distribution<T>
+where
+    Standard: Distribution<T>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Action<T> {
         fn random_vec<T, R: Rng + ?Sized>(rng: &mut R) -> Vec<T>
-            where Standard: Distribution<T>
+        where
+            Standard: Distribution<T>,
         {
             let size = rng.gen_range(0..128);
             let mut vec = Vec::with_capacity(size);
@@ -101,7 +104,10 @@ impl<T> Distribution<Action<T>> for Uniform<usize>
             vec
         }
 
-        fn random_range<D: Distribution<usize>, R: Rng + ?Sized>(dist: &D, rng: &mut R) -> RangeInclusive<usize> {
+        fn random_range<D: Distribution<usize>, R: Rng + ?Sized>(
+            dist: &D,
+            rng: &mut R,
+        ) -> RangeInclusive<usize> {
             let low = dist.sample(rng);
             let high = dist.sample(rng).max(low);
             low..=high
@@ -110,16 +116,16 @@ impl<T> Distribution<Action<T>> for Uniform<usize>
         let action_num: u8 = rng.gen_range(0..=18);
 
         match action_num {
-            0  => Action::BackMut(rng.gen()),
-            1  => Action::FrontMut(rng.gen()),
-            2  => Action::GetMut(self.sample(rng), rng.gen()),
-            3  => Action::PushBack(rng.gen()),
-            4  => Action::PushFront(rng.gen()),
-            5  => Action::PopBack,
-            6  => Action::PopFront,
-            7  => Action::Remove(self.sample(rng)),
-            8  => Action::Swap(self.sample(rng), self.sample(rng)),
-            9  => Action::SwapRemoveBack(self.sample(rng)),
+            0 => Action::BackMut(rng.gen()),
+            1 => Action::FrontMut(rng.gen()),
+            2 => Action::GetMut(self.sample(rng), rng.gen()),
+            3 => Action::PushBack(rng.gen()),
+            4 => Action::PushFront(rng.gen()),
+            5 => Action::PopBack,
+            6 => Action::PopFront,
+            7 => Action::Remove(self.sample(rng)),
+            8 => Action::Swap(self.sample(rng), self.sample(rng)),
+            9 => Action::SwapRemoveBack(self.sample(rng)),
             10 => Action::SwapRemoveFront(self.sample(rng)),
             11 => Action::TruncateBack(self.sample(rng)),
             12 => Action::TruncateFront(self.sample(rng)),
@@ -156,7 +162,7 @@ impl<T> Reference<T> {
 
     fn trim(&mut self, direction: Direction) {
         match direction {
-            Direction::Back  => self.trim_back(),
+            Direction::Back => self.trim_back(),
             Direction::Front => self.trim_front(),
         }
     }
@@ -199,14 +205,15 @@ impl<T> From<Option<T>> for Result<T> {
     fn from(opt: Option<T>) -> Self {
         match opt {
             Some(val) => Self::Val(val),
-            None      => Self::None,
+            None => Self::None,
         }
     }
 }
 
 impl<T> FromIterator<T> for Result<T> {
     fn from_iter<I>(iter: I) -> Self
-       where I: IntoIterator<Item = T>
+    where
+        I: IntoIterator<Item = T>,
     {
         let vec = Vec::from_iter(iter);
         Self::Vec(vec)
@@ -218,89 +225,168 @@ trait Perform<T> {
 }
 
 impl<const N: usize, T> Perform<T> for CircularBuffer<N, T>
-    where T: Clone
+where
+    T: Clone,
 {
     fn perform(&mut self, action: Action<T>) -> Result<T> {
         match action {
-            Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; Result::None },
-            Action::FrontMut(elem)         => { *self.front_mut().unwrap() = elem; Result::None },
-            Action::GetMut(index, elem)    => { *self.get_mut(index).unwrap() = elem; Result::None },
-            Action::PushBack(elem)         => { self.push_back(elem); Result::None },
-            Action::PushFront(elem)        => { self.push_front(elem); Result::None },
-            Action::PopBack                => self.pop_back().into(),
-            Action::PopFront               => self.pop_front().into(),
-            Action::Remove(index)          => self.remove(index).into(),
-            Action::Swap(x, y)             => { self.swap(x, y); Result::None },
-            Action::SwapRemoveBack(index)  => { self.swap_remove_back(index); Result::None },
-            Action::SwapRemoveFront(index) => { self.swap_remove_front(index); Result::None },
-            Action::TruncateBack(index)    => { self.truncate_back(index); Result::None },
-            Action::TruncateFront(index)   => { self.truncate_front(index); Result::None },
-            Action::Clear                  => { self.clear(); Result::None },
-            Action::Extend(elems)          => { self.extend(elems); Result::None },
-            Action::ExtendFromSlice(elems) => { self.extend_from_slice(&elems[..]); Result::None },
+            Action::BackMut(elem) => {
+                *self.back_mut().unwrap() = elem;
+                Result::None
+            }
+            Action::FrontMut(elem) => {
+                *self.front_mut().unwrap() = elem;
+                Result::None
+            }
+            Action::GetMut(index, elem) => {
+                *self.get_mut(index).unwrap() = elem;
+                Result::None
+            }
+            Action::PushBack(elem) => {
+                self.push_back(elem);
+                Result::None
+            }
+            Action::PushFront(elem) => {
+                self.push_front(elem);
+                Result::None
+            }
+            Action::PopBack => self.pop_back().into(),
+            Action::PopFront => self.pop_front().into(),
+            Action::Remove(index) => self.remove(index).into(),
+            Action::Swap(x, y) => {
+                self.swap(x, y);
+                Result::None
+            }
+            Action::SwapRemoveBack(index) => {
+                self.swap_remove_back(index);
+                Result::None
+            }
+            Action::SwapRemoveFront(index) => {
+                self.swap_remove_front(index);
+                Result::None
+            }
+            Action::TruncateBack(index) => {
+                self.truncate_back(index);
+                Result::None
+            }
+            Action::TruncateFront(index) => {
+                self.truncate_front(index);
+                Result::None
+            }
+            Action::Clear => {
+                self.clear();
+                Result::None
+            }
+            Action::Extend(elems) => {
+                self.extend(elems);
+                Result::None
+            }
+            Action::ExtendFromSlice(elems) => {
+                self.extend_from_slice(&elems[..]);
+                Result::None
+            }
             Action::RangeMut(range, elems) => {
                 self.range_mut(range)
                     .zip(elems)
                     .map(|(elem, replacement)| *elem = replacement)
                     .count();
                 Result::None
-            },
-            Action::Drain(range)           => { self.drain(range).collect() },
-            Action::MakeContiguous         => { self.make_contiguous().iter().cloned().collect() },
+            }
+            Action::Drain(range) => self.drain(range).collect(),
+            Action::MakeContiguous => self.make_contiguous().iter().cloned().collect(),
         }
     }
 }
 
 impl<T> Perform<T> for VecDeque<T>
-    where T: Clone
+where
+    T: Clone,
 {
     fn perform(&mut self, action: Action<T>) -> Result<T> {
         match action {
-            Action::BackMut(elem)          => { *self.back_mut().unwrap() = elem; Result::None },
-            Action::FrontMut(elem)         => { *self.front_mut().unwrap() = elem; Result::None },
-            Action::GetMut(index, elem)    => { *self.get_mut(index).unwrap() = elem; Result::None },
-            Action::PushBack(elem)         => { self.push_back(elem); Result::None },
-            Action::PushFront(elem)        => { self.push_front(elem); Result::None },
-            Action::PopBack                => self.pop_back().into(),
-            Action::PopFront               => self.pop_front().into(),
-            Action::Remove(index)          => self.remove(index).into(),
-            Action::Swap(x, y)             => { self.swap(x, y); Result::None },
-            Action::SwapRemoveBack(index)  => { self.swap_remove_back(index); Result::None },
-            Action::SwapRemoveFront(index) => { self.swap_remove_front(index); Result::None },
-            Action::TruncateBack(size)     => {
-                while self.len() > size { let _ = self.pop_back(); };
+            Action::BackMut(elem) => {
+                *self.back_mut().unwrap() = elem;
                 Result::None
-            },
-            Action::TruncateFront(size)    => {
-                while self.len() > size { let _ = self.pop_front(); };
+            }
+            Action::FrontMut(elem) => {
+                *self.front_mut().unwrap() = elem;
                 Result::None
-            },
-            Action::Clear                  => { self.clear(); Result::None },
-            Action::Extend(elems)          => { self.extend(elems); Result::None },
-            Action::ExtendFromSlice(elems) => { self.extend(elems); Result::None },
+            }
+            Action::GetMut(index, elem) => {
+                *self.get_mut(index).unwrap() = elem;
+                Result::None
+            }
+            Action::PushBack(elem) => {
+                self.push_back(elem);
+                Result::None
+            }
+            Action::PushFront(elem) => {
+                self.push_front(elem);
+                Result::None
+            }
+            Action::PopBack => self.pop_back().into(),
+            Action::PopFront => self.pop_front().into(),
+            Action::Remove(index) => self.remove(index).into(),
+            Action::Swap(x, y) => {
+                self.swap(x, y);
+                Result::None
+            }
+            Action::SwapRemoveBack(index) => {
+                self.swap_remove_back(index);
+                Result::None
+            }
+            Action::SwapRemoveFront(index) => {
+                self.swap_remove_front(index);
+                Result::None
+            }
+            Action::TruncateBack(size) => {
+                while self.len() > size {
+                    let _ = self.pop_back();
+                }
+                Result::None
+            }
+            Action::TruncateFront(size) => {
+                while self.len() > size {
+                    let _ = self.pop_front();
+                }
+                Result::None
+            }
+            Action::Clear => {
+                self.clear();
+                Result::None
+            }
+            Action::Extend(elems) => {
+                self.extend(elems);
+                Result::None
+            }
+            Action::ExtendFromSlice(elems) => {
+                self.extend(elems);
+                Result::None
+            }
             Action::RangeMut(range, elems) => {
                 self.range_mut(range)
                     .zip(elems)
                     .map(|(elem, replacement)| *elem = replacement)
                     .count();
                 Result::None
-            },
-            Action::Drain(range)           => { self.drain(range).collect() },
-            Action::MakeContiguous         => { self.make_contiguous().iter().cloned().collect() },
+            }
+            Action::Drain(range) => self.drain(range).collect(),
+            Action::MakeContiguous => self.make_contiguous().iter().cloned().collect(),
         }
     }
 }
 
 impl<T> Perform<T> for Reference<T>
-    where T: Clone
+where
+    T: Clone,
 {
     fn perform(&mut self, action: Action<T>) -> Result<T> {
         let trim_direction = match action {
-            Action::PushBack(_)        => Some(Direction::Front),
-            Action::PushFront(_)       => Some(Direction::Back),
-            Action::Extend(_)          => Some(Direction::Front),
+            Action::PushBack(_) => Some(Direction::Front),
+            Action::PushFront(_) => Some(Direction::Back),
+            Action::Extend(_) => Some(Direction::Front),
             Action::ExtendFromSlice(_) => Some(Direction::Front),
-            _                          => None,
+            _ => None,
         };
 
         let result = self.inner.perform(action);
@@ -314,8 +400,9 @@ impl<T> Perform<T> for Reference<T>
 }
 
 fn test<const N: usize, T>()
-    where T: Clone + PartialEq + fmt::Debug,
-          Standard: Distribution<T>
+where
+    T: Clone + PartialEq + fmt::Debug,
+    Standard: Distribution<T>,
 {
     let mut reference = Reference::<T>::new(N);
     let mut buffer = CircularBuffer::<N, T>::boxed();
@@ -339,26 +426,34 @@ fn test<const N: usize, T>()
         assert_eq!(expected, actual);
 
         // Compare the state of both implementations
-        let expected_items = reference.iter()
-                                      .cloned()
-                                      .collect::<Vec<T>>();
+        let expected_items = reference.iter().cloned().collect::<Vec<T>>();
         #[allow(clippy::eq_op)]
-        { assert_eq!(buffer, buffer); }
+        {
+            assert_eq!(buffer, buffer);
+        }
         assert_eq!(*buffer, &expected_items[..]);
         assert_eq!(buffer.to_vec(), expected_items);
 
         assert_eq!(reference.len(), buffer.len());
         assert_eq!(reference.is_empty(), buffer.is_empty());
 
-        assert_eq!(reference.iter().collect::<Vec<&T>>(),
-                   buffer.iter().collect::<Vec<&T>>());
-        assert_eq!(reference.iter_mut().collect::<Vec<&mut T>>(),
-                   buffer.iter_mut().collect::<Vec<&mut T>>());
+        assert_eq!(
+            reference.iter().collect::<Vec<&T>>(),
+            buffer.iter().collect::<Vec<&T>>()
+        );
+        assert_eq!(
+            reference.iter_mut().collect::<Vec<&mut T>>(),
+            buffer.iter_mut().collect::<Vec<&mut T>>()
+        );
 
-        assert_eq!(reference.iter().rev().collect::<Vec<&T>>(),
-                   buffer.iter().rev().collect::<Vec<&T>>());
-        assert_eq!(reference.iter_mut().rev().collect::<Vec<&mut T>>(),
-                   buffer.iter_mut().rev().collect::<Vec<&mut T>>());
+        assert_eq!(
+            reference.iter().rev().collect::<Vec<&T>>(),
+            buffer.iter().rev().collect::<Vec<&T>>()
+        );
+        assert_eq!(
+            reference.iter_mut().rev().collect::<Vec<&mut T>>(),
+            buffer.iter_mut().rev().collect::<Vec<&mut T>>()
+        );
     }
 }
 
@@ -394,7 +489,9 @@ fn drop() {
     static mut TRACKER: Option<DropTracker<u64>> = None;
 
     // SAFETY: the assumption is that this test function will be called only once
-    unsafe { TRACKER.replace(DropTracker::new()); }
+    unsafe {
+        TRACKER.replace(DropTracker::new());
+    }
 
     fn tracker() -> &'static DropTracker<u64> {
         unsafe { TRACKER.as_ref().unwrap() }

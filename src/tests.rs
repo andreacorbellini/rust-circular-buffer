@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #![allow(static_mut_refs)]
-
 #![cfg(feature = "std")]
 
 use crate::CircularBuffer;
@@ -208,28 +207,47 @@ fn pop_back() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
-    assert_eq!(buf.pop_back(), None);       assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_back(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_back(1);                       assert_buf_eq!(buf, [1]);
-    assert_eq!(buf.pop_back(), Some(1));    assert_buf_eq!(buf, [] as [u32; 0]);
-    assert_eq!(buf.pop_back(), None);       assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_back(1);
+    assert_buf_eq!(buf, [1]);
+    assert_eq!(buf.pop_back(), Some(1));
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_back(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_back(2);                       assert_buf_eq!(buf, [2]);
-    buf.push_back(3);                       assert_buf_eq!(buf, [2, 3]);
-    assert_eq!(buf.pop_back(), Some(3));    assert_buf_eq!(buf, [2]);
-    assert_eq!(buf.pop_back(), Some(2));    assert_buf_eq!(buf, [] as [u32; 0]);
-    assert_eq!(buf.pop_back(), None);       assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_back(2);
+    assert_buf_eq!(buf, [2]);
+    buf.push_back(3);
+    assert_buf_eq!(buf, [2, 3]);
+    assert_eq!(buf.pop_back(), Some(3));
+    assert_buf_eq!(buf, [2]);
+    assert_eq!(buf.pop_back(), Some(2));
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_back(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_back(4);                       assert_buf_eq!(buf, [4]);
-    buf.push_back(5);                       assert_buf_eq!(buf, [4, 5]);
-    buf.push_back(6);                       assert_buf_eq!(buf, [4, 5, 6]);
-    buf.push_back(7);                       assert_buf_eq!(buf, [4, 5, 6, 7]);
-    buf.push_back(8);                       assert_buf_eq!(buf, [5, 6, 7, 8]);
-    assert_eq!(buf.pop_back(), Some(8));    assert_buf_eq!(buf, [5, 6, 7]);
-    assert_eq!(buf.pop_back(), Some(7));    assert_buf_eq!(buf, [5, 6]);
-    assert_eq!(buf.pop_back(), Some(6));    assert_buf_eq!(buf, [5]);
-    assert_eq!(buf.pop_back(), Some(5));    assert_buf_eq!(buf, [] as [u32; 0]);
-    assert_eq!(buf.pop_back(), None);       assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_back(4);
+    assert_buf_eq!(buf, [4]);
+    buf.push_back(5);
+    assert_buf_eq!(buf, [4, 5]);
+    buf.push_back(6);
+    assert_buf_eq!(buf, [4, 5, 6]);
+    buf.push_back(7);
+    assert_buf_eq!(buf, [4, 5, 6, 7]);
+    buf.push_back(8);
+    assert_buf_eq!(buf, [5, 6, 7, 8]);
+    assert_eq!(buf.pop_back(), Some(8));
+    assert_buf_eq!(buf, [5, 6, 7]);
+    assert_eq!(buf.pop_back(), Some(7));
+    assert_buf_eq!(buf, [5, 6]);
+    assert_eq!(buf.pop_back(), Some(6));
+    assert_buf_eq!(buf, [5]);
+    assert_eq!(buf.pop_back(), Some(5));
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_back(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 }
 
 #[test]
@@ -237,28 +255,47 @@ fn pop_front() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
-    assert_eq!(buf.pop_front(), None);      assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_front(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_front(1);                      assert_buf_eq!(buf, [1]);
-    assert_eq!(buf.pop_front(), Some(1));   assert_buf_eq!(buf, [] as [u32; 0]);
-    assert_eq!(buf.pop_front(), None);      assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_front(1);
+    assert_buf_eq!(buf, [1]);
+    assert_eq!(buf.pop_front(), Some(1));
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_front(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_front(2);                      assert_buf_eq!(buf, [2]);
-    buf.push_front(3);                      assert_buf_eq!(buf, [3, 2]);
-    assert_eq!(buf.pop_front(), Some(3));   assert_buf_eq!(buf, [2]);
-    assert_eq!(buf.pop_front(), Some(2));   assert_buf_eq!(buf, [] as [u32; 0]);
-    assert_eq!(buf.pop_front(), None);      assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_front(2);
+    assert_buf_eq!(buf, [2]);
+    buf.push_front(3);
+    assert_buf_eq!(buf, [3, 2]);
+    assert_eq!(buf.pop_front(), Some(3));
+    assert_buf_eq!(buf, [2]);
+    assert_eq!(buf.pop_front(), Some(2));
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_front(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_front(4);                      assert_buf_eq!(buf, [4]);
-    buf.push_front(5);                      assert_buf_eq!(buf, [5, 4]);
-    buf.push_front(6);                      assert_buf_eq!(buf, [6, 5, 4]);
-    buf.push_front(7);                      assert_buf_eq!(buf, [7, 6, 5, 4]);
-    buf.push_front(8);                      assert_buf_eq!(buf, [8, 7, 6, 5]);
-    assert_eq!(buf.pop_front(), Some(8));   assert_buf_eq!(buf, [7, 6, 5]);
-    assert_eq!(buf.pop_front(), Some(7));   assert_buf_eq!(buf, [6, 5]);
-    assert_eq!(buf.pop_front(), Some(6));   assert_buf_eq!(buf, [5]);
-    assert_eq!(buf.pop_front(), Some(5));   assert_buf_eq!(buf, [] as [u32; 0]);
-    assert_eq!(buf.pop_front(), None);      assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_front(4);
+    assert_buf_eq!(buf, [4]);
+    buf.push_front(5);
+    assert_buf_eq!(buf, [5, 4]);
+    buf.push_front(6);
+    assert_buf_eq!(buf, [6, 5, 4]);
+    buf.push_front(7);
+    assert_buf_eq!(buf, [7, 6, 5, 4]);
+    buf.push_front(8);
+    assert_buf_eq!(buf, [8, 7, 6, 5]);
+    assert_eq!(buf.pop_front(), Some(8));
+    assert_buf_eq!(buf, [7, 6, 5]);
+    assert_eq!(buf.pop_front(), Some(7));
+    assert_buf_eq!(buf, [6, 5]);
+    assert_eq!(buf.pop_front(), Some(6));
+    assert_buf_eq!(buf, [5]);
+    assert_eq!(buf.pop_front(), Some(5));
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    assert_eq!(buf.pop_front(), None);
+    assert_buf_eq!(buf, [] as [u32; 0]);
 }
 
 #[test]
@@ -274,22 +311,36 @@ fn remove() {
     assert_eq!(buf.remove(5), None);
     assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_back(1);                   assert_buf_eq!(buf, [1]);
-    assert_eq!(buf.remove(0), Some(1)); assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_back(1);
+    assert_buf_eq!(buf, [1]);
+    assert_eq!(buf.remove(0), Some(1));
+    assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.push_back(2);                   assert_buf_eq!(buf, [2]);
-    buf.push_back(3);                   assert_buf_eq!(buf, [2, 3]);
-    buf.push_back(4);                   assert_buf_eq!(buf, [2, 3, 4]);
-    assert_eq!(buf.remove(1), Some(3)); assert_buf_eq!(buf, [2, 4]);
+    buf.push_back(2);
+    assert_buf_eq!(buf, [2]);
+    buf.push_back(3);
+    assert_buf_eq!(buf, [2, 3]);
+    buf.push_back(4);
+    assert_buf_eq!(buf, [2, 3, 4]);
+    assert_eq!(buf.remove(1), Some(3));
+    assert_buf_eq!(buf, [2, 4]);
 
-    buf.push_back(5);                   assert_buf_eq!(buf, [2, 4, 5]);
-    buf.push_back(6);                   assert_buf_eq!(buf, [2, 4, 5, 6]);
-    buf.push_back(7);                   assert_buf_eq!(buf, [4, 5, 6, 7]);
-    buf.push_back(8);                   assert_buf_eq!(buf, [5, 6, 7, 8]);
-    assert_eq!(buf.remove(2), Some(7)); assert_buf_eq!(buf, [5, 6, 8]);
-    assert_eq!(buf.remove(2), Some(8)); assert_buf_eq!(buf, [5, 6]);
-    assert_eq!(buf.remove(1), Some(6)); assert_buf_eq!(buf, [5]);
-    assert_eq!(buf.remove(0), Some(5)); assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.push_back(5);
+    assert_buf_eq!(buf, [2, 4, 5]);
+    buf.push_back(6);
+    assert_buf_eq!(buf, [2, 4, 5, 6]);
+    buf.push_back(7);
+    assert_buf_eq!(buf, [4, 5, 6, 7]);
+    buf.push_back(8);
+    assert_buf_eq!(buf, [5, 6, 7, 8]);
+    assert_eq!(buf.remove(2), Some(7));
+    assert_buf_eq!(buf, [5, 6, 8]);
+    assert_eq!(buf.remove(2), Some(8));
+    assert_buf_eq!(buf, [5, 6]);
+    assert_eq!(buf.remove(1), Some(6));
+    assert_buf_eq!(buf, [5]);
+    assert_eq!(buf.remove(0), Some(5));
+    assert_buf_eq!(buf, [] as [u32; 0]);
 }
 
 #[test]
@@ -360,50 +411,58 @@ fn get() {
     assert_eq!(buf.get(4), None);
     assert_eq!(buf.get(5), None);
 
-    buf.push_back(1); assert_buf_eq!(buf, [1]);
+    buf.push_back(1);
+    assert_buf_eq!(buf, [1]);
     assert_eq!(buf.get(0), Some(&1));
     assert_eq!(buf.get(1), None);
 
-    buf.push_back(2); assert_buf_eq!(buf, [1, 2]);
+    buf.push_back(2);
+    assert_buf_eq!(buf, [1, 2]);
     assert_eq!(buf.get(0), Some(&1));
     assert_eq!(buf.get(1), Some(&2));
     assert_eq!(buf.get(2), None);
 
-    buf.push_back(3); assert_buf_eq!(buf, [1, 2, 3]);
+    buf.push_back(3);
+    assert_buf_eq!(buf, [1, 2, 3]);
     assert_eq!(buf.get(0), Some(&1));
     assert_eq!(buf.get(1), Some(&2));
     assert_eq!(buf.get(2), Some(&3));
     assert_eq!(buf.get(3), None);
 
-    buf.push_back(4); assert_buf_eq!(buf, [1, 2, 3, 4]);
+    buf.push_back(4);
+    assert_buf_eq!(buf, [1, 2, 3, 4]);
     assert_eq!(buf.get(0), Some(&1));
     assert_eq!(buf.get(1), Some(&2));
     assert_eq!(buf.get(2), Some(&3));
     assert_eq!(buf.get(3), Some(&4));
     assert_eq!(buf.get(4), None);
 
-    buf.push_back(5); assert_buf_eq!(buf, [2, 3, 4, 5]);
+    buf.push_back(5);
+    assert_buf_eq!(buf, [2, 3, 4, 5]);
     assert_eq!(buf.get(0), Some(&2));
     assert_eq!(buf.get(1), Some(&3));
     assert_eq!(buf.get(2), Some(&4));
     assert_eq!(buf.get(3), Some(&5));
     assert_eq!(buf.get(4), None);
 
-    buf.push_back(6); assert_buf_eq!(buf, [3, 4, 5, 6]);
+    buf.push_back(6);
+    assert_buf_eq!(buf, [3, 4, 5, 6]);
     assert_eq!(buf.get(0), Some(&3));
     assert_eq!(buf.get(1), Some(&4));
     assert_eq!(buf.get(2), Some(&5));
     assert_eq!(buf.get(3), Some(&6));
     assert_eq!(buf.get(5), None);
 
-    buf.push_back(7); assert_buf_eq!(buf, [4, 5, 6, 7]);
+    buf.push_back(7);
+    assert_buf_eq!(buf, [4, 5, 6, 7]);
     assert_eq!(buf.get(0), Some(&4));
     assert_eq!(buf.get(1), Some(&5));
     assert_eq!(buf.get(2), Some(&6));
     assert_eq!(buf.get(3), Some(&7));
     assert_eq!(buf.get(4), None);
 
-    buf.push_back(8); assert_buf_eq!(buf, [5, 6, 7, 8]);
+    buf.push_back(8);
+    assert_buf_eq!(buf, [5, 6, 7, 8]);
     assert_eq!(buf.get(0), Some(&5));
     assert_eq!(buf.get(1), Some(&6));
     assert_eq!(buf.get(2), Some(&7));
@@ -423,50 +482,58 @@ fn index() {
     assert!(std::panic::catch_unwind(|| buf[4]).is_err());
     assert!(std::panic::catch_unwind(|| buf[5]).is_err());
 
-    buf.push_back(1); assert_buf_eq!(buf, [1]);
+    buf.push_back(1);
+    assert_buf_eq!(buf, [1]);
     assert_eq!(buf[0], 1);
     assert!(std::panic::catch_unwind(|| buf[1]).is_err());
 
-    buf.push_back(2); assert_buf_eq!(buf, [1, 2]);
+    buf.push_back(2);
+    assert_buf_eq!(buf, [1, 2]);
     assert_eq!(buf[0], 1);
     assert_eq!(buf[1], 2);
     assert!(std::panic::catch_unwind(|| buf[2]).is_err());
 
-    buf.push_back(3); assert_buf_eq!(buf, [1, 2, 3]);
+    buf.push_back(3);
+    assert_buf_eq!(buf, [1, 2, 3]);
     assert_eq!(buf[0], 1);
     assert_eq!(buf[1], 2);
     assert_eq!(buf[2], 3);
     assert!(std::panic::catch_unwind(|| buf[3]).is_err());
 
-    buf.push_back(4); assert_buf_eq!(buf, [1, 2, 3, 4]);
+    buf.push_back(4);
+    assert_buf_eq!(buf, [1, 2, 3, 4]);
     assert_eq!(buf[0], 1);
     assert_eq!(buf[1], 2);
     assert_eq!(buf[2], 3);
     assert_eq!(buf[3], 4);
     assert!(std::panic::catch_unwind(|| buf[4]).is_err());
 
-    buf.push_back(5); assert_buf_eq!(buf, [2, 3, 4, 5]);
+    buf.push_back(5);
+    assert_buf_eq!(buf, [2, 3, 4, 5]);
     assert_eq!(buf[0], 2);
     assert_eq!(buf[1], 3);
     assert_eq!(buf[2], 4);
     assert_eq!(buf[3], 5);
     assert!(std::panic::catch_unwind(|| buf[4]).is_err());
 
-    buf.push_back(6); assert_buf_eq!(buf, [3, 4, 5, 6]);
+    buf.push_back(6);
+    assert_buf_eq!(buf, [3, 4, 5, 6]);
     assert_eq!(buf[0], 3);
     assert_eq!(buf[1], 4);
     assert_eq!(buf[2], 5);
     assert_eq!(buf[3], 6);
     assert!(std::panic::catch_unwind(|| buf[4]).is_err());
 
-    buf.push_back(7); assert_buf_eq!(buf, [4, 5, 6, 7]);
+    buf.push_back(7);
+    assert_buf_eq!(buf, [4, 5, 6, 7]);
     assert_eq!(buf[0], 4);
     assert_eq!(buf[1], 5);
     assert_eq!(buf[2], 6);
     assert_eq!(buf[3], 7);
     assert!(std::panic::catch_unwind(|| buf[4]).is_err());
 
-    buf.push_back(8); assert_buf_eq!(buf, [5, 6, 7, 8]);
+    buf.push_back(8);
+    assert_buf_eq!(buf, [5, 6, 7, 8]);
     assert_eq!(buf[0], 5);
     assert_eq!(buf[1], 6);
     assert_eq!(buf[2], 7);
@@ -920,7 +987,7 @@ fn range_mut() {
 
 #[test]
 fn zero_capacity() {
-    fn run_assertions(buf: &CircularBuffer::<0, u32>) {
+    fn run_assertions(buf: &CircularBuffer<0, u32>) {
         assert_eq!(*buf, []);
         assert_eq!(buf.len(), 0);
         assert_eq!(buf.capacity(), 0);
@@ -932,23 +999,35 @@ fn zero_capacity() {
     let mut buf = CircularBuffer::<0, u32>::new();
     run_assertions(&buf);
 
-    buf.push_back(1);                   run_assertions(&buf);
-    assert_eq!(buf.pop_back(), None);   run_assertions(&buf);
-    buf.push_front(1);                  run_assertions(&buf);
-    assert_eq!(buf.pop_front(), None);  run_assertions(&buf);
-    assert_eq!(buf.remove(0), None);    run_assertions(&buf);
-    buf.extend(&[1, 2, 3]);             run_assertions(&buf);
-    buf.extend_from_slice(&[1, 2, 3]);  run_assertions(&buf);
-    buf.truncate_back(10);              run_assertions(&buf);
-    buf.truncate_back(0);               run_assertions(&buf);
-    buf.truncate_front(10);             run_assertions(&buf);
-    buf.truncate_front(0);              run_assertions(&buf);
-    buf.clear();                        run_assertions(&buf);
+    buf.push_back(1);
+    run_assertions(&buf);
+    assert_eq!(buf.pop_back(), None);
+    run_assertions(&buf);
+    buf.push_front(1);
+    run_assertions(&buf);
+    assert_eq!(buf.pop_front(), None);
+    run_assertions(&buf);
+    assert_eq!(buf.remove(0), None);
+    run_assertions(&buf);
+    buf.extend(&[1, 2, 3]);
+    run_assertions(&buf);
+    buf.extend_from_slice(&[1, 2, 3]);
+    run_assertions(&buf);
+    buf.truncate_back(10);
+    run_assertions(&buf);
+    buf.truncate_back(0);
+    run_assertions(&buf);
+    buf.truncate_front(10);
+    run_assertions(&buf);
+    buf.truncate_front(0);
+    run_assertions(&buf);
+    buf.clear();
+    run_assertions(&buf);
 }
 
 #[test]
 fn remove_on_empty() {
-    fn run_assertions(buf: &CircularBuffer::<10, u32>) {
+    fn run_assertions(buf: &CircularBuffer<10, u32>) {
         assert_eq!(*buf, []);
         assert_eq!(buf.len(), 0);
         assert_eq!(buf.to_vec(), []);
@@ -958,29 +1037,45 @@ fn remove_on_empty() {
     let mut buf = CircularBuffer::<10, u32>::new();
     run_assertions(&buf);
 
-    assert_eq!(buf.pop_back(), None);   run_assertions(&buf);
-    assert_eq!(buf.pop_front(), None);  run_assertions(&buf);
-    assert_eq!(buf.remove(0), None);    run_assertions(&buf);
-    buf.truncate_back(10);              run_assertions(&buf);
-    buf.truncate_back(0);               run_assertions(&buf);
-    buf.truncate_front(10);             run_assertions(&buf);
-    buf.truncate_front(0);              run_assertions(&buf);
-    buf.clear();                        run_assertions(&buf);
+    assert_eq!(buf.pop_back(), None);
+    run_assertions(&buf);
+    assert_eq!(buf.pop_front(), None);
+    run_assertions(&buf);
+    assert_eq!(buf.remove(0), None);
+    run_assertions(&buf);
+    buf.truncate_back(10);
+    run_assertions(&buf);
+    buf.truncate_back(0);
+    run_assertions(&buf);
+    buf.truncate_front(10);
+    run_assertions(&buf);
+    buf.truncate_front(0);
+    run_assertions(&buf);
+    buf.clear();
+    run_assertions(&buf);
 }
 
 #[test]
 fn swap() {
     let mut buf: CircularBuffer<4, u32> = [1, 2, 3, 4].into_iter().collect();
 
-    buf.swap(0, 3);     assert_buf_eq!(buf, [4, 2, 3, 1]);
-    buf.swap(1, 2);     assert_buf_eq!(buf, [4, 3, 2, 1]);
-    buf.pop_front();    assert_buf_eq!(buf, [3, 2, 1]);
-    buf.push_back(4);   assert_buf_eq!(buf, [3, 2, 1, 4]);
+    buf.swap(0, 3);
+    assert_buf_eq!(buf, [4, 2, 3, 1]);
+    buf.swap(1, 2);
+    assert_buf_eq!(buf, [4, 3, 2, 1]);
+    buf.pop_front();
+    assert_buf_eq!(buf, [3, 2, 1]);
+    buf.push_back(4);
+    assert_buf_eq!(buf, [3, 2, 1, 4]);
     assert!(!is_contiguous(&buf));
-    buf.swap(0, 1);     assert_buf_eq!(buf, [2, 3, 1, 4]);
-    buf.swap(1, 2);     assert_buf_eq!(buf, [2, 1, 3, 4]);
-    buf.swap(2, 3);     assert_buf_eq!(buf, [2, 1, 4, 3]);
-    buf.swap(3, 0);     assert_buf_eq!(buf, [3, 1, 4, 2]);
+    buf.swap(0, 1);
+    assert_buf_eq!(buf, [2, 3, 1, 4]);
+    buf.swap(1, 2);
+    assert_buf_eq!(buf, [2, 1, 3, 4]);
+    buf.swap(2, 3);
+    assert_buf_eq!(buf, [2, 1, 4, 3]);
+    buf.swap(3, 0);
+    assert_buf_eq!(buf, [3, 1, 4, 2]);
 }
 
 #[test]
@@ -1074,9 +1169,7 @@ fn drop_disjoint() {
 fn drain_front() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(..4);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1092,9 +1185,7 @@ fn drain_front() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(..4);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1105,9 +1196,7 @@ fn drain_front() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let _ = buf.drain(..4);
     assert_buf_eq!(buf, [5, 6, 7]);
     tracker.assert_all_alive([5, 6, 7]);
@@ -1118,9 +1207,7 @@ fn drain_front() {
 fn drain_back() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(3..);
     assert_eq!(drain.next().unwrap(), 4);
     assert_eq!(drain.next().unwrap(), 5);
@@ -1136,9 +1223,7 @@ fn drain_back() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(3..);
     assert_eq!(drain.next().unwrap(), 4);
     assert_eq!(drain.next().unwrap(), 5);
@@ -1149,9 +1234,7 @@ fn drain_back() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let _ = buf.drain(3..);
     assert_buf_eq!(buf, [1, 2, 3]);
     tracker.assert_all_alive([1, 2, 3]);
@@ -1162,9 +1245,7 @@ fn drain_back() {
 fn drain_middle_contiguous() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     assert!(is_contiguous(&buf));
     let mut drain = buf.drain(2..5);
     assert_eq!(drain.next().unwrap(), 3);
@@ -1180,9 +1261,7 @@ fn drain_middle_contiguous() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     assert!(is_contiguous(&buf));
     let mut drain = buf.drain(2..5);
     assert_eq!(drain.next().unwrap(), 3);
@@ -1194,9 +1273,7 @@ fn drain_middle_contiguous() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     assert!(is_contiguous(&buf));
     let _ = buf.drain(2..5);
     assert_buf_eq!(buf, [1, 2, 6, 7]);
@@ -1209,7 +1286,7 @@ fn drain_middle_disjoint() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
     let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+        tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
     );
     assert!(!is_contiguous(&buf));
     let mut drain = buf.drain(3..7);
@@ -1228,7 +1305,7 @@ fn drain_middle_disjoint() {
     // Partially consume the drain
     let mut tracker = DropTracker::new();
     let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+        tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
     );
     assert!(!is_contiguous(&buf));
     let mut drain = buf.drain(3..7);
@@ -1242,7 +1319,7 @@ fn drain_middle_disjoint() {
     // Do not consume the drain
     let mut tracker = DropTracker::new();
     let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+        tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
     );
     assert!(!is_contiguous(&buf));
     let _ = buf.drain(3..7);
@@ -1255,9 +1332,7 @@ fn drain_middle_disjoint() {
 fn drain_full() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let mut drain = buf.drain(..);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1272,9 +1347,7 @@ fn drain_full() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let mut drain = buf.drain(..);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1284,9 +1357,7 @@ fn drain_full() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let _ = buf.drain(..);
     assert_buf_eq!(buf, [] as [i32; 0]);
     tracker.assert_fully_dropped();
@@ -1295,9 +1366,7 @@ fn drain_full() {
 #[test]
 fn drain_empty() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<10, _>::from_iter(
-        tracker.track_many([1, 2, 3, 4])
-    );
+    let mut buf = CircularBuffer::<10, _>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let mut drain = buf.drain(0..0);
     assert_eq!(drain.next(), None);
     assert_eq!(drain.next(), None);
@@ -1372,8 +1441,10 @@ fn write() {
     let mut buf = CircularBuffer::<4, u8>::new();
     assert_buf_eq!(buf, [] as [u8; 0]);
 
-    assert!(write!(&mut buf, "hello").is_ok()); assert_buf_eq!(buf, [b'e', b'l', b'l', b'o']);
-    assert!(write!(&mut buf, "world").is_ok()); assert_buf_eq!(buf, [b'o', b'r', b'l', b'd']);
+    assert!(write!(&mut buf, "hello").is_ok());
+    assert_buf_eq!(buf, [b'e', b'l', b'l', b'o']);
+    assert!(write!(&mut buf, "world").is_ok());
+    assert_buf_eq!(buf, [b'o', b'r', b'l', b'd']);
 }
 
 #[test]
@@ -1446,27 +1517,42 @@ fn from_array() {
     tracker.assert_fully_alive();
 
     let mut tracker = DropTracker::new();
-    let arr = [tracker.track(1), tracker.track(2),
-               tracker.track(3), tracker.track(4)];
+    let arr = [
+        tracker.track(1),
+        tracker.track(2),
+        tracker.track(3),
+        tracker.track(4),
+    ];
     let buf = CircularBuffer::<4, DropItem<i32>>::from(arr);
     assert_buf_eq!(buf, [1, 2, 3, 4]);
     tracker.assert_all_alive([1, 2, 3, 4]);
     tracker.assert_fully_alive();
 
     let mut tracker = DropTracker::new();
-    let arr = [tracker.track(1), tracker.track(2),
-               tracker.track(3), tracker.track(4),
-               tracker.track(5), tracker.track(6)];
+    let arr = [
+        tracker.track(1),
+        tracker.track(2),
+        tracker.track(3),
+        tracker.track(4),
+        tracker.track(5),
+        tracker.track(6),
+    ];
     let buf = CircularBuffer::<4, DropItem<i32>>::from(arr);
     assert_buf_eq!(buf, [3, 4, 5, 6]);
     tracker.assert_all_alive([3, 4, 5, 6]);
     tracker.assert_all_dropped([1, 2]);
 
     let mut tracker = DropTracker::new();
-    let arr = [tracker.track(1), tracker.track(2),
-               tracker.track(3), tracker.track(4),
-               tracker.track(5), tracker.track(6),
-               tracker.track(7), tracker.track(8)];
+    let arr = [
+        tracker.track(1),
+        tracker.track(2),
+        tracker.track(3),
+        tracker.track(4),
+        tracker.track(5),
+        tracker.track(6),
+        tracker.track(7),
+        tracker.track(8),
+    ];
     let buf = CircularBuffer::<4, DropItem<i32>>::from(arr);
     assert_buf_eq!(buf, [5, 6, 7, 8]);
     tracker.assert_all_alive([5, 6, 7, 8]);
@@ -1487,27 +1573,42 @@ fn from_iter() {
     tracker.assert_fully_alive();
 
     let mut tracker = DropTracker::new();
-    let vec = vec![tracker.track(1), tracker.track(2),
-                   tracker.track(3), tracker.track(4)];
+    let vec = vec![
+        tracker.track(1),
+        tracker.track(2),
+        tracker.track(3),
+        tracker.track(4),
+    ];
     let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec);
     assert_buf_eq!(buf, [1, 2, 3, 4]);
     tracker.assert_all_alive([1, 2, 3, 4]);
     tracker.assert_fully_alive();
 
     let mut tracker = DropTracker::new();
-    let vec = vec![tracker.track(1), tracker.track(2),
-                   tracker.track(3), tracker.track(4),
-                   tracker.track(5), tracker.track(6)];
+    let vec = vec![
+        tracker.track(1),
+        tracker.track(2),
+        tracker.track(3),
+        tracker.track(4),
+        tracker.track(5),
+        tracker.track(6),
+    ];
     let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec);
     assert_buf_eq!(buf, [3, 4, 5, 6]);
     tracker.assert_all_alive([3, 4, 5, 6]);
     tracker.assert_all_dropped([1, 2]);
 
     let mut tracker = DropTracker::new();
-    let vec = vec![tracker.track(1), tracker.track(2),
-                   tracker.track(3), tracker.track(4),
-                   tracker.track(5), tracker.track(6),
-                   tracker.track(7), tracker.track(8)];
+    let vec = vec![
+        tracker.track(1),
+        tracker.track(2),
+        tracker.track(3),
+        tracker.track(4),
+        tracker.track(5),
+        tracker.track(6),
+        tracker.track(7),
+        tracker.track(8),
+    ];
     let buf = CircularBuffer::<4, DropItem<i32>>::from_iter(vec);
     assert_buf_eq!(buf, [5, 6, 7, 8]);
     tracker.assert_all_alive([5, 6, 7, 8]);
@@ -1519,12 +1620,18 @@ fn extend() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.extend([] as [u32; 0]);         assert_buf_eq!(buf, [] as [u32; 0]);
-    buf.extend([1]);                    assert_buf_eq!(buf, [1]);
-    buf.extend([2, 3]);                 assert_buf_eq!(buf, [1, 2, 3]);
-    buf.extend([4, 5, 6]);              assert_buf_eq!(buf, [3, 4, 5, 6]);
-    buf.extend([7, 8, 9, 10]);          assert_buf_eq!(buf, [7, 8, 9, 10]);
-    buf.extend([11, 12, 13, 14, 15]);   assert_buf_eq!(buf, [12, 13, 14, 15]);
+    buf.extend([] as [u32; 0]);
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.extend([1]);
+    assert_buf_eq!(buf, [1]);
+    buf.extend([2, 3]);
+    assert_buf_eq!(buf, [1, 2, 3]);
+    buf.extend([4, 5, 6]);
+    assert_buf_eq!(buf, [3, 4, 5, 6]);
+    buf.extend([7, 8, 9, 10]);
+    assert_buf_eq!(buf, [7, 8, 9, 10]);
+    buf.extend([11, 12, 13, 14, 15]);
+    assert_buf_eq!(buf, [12, 13, 14, 15]);
 }
 
 #[test]
@@ -1532,12 +1639,18 @@ fn extend_ref() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.extend([].iter());                      assert_buf_eq!(buf, [] as [u32; 0]);
-    buf.extend([1].iter());                     assert_buf_eq!(buf, [1]);
-    buf.extend([2, 3].iter());                  assert_buf_eq!(buf, [1, 2, 3]);
-    buf.extend([4, 5, 6].iter());               assert_buf_eq!(buf, [3, 4, 5, 6]);
-    buf.extend([7, 8, 9, 10].iter());           assert_buf_eq!(buf, [7, 8, 9, 10]);
-    buf.extend([11, 12, 13, 14, 15].iter());    assert_buf_eq!(buf, [12, 13, 14, 15]);
+    buf.extend([].iter());
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.extend([1].iter());
+    assert_buf_eq!(buf, [1]);
+    buf.extend([2, 3].iter());
+    assert_buf_eq!(buf, [1, 2, 3]);
+    buf.extend([4, 5, 6].iter());
+    assert_buf_eq!(buf, [3, 4, 5, 6]);
+    buf.extend([7, 8, 9, 10].iter());
+    assert_buf_eq!(buf, [7, 8, 9, 10]);
+    buf.extend([11, 12, 13, 14, 15].iter());
+    assert_buf_eq!(buf, [12, 13, 14, 15]);
 }
 
 #[test]
@@ -1545,12 +1658,18 @@ fn extend_from_slice() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
-    buf.extend_from_slice(&[][..]);                     assert_buf_eq!(buf, [] as [u32; 0]);
-    buf.extend_from_slice(&[1][..]);                    assert_buf_eq!(buf, [1]);
-    buf.extend_from_slice(&[2, 3][..]);                 assert_buf_eq!(buf, [1, 2, 3]);
-    buf.extend_from_slice(&[4, 5, 6][..]);              assert_buf_eq!(buf, [3, 4, 5, 6]);
-    buf.extend_from_slice(&[7, 8, 9, 10][..]);          assert_buf_eq!(buf, [7, 8, 9, 10]);
-    buf.extend_from_slice(&[11, 12, 13, 14, 15][..]);   assert_buf_eq!(buf, [12, 13, 14, 15]);
+    buf.extend_from_slice(&[][..]);
+    assert_buf_eq!(buf, [] as [u32; 0]);
+    buf.extend_from_slice(&[1][..]);
+    assert_buf_eq!(buf, [1]);
+    buf.extend_from_slice(&[2, 3][..]);
+    assert_buf_eq!(buf, [1, 2, 3]);
+    buf.extend_from_slice(&[4, 5, 6][..]);
+    assert_buf_eq!(buf, [3, 4, 5, 6]);
+    buf.extend_from_slice(&[7, 8, 9, 10][..]);
+    assert_buf_eq!(buf, [7, 8, 9, 10]);
+    buf.extend_from_slice(&[11, 12, 13, 14, 15][..]);
+    assert_buf_eq!(buf, [12, 13, 14, 15]);
 }
 
 #[test]
@@ -1559,7 +1678,9 @@ fn extend_from_slice_unwind_safety() {
     static mut TRACKER: Option<DropTracker<String>> = None;
 
     // SAFETY: the assumption is that this test function will be called only once
-    unsafe { TRACKER.replace(DropTracker::new()); }
+    unsafe {
+        TRACKER.replace(DropTracker::new());
+    }
 
     fn tracker() -> &'static DropTracker<String> {
         unsafe { TRACKER.as_ref().unwrap() }
@@ -1589,10 +1710,22 @@ fn extend_from_slice_unwind_safety() {
     }
 
     let array = [
-        FaultyClonable { drop_item: tracker_mut().track("a".to_string()), panic_on_clone: false },
-        FaultyClonable { drop_item: tracker_mut().track("b".to_string()), panic_on_clone: false },
-        FaultyClonable { drop_item: tracker_mut().track("c".to_string()), panic_on_clone: true },
-        FaultyClonable { drop_item: tracker_mut().track("d".to_string()), panic_on_clone: false },
+        FaultyClonable {
+            drop_item: tracker_mut().track("a".to_string()),
+            panic_on_clone: false,
+        },
+        FaultyClonable {
+            drop_item: tracker_mut().track("b".to_string()),
+            panic_on_clone: false,
+        },
+        FaultyClonable {
+            drop_item: tracker_mut().track("c".to_string()),
+            panic_on_clone: true,
+        },
+        FaultyClonable {
+            drop_item: tracker_mut().track("d".to_string()),
+            panic_on_clone: false,
+        },
     ];
 
     let mut buf = CircularBuffer::<4, FaultyClonable>::new();
@@ -1649,7 +1782,9 @@ fn fill_unwind_safety() {
     static mut TRACKER: Option<DropTracker<String>> = None;
 
     // SAFETY: the assumption is that this test function will be called only once
-    unsafe { TRACKER.replace(DropTracker::new()); }
+    unsafe {
+        TRACKER.replace(DropTracker::new());
+    }
 
     fn tracker() -> &'static DropTracker<String> {
         unsafe { TRACKER.as_ref().unwrap() }
@@ -1674,9 +1809,8 @@ fn fill_unwind_safety() {
                 panic!("clone failed :(");
             }
             Self {
-                drop_item: tracker_mut().track(format!("clone #{} of {}",
-                                                       num_clones,
-                                                       self.drop_item)),
+                drop_item: tracker_mut()
+                    .track(format!("clone #{} of {}", num_clones, self.drop_item)),
                 num_clones: RefCell::default(),
                 panic_at: self.panic_at,
             }
@@ -1707,7 +1841,9 @@ fn fill_with_unwind_safety() {
     static mut TRACKER: Option<DropTracker<u32>> = None;
 
     // SAFETY: the assumption is that this test function will be called only once
-    unsafe { TRACKER.replace(DropTracker::new()); }
+    unsafe {
+        TRACKER.replace(DropTracker::new());
+    }
 
     fn tracker() -> &'static DropTracker<u32> {
         unsafe { TRACKER.as_ref().unwrap() }
@@ -1784,18 +1920,23 @@ fn make_contiguous_not_full() {
     assert_buf_eq!(buf, [4, 5]);
 }
 
-
 #[test]
 fn clone() {
     let mut buf = CircularBuffer::<4, u32>::new();
     assert_eq!(buf, buf.clone());
 
-    buf.extend_from_slice(&[][..]);                     assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[1][..]);                    assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[2, 3][..]);                 assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[4, 5, 6][..]);              assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[7, 8, 9, 10][..]);          assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[11, 12, 13, 14, 15][..]);   assert_eq!(buf, buf.clone());
+    buf.extend_from_slice(&[][..]);
+    assert_eq!(buf, buf.clone());
+    buf.extend_from_slice(&[1][..]);
+    assert_eq!(buf, buf.clone());
+    buf.extend_from_slice(&[2, 3][..]);
+    assert_eq!(buf, buf.clone());
+    buf.extend_from_slice(&[4, 5, 6][..]);
+    assert_eq!(buf, buf.clone());
+    buf.extend_from_slice(&[7, 8, 9, 10][..]);
+    assert_eq!(buf, buf.clone());
+    buf.extend_from_slice(&[11, 12, 13, 14, 15][..]);
+    assert_eq!(buf, buf.clone());
 }
 
 #[test]
@@ -1884,8 +2025,11 @@ macro_rules! assert_add_mod_eq {
         let m = $m;
         let expected = $expected;
         let result = crate::add_mod(x, y, m);
-        assert_eq!(result, expected, "add_mod({x}, {y}, {m}) returned {result}; expected: {expected}");
-    }
+        assert_eq!(
+            result, expected,
+            "add_mod({x}, {y}, {m}) returned {result}; expected: {expected}"
+        );
+    };
 }
 
 #[test]
@@ -1905,20 +2049,26 @@ fn add_mod() {
     assert_eq!(1, crate::add_mod(2, 1, 2));
     assert_eq!(0, crate::add_mod(2, 2, 2));
 
-    for m in [3, 4, 5, 6, 7, 8,
-              usize::MAX >> 1,
-              (usize::MAX >> 1) + 1,
-              usize::MAX - 2,
-              usize::MAX - 1,
-              usize::MAX]
-    {
-        assert_add_mod_eq!(0,     crate::add_mod(0,     0, m));
-        assert_add_mod_eq!(0,     crate::add_mod(0,     m, m));
-        assert_add_mod_eq!(0,     crate::add_mod(m,     0, m));
-        assert_add_mod_eq!(0,     crate::add_mod(m,     m, m));
+    for m in [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        usize::MAX >> 1,
+        (usize::MAX >> 1) + 1,
+        usize::MAX - 2,
+        usize::MAX - 1,
+        usize::MAX,
+    ] {
+        assert_add_mod_eq!(0, crate::add_mod(0, 0, m));
+        assert_add_mod_eq!(0, crate::add_mod(0, m, m));
+        assert_add_mod_eq!(0, crate::add_mod(m, 0, m));
+        assert_add_mod_eq!(0, crate::add_mod(m, m, m));
 
-        assert_add_mod_eq!(1,     crate::add_mod(1,     m, m));
-        assert_add_mod_eq!(2,     crate::add_mod(2,     m, m));
+        assert_add_mod_eq!(1, crate::add_mod(1, m, m));
+        assert_add_mod_eq!(2, crate::add_mod(2, m, m));
         assert_add_mod_eq!(m - 2, crate::add_mod(m - 2, m, m));
         assert_add_mod_eq!(m - 1, crate::add_mod(m - 1, m, m));
     }

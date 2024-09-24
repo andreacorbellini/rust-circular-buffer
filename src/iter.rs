@@ -1,11 +1,11 @@
 // Copyright © 2023, 2024 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
+use crate::CircularBuffer;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::ops::Bound;
 use core::ops::RangeBounds;
-use crate::CircularBuffer;
 
 /// An owning [iterator](core::iter::Iterator) over the elements of a [`CircularBuffer`].
 ///
@@ -54,39 +54,57 @@ impl<const N: usize, T> DoubleEndedIterator for IntoIter<N, T> {
 }
 
 impl<const N: usize, T> fmt::Debug for IntoIter<N, T>
-    where T: fmt::Debug
+where
+    T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)
     }
 }
 
-pub(crate) fn translate_range_bounds<const N: usize, T, R>(buf: &CircularBuffer<N, T>, range: R) -> (usize, usize)
-    where R: RangeBounds<usize>
+pub(crate) fn translate_range_bounds<const N: usize, T, R>(
+    buf: &CircularBuffer<N, T>,
+    range: R,
+) -> (usize, usize)
+where
+    R: RangeBounds<usize>,
 {
     let start = match range.start_bound() {
         Bound::Included(x) => *x,
-        Bound::Excluded(x) => x.checked_add(1)
-                               .expect("range start index exceeds maximum usize"),
-        Bound::Unbounded   => 0,
+        Bound::Excluded(x) => x
+            .checked_add(1)
+            .expect("range start index exceeds maximum usize"),
+        Bound::Unbounded => 0,
     };
 
     let end = match range.end_bound() {
-        Bound::Included(x) => x.checked_add(1)
-                               .expect("range end index exceeds maximum usize"),
+        Bound::Included(x) => x
+            .checked_add(1)
+            .expect("range end index exceeds maximum usize"),
         Bound::Excluded(x) => *x,
-        Bound::Unbounded   => buf.len(),
+        Bound::Unbounded => buf.len(),
     };
 
-    assert!(end <= buf.len(), "range end index {} out of range for buffer of length {}", end, buf.len());
-    assert!(start <= end, "range starts at index {start} but ends at index {end}");
+    assert!(
+        end <= buf.len(),
+        "range end index {} out of range for buffer of length {}",
+        end,
+        buf.len()
+    );
+    assert!(
+        start <= end,
+        "range starts at index {start} but ends at index {end}"
+    );
 
     (start, end)
 }
 
 #[inline(always)]
 #[cfg(feature = "unstable")]
-fn slice_take<'a, T, R: core::ops::OneSidedRange<usize>>(slice: &mut &'a [T], range: R) -> Option<&'a [T]> {
+fn slice_take<'a, T, R: core::ops::OneSidedRange<usize>>(
+    slice: &mut &'a [T],
+    range: R,
+) -> Option<&'a [T]> {
     slice.take(range)
 }
 
@@ -94,42 +112,56 @@ fn slice_take<'a, T, R: core::ops::OneSidedRange<usize>>(slice: &mut &'a [T], ra
 fn slice_take<'a, T, R: RangeBounds<usize>>(slice: &mut &'a [T], range: R) -> Option<&'a [T]> {
     match (range.start_bound(), range.end_bound()) {
         (Bound::Unbounded, Bound::Excluded(index)) => {
-            if *index > slice.len() { return None; }
+            if *index > slice.len() {
+                return None;
+            }
             let (left, right) = slice.split_at(*index);
             *slice = right;
             Some(left)
-        },
+        }
         (Bound::Included(index), Bound::Unbounded) => {
-            if *index > slice.len() { return None; }
+            if *index > slice.len() {
+                return None;
+            }
             let (left, right) = slice.split_at(*index);
             *slice = left;
             Some(right)
-        },
+        }
         _ => unimplemented!(),
     }
 }
 
 #[inline(always)]
 #[cfg(feature = "unstable")]
-fn slice_take_mut<'a, T, R: core::ops::OneSidedRange<usize>>(slice: &mut &'a mut [T], range: R) -> Option<&'a mut [T]> {
+fn slice_take_mut<'a, T, R: core::ops::OneSidedRange<usize>>(
+    slice: &mut &'a mut [T],
+    range: R,
+) -> Option<&'a mut [T]> {
     slice.take_mut(range)
 }
 
 #[cfg(not(feature = "unstable"))]
-fn slice_take_mut<'a, T, R: RangeBounds<usize>>(slice: &mut &'a mut [T], range: R) -> Option<&'a mut [T]> {
+fn slice_take_mut<'a, T, R: RangeBounds<usize>>(
+    slice: &mut &'a mut [T],
+    range: R,
+) -> Option<&'a mut [T]> {
     match (range.start_bound(), range.end_bound()) {
         (Bound::Unbounded, Bound::Excluded(index)) => {
-            if *index > slice.len() { return None; }
+            if *index > slice.len() {
+                return None;
+            }
             let (left, right) = core::mem::take(slice).split_at_mut(*index);
             *slice = right;
             Some(left)
-        },
+        }
         (Bound::Included(index), Bound::Unbounded) => {
-            if *index > slice.len() { return None; }
+            if *index > slice.len() {
+                return None;
+            }
             let (left, right) = core::mem::take(slice).split_at_mut(*index);
             *slice = left;
             Some(right)
-        },
+        }
         _ => unimplemented!(),
     }
 }
@@ -197,7 +229,10 @@ pub struct Iter<'a, T> {
 
 impl<'a, T> Iter<'a, T> {
     pub(crate) const fn empty() -> Self {
-        Self { right: &[], left: &[] }
+        Self {
+            right: &[],
+            left: &[],
+        }
     }
 
     pub(crate) fn new<const N: usize>(buf: &'a CircularBuffer<N, T>) -> Self {
@@ -206,7 +241,8 @@ impl<'a, T> Iter<'a, T> {
     }
 
     pub(crate) fn over_range<const N: usize, R>(buf: &'a CircularBuffer<N, T>, range: R) -> Self
-        where R: RangeBounds<usize>
+    where
+        R: RangeBounds<usize>,
     {
         let (start, end) = translate_range_bounds(buf, range);
         if start >= end {
@@ -225,8 +261,10 @@ impl<'a, T> Iter<'a, T> {
             slice_take(&mut self.right, ..count);
         } else {
             let take_left = count - self.right.len();
-            debug_assert!(take_left <= self.left.len(),
-                          "attempted to advance past the back of the buffer");
+            debug_assert!(
+                take_left <= self.left.len(),
+                "attempted to advance past the back of the buffer"
+            );
             slice_take(&mut self.left, ..take_left);
             self.right = &[];
         }
@@ -238,8 +276,10 @@ impl<'a, T> Iter<'a, T> {
             slice_take(&mut self.left, take_left..);
         } else {
             let take_right = self.right.len() - (count - self.left.len());
-            debug_assert!(take_right <= self.right.len(),
-                          "attempted to advance past the front of the buffer");
+            debug_assert!(
+                take_right <= self.right.len(),
+                "attempted to advance past the front of the buffer"
+            );
             slice_take(&mut self.right, take_right..);
             self.left = &[];
         }
@@ -296,12 +336,16 @@ impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
 
 impl<'a, T> Clone for Iter<'a, T> {
     fn clone(&self) -> Self {
-        Self { right: self.right, left: self.left }
+        Self {
+            right: self.right,
+            left: self.left,
+        }
     }
 }
 
 impl<'a, T> fmt::Debug for Iter<'a, T>
-    where T: fmt::Debug
+where
+    T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.clone()).finish()
@@ -319,7 +363,10 @@ pub struct IterMut<'a, T> {
 
 impl<'a, T> IterMut<'a, T> {
     pub(crate) fn empty() -> Self {
-        Self { right: &mut [], left: &mut [] }
+        Self {
+            right: &mut [],
+            left: &mut [],
+        }
     }
 
     pub(crate) fn new<const N: usize>(buf: &'a mut CircularBuffer<N, T>) -> Self {
@@ -328,7 +375,8 @@ impl<'a, T> IterMut<'a, T> {
     }
 
     pub(crate) fn over_range<const N: usize, R>(buf: &'a mut CircularBuffer<N, T>, range: R) -> Self
-        where R: RangeBounds<usize>
+    where
+        R: RangeBounds<usize>,
     {
         let (start, end) = translate_range_bounds(buf, range);
         if start >= end {
@@ -347,8 +395,10 @@ impl<'a, T> IterMut<'a, T> {
             slice_take_mut(&mut self.right, ..count);
         } else {
             let take_left = count - self.right.len();
-            debug_assert!(take_left <= self.left.len(),
-                          "attempted to advance past the back of the buffer");
+            debug_assert!(
+                take_left <= self.left.len(),
+                "attempted to advance past the back of the buffer"
+            );
             slice_take_mut(&mut self.left, ..take_left);
             self.right = &mut [];
         }
@@ -360,8 +410,10 @@ impl<'a, T> IterMut<'a, T> {
             slice_take_mut(&mut self.left, take_left..);
         } else {
             let take_right = self.right.len() - (count - self.left.len());
-            debug_assert!(take_right <= self.right.len(),
-                          "attempted to advance past the front of the buffer");
+            debug_assert!(
+                take_right <= self.right.len(),
+                "attempted to advance past the front of the buffer"
+            );
             slice_take_mut(&mut self.right, take_right..);
             self.left = &mut [];
         }
@@ -417,10 +469,14 @@ impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
 }
 
 impl<'a, T> fmt::Debug for IterMut<'a, T>
-    where T: fmt::Debug
+where
+    T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let it = Iter { right: self.right, left: self.left };
+        let it = Iter {
+            right: self.right,
+            left: self.left,
+        };
         it.fmt(f)
     }
 }
