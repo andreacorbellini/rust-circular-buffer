@@ -286,7 +286,7 @@ impl<'a, T> Iter<'a, T> {
     }
 }
 
-impl<'a, T> Default for Iter<'a, T> {
+impl<T> Default for Iter<'_, T> {
     #[inline]
     fn default() -> Self {
         Self::empty()
@@ -313,16 +313,16 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T> ExactSizeIterator for Iter<'a, T> {
+impl<T> ExactSizeIterator for Iter<'_, T> {
     #[inline]
     fn len(&self) -> usize {
         self.right.len() + self.left.len()
     }
 }
 
-impl<'a, T> FusedIterator for Iter<'a, T> {}
+impl<T> FusedIterator for Iter<'_, T> {}
 
-impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
+impl<T> DoubleEndedIterator for Iter<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if let Some(item) = slice_take_last(&mut self.left) {
             Some(item)
@@ -334,7 +334,7 @@ impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T> Clone for Iter<'a, T> {
+impl<T> Clone for Iter<'_, T> {
     fn clone(&self) -> Self {
         Self {
             right: self.right,
@@ -343,7 +343,7 @@ impl<'a, T> Clone for Iter<'a, T> {
     }
 }
 
-impl<'a, T> fmt::Debug for Iter<'a, T>
+impl<T> fmt::Debug for Iter<'_, T>
 where
     T: fmt::Debug,
 {
@@ -420,7 +420,7 @@ impl<'a, T> IterMut<'a, T> {
     }
 }
 
-impl<'a, T> Default for IterMut<'a, T> {
+impl<T> Default for IterMut<'_, T> {
     #[inline]
     fn default() -> Self {
         Self::empty()
@@ -447,16 +447,16 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     }
 }
 
-impl<'a, T> ExactSizeIterator for IterMut<'a, T> {
+impl<T> ExactSizeIterator for IterMut<'_, T> {
     #[inline]
     fn len(&self) -> usize {
         self.right.len() + self.left.len()
     }
 }
 
-impl<'a, T> FusedIterator for IterMut<'a, T> {}
+impl<T> FusedIterator for IterMut<'_, T> {}
 
-impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
+impl<T> DoubleEndedIterator for IterMut<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if let Some(item) = slice_take_last_mut(&mut self.left) {
             Some(item)
@@ -468,7 +468,7 @@ impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
     }
 }
 
-impl<'a, T> fmt::Debug for IterMut<'a, T>
+impl<T> fmt::Debug for IterMut<'_, T>
 where
     T: fmt::Debug,
 {

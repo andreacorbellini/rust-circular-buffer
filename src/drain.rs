@@ -179,7 +179,7 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
     }
 }
 
-impl<'a, const N: usize, T> Iterator for Drain<'a, N, T> {
+impl<const N: usize, T> Iterator for Drain<'_, N, T> {
     type Item = T;
 
     #[inline]
@@ -194,16 +194,16 @@ impl<'a, const N: usize, T> Iterator for Drain<'a, N, T> {
     }
 }
 
-impl<'a, const N: usize, T> ExactSizeIterator for Drain<'a, N, T> {
+impl<const N: usize, T> ExactSizeIterator for Drain<'_, N, T> {
     #[inline]
     fn len(&self) -> usize {
         self.iter.len()
     }
 }
 
-impl<'a, const N: usize, T> FusedIterator for Drain<'a, N, T> {}
+impl<const N: usize, T> FusedIterator for Drain<'_, N, T> {}
 
-impl<'a, const N: usize, T> DoubleEndedIterator for Drain<'a, N, T> {
+impl<const N: usize, T> DoubleEndedIterator for Drain<'_, N, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         // SAFETY: the element at the index is guaranteed to be initialized
         self.iter
@@ -212,12 +212,12 @@ impl<'a, const N: usize, T> DoubleEndedIterator for Drain<'a, N, T> {
     }
 }
 
-impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
+impl<const N: usize, T> Drop for Drain<'_, N, T> {
     fn drop(&mut self) {
         // Drop the items that were not consumed
         struct Dropper<'a, T>(&'a mut [T]);
 
-        impl<'a, T> Drop for Dropper<'a, T> {
+        impl<T> Drop for Dropper<'_, T> {
             fn drop(&mut self) {
                 // SAFETY: the slice is guaranteed to be valid for read and writes as the `Drain`
                 // holds a mutable reference to the `CircularBuffer` that contains the data
@@ -315,7 +315,7 @@ impl<'a, const N: usize, T> Drop for Drain<'a, N, T> {
     }
 }
 
-impl<'a, const N: usize, T> fmt::Debug for Drain<'a, N, T>
+impl<const N: usize, T> fmt::Debug for Drain<'_, N, T>
 where
     T: fmt::Debug,
 {
@@ -377,9 +377,9 @@ impl<'a, T> CircularSlicePtr<'a, T> {
 // Need to manually implement `Copy` because `#[derive(Copy)]` requires `T` to implement `Copy`.
 // Also need to manually implement `Clone` because `Copy` requires `Clone`.
 
-impl<'a, T> Copy for CircularSlicePtr<'a, T> {}
+impl<T> Copy for CircularSlicePtr<'_, T> {}
 
-impl<'a, T> Clone for CircularSlicePtr<'a, T> {
+impl<T> Clone for CircularSlicePtr<'_, T> {
     fn clone(&self) -> Self {
         *self
     }

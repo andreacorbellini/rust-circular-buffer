@@ -935,7 +935,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         // elements are dropped in case a panic occurs during the drop of a single element.
         struct Dropper<'a, T>(&'a mut [MaybeUninit<T>]);
 
-        impl<'a, T> Drop for Dropper<'a, T> {
+        impl<T> Drop for Dropper<'_, T> {
             #[inline]
             fn drop(&mut self) {
                 // SAFETY: the caller of `drop_range` is responsible to check that this slice was
@@ -1833,7 +1833,7 @@ where
                 initialized: usize,
             }
 
-            impl<'a, T> Drop for Guard<'a, T> {
+            impl<T> Drop for Guard<'_, T> {
                 fn drop(&mut self) {
                     let initialized = &mut self.dst[..self.initialized];
                     // SAFETY: this slice contain only initialized objects; `MaybeUninit<T>` has
