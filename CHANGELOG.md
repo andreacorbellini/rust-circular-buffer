@@ -1,5 +1,17 @@
 # Changelog
 
+## circular-buffer 1.0.0
+
+### New features
+
+* When the buffer is full, `push_front()` and `push_back()` now return the
+  replaced element ([contributed by Zacchary
+  Dempsey-Plante](https://github.com/andreacorbellini/rust-circular-buffer/pull/3)).
+
+### Other changes
+
+* Increased the minimum supported rustc version to 1.82
+
 ## circular-buffer 0.1.9
 
 * This release does not introduce any new features or bug fixes. It only
