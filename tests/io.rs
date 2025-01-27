@@ -1,3 +1,6 @@
+// Copyright © 2023-2025 Andrea Corbellini and contributors
+// SPDX-License-Identifier: BSD-3-Clause
+
 #[cfg(feature = "std")]
 mod std {
     use circular_buffer::CircularBuffer;
