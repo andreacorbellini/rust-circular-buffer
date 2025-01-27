@@ -185,7 +185,6 @@
 //!   [`embedded_io_async`](https://docs.rs/embedded-io-async) traits.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "unstable", feature(const_maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
