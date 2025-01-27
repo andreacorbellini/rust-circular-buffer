@@ -190,7 +190,6 @@
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
 #![cfg_attr(feature = "unstable", feature(one_sided_range))]
 #![cfg_attr(feature = "unstable", feature(slice_take))]
-#![cfg_attr(all(feature = "unstable", feature = "alloc"), feature(new_uninit))]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(unreachable_pub)]
@@ -335,7 +334,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     #[must_use]
     #[cfg(feature = "alloc")]
-    #[cfg(feature = "unstable")]
     pub fn boxed() -> Box<Self> {
         let mut uninit: Box<MaybeUninit<Self>> = Box::new_uninit();
         let ptr = uninit.as_mut_ptr();
@@ -349,31 +347,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             // SAFETY: `size` and `start` have been properly initialized to 0; `items` does not
             // need to be initialized if `size` is 0
             uninit.assume_init()
-        }
-    }
-
-    /// Returns an empty heap-allocated `CircularBuffer`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<1024, f64>::boxed();
-    /// assert_eq!(buf.len(), 0);
-    /// ```
-    #[must_use]
-    #[cfg(feature = "alloc")]
-    #[cfg(not(feature = "unstable"))]
-    pub fn boxed() -> Box<Self> {
-        // SAFETY: this is emulating the code above, just using direct allocation and raw pointers
-        // instead of MaybeUninit. Only `size` and `start` need to be initialized to 0; `items`
-        // does not need to be initialized if `size` is 0.
-        unsafe {
-            let layout = alloc::alloc::Layout::new::<Self>();
-            let ptr = alloc::alloc::alloc(layout) as *mut Self;
-            core::ptr::addr_of_mut!((*ptr).size).write(0);
-            core::ptr::addr_of_mut!((*ptr).start).write(0);
-            Box::from_raw(ptr)
         }
     }
 
