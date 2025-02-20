@@ -9,7 +9,7 @@ use core::ops::RangeBounds;
 
 /// An owning [iterator](core::iter::Iterator) over the elements of a [`CircularBuffer`].
 ///
-/// This yields the elements of a `CircularBuffer` from fron to back.
+/// This yields the elements of a `CircularBuffer` from front to back.
 ///
 /// This struct is created when iterating over a `CircularBuffer`. See the documentation for
 /// [`IntoIterator`] for more details.
