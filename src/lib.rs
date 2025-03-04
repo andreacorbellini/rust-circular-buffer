@@ -51,9 +51,11 @@
 //!
 //! ## Getting/mutating elements
 //!
+//! * [`get()`](CircularBuffer::get), [`get_mut()`](CircularBuffer::get_mut)
 //! * [`front()`](CircularBuffer::front), [`front_mut()`](CircularBuffer::front_mut)
 //! * [`back()`](CircularBuffer::back), [`back_mut()`](CircularBuffer::back_mut)
-//! * [`get()`](CircularBuffer::get), [`get_mut()`](CircularBuffer::get_mut)
+//! * [`nth_front()`](CircularBuffer::nth_front), [`nth_front_mut()`](CircularBuffer::nth_front_mut)
+//! * [`nth_back()`](CircularBuffer::nth_back), [`nth_back_mut()`](CircularBuffer::nth_back_mut)
 //!
 //! ## Adding multiple elements at once
 //!
@@ -1041,20 +1043,25 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         Some(unsafe { self.front_maybe_uninit_mut().assume_init_mut() })
     }
 
-    /// Returns a reference to the element at the given index, or `None` if the element does not
-    /// exist.
+    /// Returns a reference to the element at the given index from the front of the buffer, or
+    /// `None` if the element does not exist.
+    ///
+    /// Element at index 0 is the front of the queue.
+    ///
+    /// This is the same as [`nth_front()`](CircularBuffer::nth_front).
     ///
     /// # Examples
     ///
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<5, char>::new();
     /// assert_eq!(buf.get(1), None);
     ///
     /// buf.push_back('a');
     /// buf.push_back('b');
     /// buf.push_back('c');
+    /// buf.push_back('d');
     /// assert_eq!(buf.get(1), Some(&'b'));
     /// ```
     #[inline]
@@ -1070,22 +1077,27 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// Returns a mutable reference to the element at the given index, or `None` if the element
     /// does not exist.
     ///
+    /// Element at index 0 is the front of the queue.
+    ///
+    /// This is the same as [`nth_front_mut()`](CircularBuffer::nth_front_mut).
+    ///
     /// # Examples
     ///
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<5, char>::new();
     /// assert_eq!(buf.get_mut(1), None);
     ///
     /// buf.push_back('a');
     /// buf.push_back('b');
     /// buf.push_back('c');
+    /// buf.push_back('d');
     /// match buf.get_mut(1) {
     ///     None => (),
     ///     Some(x) => *x = 'z',
     /// }
-    /// assert_eq!(buf, ['a', 'z', 'c']);
+    /// assert_eq!(buf, ['a', 'z', 'c', 'd']);
     /// ```
     #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
@@ -1095,6 +1107,124 @@ impl<const N: usize, T> CircularBuffer<N, T> {
         }
         // SAFETY: `index` is in a valid range; it is guaranteed to point to an initialized element
         Some(unsafe { self.get_maybe_uninit_mut(index).assume_init_mut() })
+    }
+
+    /// Returns a reference to the element at the given index from the front of the buffer, or
+    /// `None` if the element does not exist.
+    ///
+    /// Like most indexing operations, the count starts from zero, so `nth_front(0)` returns the
+    /// first value, `nth_front(1)` the second, and so on. Element at index 0 is the front of the
+    /// queue.
+    ///
+    /// This is the same as [`get()`](CircularBuffer::get).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// assert_eq!(buf.nth_front(1), None);
+    ///
+    /// buf.push_back('a');
+    /// buf.push_back('b');
+    /// buf.push_back('c');
+    /// buf.push_back('d');
+    /// assert_eq!(buf.nth_front(1), Some(&'b'));
+    /// ```
+    #[inline]
+    pub fn nth_front(&self, index: usize) -> Option<&T> {
+        self.get(index)
+    }
+
+    /// Returns a mutable reference to the element at the given index from the front of the buffer,
+    /// or `None` if the element does not exist.
+    ///
+    /// Like most indexing operations, the count starts from zero, so `nth_front_mut(0)` returns
+    /// the first value, `nth_front_mut(1)` the second, and so on. Element at index 0 is the front
+    /// of the queue.
+    ///
+    /// This is the same as [`get_mut()`](CircularBuffer::get_mut).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// assert_eq!(buf.nth_front_mut(1), None);
+    ///
+    /// buf.push_back('a');
+    /// buf.push_back('b');
+    /// buf.push_back('c');
+    /// buf.push_back('d');
+    /// match buf.nth_front_mut(1) {
+    ///     None => (),
+    ///     Some(x) => *x = 'z',
+    /// }
+    /// assert_eq!(buf, ['a', 'z', 'c', 'd']);
+    /// ```
+    #[inline]
+    pub fn nth_front_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.get_mut(index)
+    }
+
+    /// Returns a reference to the element at the given index from the back of the buffer, or
+    /// `None` if the element does not exist.
+    ///
+    /// Like most indexing operations, the count starts from zero, so `nth_back(0)` returns the
+    /// first value, `nth_back(1)` the second, and so on. Element at index 0 is the back of the
+    /// queue.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// assert_eq!(buf.nth_back(1), None);
+    ///
+    /// buf.push_back('a');
+    /// buf.push_back('b');
+    /// buf.push_back('c');
+    /// buf.push_back('d');
+    /// assert_eq!(buf.nth_back(1), Some(&'c'));
+    /// ```
+    #[inline]
+    pub fn nth_back(&self, index: usize) -> Option<&T> {
+        let index = self.size.checked_sub(index)?.checked_sub(1)?;
+        self.get(index)
+    }
+
+    /// Returns a mutable reference to the element at the given index from the back of the buffer,
+    /// or `None` if the element does not exist.
+    ///
+    /// Like most indexing operations, the count starts from zero, so `nth_back_mut(0)` returns the
+    /// first value, `nth_back_mut(1)` the second, and so on. Element at index 0 is the back of the
+    /// queue.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// assert_eq!(buf.nth_back_mut(1), None);
+    ///
+    /// buf.push_back('a');
+    /// buf.push_back('b');
+    /// buf.push_back('c');
+    /// buf.push_back('d');
+    /// match buf.nth_back_mut(1) {
+    ///     None => (),
+    ///     Some(x) => *x = 'z',
+    /// }
+    /// assert_eq!(buf, ['a', 'b', 'z', 'd']);
+    /// ```
+    #[inline]
+    pub fn nth_back_mut(&mut self, index: usize) -> Option<&mut T> {
+        let index = self.size.checked_sub(index)?.checked_sub(1)?;
+        self.get_mut(index)
     }
 
     /// Appends an element to the back of the buffer.
