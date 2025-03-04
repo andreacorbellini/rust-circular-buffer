@@ -37,6 +37,8 @@ enum Action<T> {
     BackMut(T),
     FrontMut(T),
     GetMut(usize, T),
+    NthFrontMut(usize, T),
+    NthBackMut(usize, T),
     PushBack(T),
     PushFront(T),
     PopBack,
@@ -113,28 +115,30 @@ where
             low..=high
         }
 
-        let action_num: u8 = rng.gen_range(0..=18);
+        let action_num: u8 = rng.gen_range(0..=20);
 
         match action_num {
             0 => Action::BackMut(rng.gen()),
             1 => Action::FrontMut(rng.gen()),
             2 => Action::GetMut(self.sample(rng), rng.gen()),
-            3 => Action::PushBack(rng.gen()),
-            4 => Action::PushFront(rng.gen()),
-            5 => Action::PopBack,
-            6 => Action::PopFront,
-            7 => Action::Remove(self.sample(rng)),
-            8 => Action::Swap(self.sample(rng), self.sample(rng)),
-            9 => Action::SwapRemoveBack(self.sample(rng)),
-            10 => Action::SwapRemoveFront(self.sample(rng)),
-            11 => Action::TruncateBack(self.sample(rng)),
-            12 => Action::TruncateFront(self.sample(rng)),
-            13 => Action::Clear,
-            14 => Action::Extend(random_vec(rng)),
-            15 => Action::ExtendFromSlice(random_vec(rng)),
-            16 => Action::RangeMut(random_range(self, rng), random_vec(rng)),
-            17 => Action::Drain(random_range(self, rng)),
-            18 => Action::MakeContiguous,
+            3 => Action::NthFrontMut(self.sample(rng), rng.gen()),
+            4 => Action::NthBackMut(self.sample(rng), rng.gen()),
+            5 => Action::PushBack(rng.gen()),
+            6 => Action::PushFront(rng.gen()),
+            7 => Action::PopBack,
+            8 => Action::PopFront,
+            9 => Action::Remove(self.sample(rng)),
+            10 => Action::Swap(self.sample(rng), self.sample(rng)),
+            11 => Action::SwapRemoveBack(self.sample(rng)),
+            12 => Action::SwapRemoveFront(self.sample(rng)),
+            13 => Action::TruncateBack(self.sample(rng)),
+            14 => Action::TruncateFront(self.sample(rng)),
+            15 => Action::Clear,
+            16 => Action::Extend(random_vec(rng)),
+            17 => Action::ExtendFromSlice(random_vec(rng)),
+            18 => Action::RangeMut(random_range(self, rng), random_vec(rng)),
+            19 => Action::Drain(random_range(self, rng)),
+            20 => Action::MakeContiguous,
             _ => unreachable!(),
         }
     }
@@ -242,6 +246,14 @@ where
                 *self.get_mut(index).unwrap() = elem;
                 Result::None
             }
+            Action::NthFrontMut(index, elem) => {
+                *self.nth_front_mut(index).unwrap() = elem;
+                Result::None
+            }
+            Action::NthBackMut(index, elem) => {
+                *self.nth_back_mut(index).unwrap() = elem;
+                Result::None
+            }
             Action::PushBack(elem) => {
                 self.push_back(elem);
                 Result::None
@@ -314,6 +326,14 @@ where
             }
             Action::GetMut(index, elem) => {
                 *self.get_mut(index).unwrap() = elem;
+                Result::None
+            }
+            Action::NthFrontMut(index, elem) => {
+                *self.get_mut(index).unwrap() = elem;
+                Result::None
+            }
+            Action::NthBackMut(index, elem) => {
+                *self.get_mut(self.len() - index - 1).unwrap() = elem;
                 Result::None
             }
             Action::PushBack(elem) => {

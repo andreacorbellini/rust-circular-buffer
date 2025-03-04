@@ -52,6 +52,9 @@ macro_rules! assert_buf_eq {
 
         for i in 0..expected.len() {
             assert_eq!($buf[i], expected[i]);
+            assert_eq!($buf.get(i).unwrap(), expected.get(i).unwrap());
+            assert_eq!($buf.nth_front(i).unwrap(), expected.get(i).unwrap());
+            assert_eq!($buf.nth_back(i).unwrap(), expected.get(expected.len() - i - 1).unwrap());
         }
     };
 }
@@ -468,6 +471,148 @@ fn get() {
     assert_eq!(buf.get(2), Some(&7));
     assert_eq!(buf.get(3), Some(&8));
     assert_eq!(buf.get(4), None);
+}
+
+#[test]
+fn nth_front() {
+    let mut buf = CircularBuffer::<4, u32>::new();
+    assert_buf_eq!(buf, [] as [u32; 0]);
+
+    assert_eq!(buf.nth_front(0), None);
+    assert_eq!(buf.nth_front(1), None);
+    assert_eq!(buf.nth_front(2), None);
+    assert_eq!(buf.nth_front(3), None);
+    assert_eq!(buf.nth_front(4), None);
+    assert_eq!(buf.nth_front(5), None);
+
+    buf.push_back(1);
+    assert_buf_eq!(buf, [1]);
+    assert_eq!(buf.nth_front(0), Some(&1));
+    assert_eq!(buf.nth_front(1), None);
+
+    buf.push_back(2);
+    assert_buf_eq!(buf, [1, 2]);
+    assert_eq!(buf.nth_front(0), Some(&1));
+    assert_eq!(buf.nth_front(1), Some(&2));
+    assert_eq!(buf.nth_front(2), None);
+
+    buf.push_back(3);
+    assert_buf_eq!(buf, [1, 2, 3]);
+    assert_eq!(buf.nth_front(0), Some(&1));
+    assert_eq!(buf.nth_front(1), Some(&2));
+    assert_eq!(buf.nth_front(2), Some(&3));
+    assert_eq!(buf.nth_front(3), None);
+
+    buf.push_back(4);
+    assert_buf_eq!(buf, [1, 2, 3, 4]);
+    assert_eq!(buf.nth_front(0), Some(&1));
+    assert_eq!(buf.nth_front(1), Some(&2));
+    assert_eq!(buf.nth_front(2), Some(&3));
+    assert_eq!(buf.nth_front(3), Some(&4));
+    assert_eq!(buf.nth_front(4), None);
+
+    buf.push_back(5);
+    assert_buf_eq!(buf, [2, 3, 4, 5]);
+    assert_eq!(buf.nth_front(0), Some(&2));
+    assert_eq!(buf.nth_front(1), Some(&3));
+    assert_eq!(buf.nth_front(2), Some(&4));
+    assert_eq!(buf.nth_front(3), Some(&5));
+    assert_eq!(buf.nth_front(4), None);
+
+    buf.push_back(6);
+    assert_buf_eq!(buf, [3, 4, 5, 6]);
+    assert_eq!(buf.nth_front(0), Some(&3));
+    assert_eq!(buf.nth_front(1), Some(&4));
+    assert_eq!(buf.nth_front(2), Some(&5));
+    assert_eq!(buf.nth_front(3), Some(&6));
+    assert_eq!(buf.nth_front(5), None);
+
+    buf.push_back(7);
+    assert_buf_eq!(buf, [4, 5, 6, 7]);
+    assert_eq!(buf.nth_front(0), Some(&4));
+    assert_eq!(buf.nth_front(1), Some(&5));
+    assert_eq!(buf.nth_front(2), Some(&6));
+    assert_eq!(buf.nth_front(3), Some(&7));
+    assert_eq!(buf.nth_front(4), None);
+
+    buf.push_back(8);
+    assert_buf_eq!(buf, [5, 6, 7, 8]);
+    assert_eq!(buf.nth_front(0), Some(&5));
+    assert_eq!(buf.nth_front(1), Some(&6));
+    assert_eq!(buf.nth_front(2), Some(&7));
+    assert_eq!(buf.nth_front(3), Some(&8));
+    assert_eq!(buf.nth_front(4), None);
+}
+
+#[test]
+fn nth_back() {
+    let mut buf = CircularBuffer::<4, u32>::new();
+    assert_buf_eq!(buf, [] as [u32; 0]);
+
+    assert_eq!(buf.nth_back(0), None);
+    assert_eq!(buf.nth_back(1), None);
+    assert_eq!(buf.nth_back(2), None);
+    assert_eq!(buf.nth_back(3), None);
+    assert_eq!(buf.nth_back(4), None);
+    assert_eq!(buf.nth_back(5), None);
+
+    buf.push_front(1);
+    assert_buf_eq!(buf, [1]);
+    assert_eq!(buf.nth_back(0), Some(&1));
+    assert_eq!(buf.nth_back(1), None);
+
+    buf.push_front(2);
+    assert_buf_eq!(buf, [2, 1]);
+    assert_eq!(buf.nth_back(0), Some(&1));
+    assert_eq!(buf.nth_back(1), Some(&2));
+    assert_eq!(buf.nth_back(2), None);
+
+    buf.push_front(3);
+    assert_buf_eq!(buf, [3, 2, 1]);
+    assert_eq!(buf.nth_back(0), Some(&1));
+    assert_eq!(buf.nth_back(1), Some(&2));
+    assert_eq!(buf.nth_back(2), Some(&3));
+    assert_eq!(buf.nth_back(3), None);
+
+    buf.push_front(4);
+    assert_buf_eq!(buf, [4, 3, 2, 1]);
+    assert_eq!(buf.nth_back(0), Some(&1));
+    assert_eq!(buf.nth_back(1), Some(&2));
+    assert_eq!(buf.nth_back(2), Some(&3));
+    assert_eq!(buf.nth_back(3), Some(&4));
+    assert_eq!(buf.nth_back(4), None);
+
+    buf.push_front(5);
+    assert_buf_eq!(buf, [5, 4, 3, 2]);
+    assert_eq!(buf.nth_back(0), Some(&2));
+    assert_eq!(buf.nth_back(1), Some(&3));
+    assert_eq!(buf.nth_back(2), Some(&4));
+    assert_eq!(buf.nth_back(3), Some(&5));
+    assert_eq!(buf.nth_back(4), None);
+
+    buf.push_front(6);
+    assert_buf_eq!(buf, [6, 5, 4, 3]);
+    assert_eq!(buf.nth_back(0), Some(&3));
+    assert_eq!(buf.nth_back(1), Some(&4));
+    assert_eq!(buf.nth_back(2), Some(&5));
+    assert_eq!(buf.nth_back(3), Some(&6));
+    assert_eq!(buf.nth_back(5), None);
+
+    buf.push_front(7);
+    assert_buf_eq!(buf, [7, 6, 5, 4]);
+    assert_eq!(buf.nth_back(0), Some(&4));
+    assert_eq!(buf.nth_back(1), Some(&5));
+    assert_eq!(buf.nth_back(2), Some(&6));
+    assert_eq!(buf.nth_back(3), Some(&7));
+    assert_eq!(buf.nth_back(4), None);
+
+    buf.push_front(8);
+    assert_buf_eq!(buf, [8, 7, 6, 5]);
+    assert_eq!(buf.nth_back(0), Some(&5));
+    assert_eq!(buf.nth_back(1), Some(&6));
+    assert_eq!(buf.nth_back(2), Some(&7));
+    assert_eq!(buf.nth_back(3), Some(&8));
+    assert_eq!(buf.nth_back(4), None);
 }
 
 #[test]
