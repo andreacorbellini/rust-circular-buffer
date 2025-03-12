@@ -105,7 +105,7 @@ fn slice_take<'a, T, R: core::ops::OneSidedRange<usize>>(
     slice: &mut &'a [T],
     range: R,
 ) -> Option<&'a [T]> {
-    slice.take(range)
+    slice.split_off(range)
 }
 
 #[cfg(not(feature = "unstable"))]
@@ -137,7 +137,7 @@ fn slice_take_mut<'a, T, R: core::ops::OneSidedRange<usize>>(
     slice: &mut &'a mut [T],
     range: R,
 ) -> Option<&'a mut [T]> {
-    slice.take_mut(range)
+    slice.split_off_mut(range)
 }
 
 #[cfg(not(feature = "unstable"))]
@@ -169,7 +169,7 @@ fn slice_take_mut<'a, T, R: RangeBounds<usize>>(
 #[inline(always)]
 #[cfg(feature = "unstable")]
 fn slice_take_first<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
-    slice.take_first()
+    slice.split_off_first()
 }
 
 #[cfg(not(feature = "unstable"))]
@@ -182,7 +182,7 @@ fn slice_take_first<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
 #[inline(always)]
 #[cfg(feature = "unstable")]
 fn slice_take_first_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
-    slice.take_first_mut()
+    slice.split_off_first_mut()
 }
 
 #[cfg(not(feature = "unstable"))]
@@ -195,7 +195,7 @@ fn slice_take_first_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
 #[inline(always)]
 #[cfg(feature = "unstable")]
 fn slice_take_last<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
-    slice.take_last()
+    slice.split_off_last()
 }
 
 #[cfg(not(feature = "unstable"))]
@@ -208,7 +208,7 @@ fn slice_take_last<'a, T>(slice: &mut &'a [T]) -> Option<&'a T> {
 #[inline(always)]
 #[cfg(feature = "unstable")]
 fn slice_take_last_mut<'a, T>(slice: &mut &'a mut [T]) -> Option<&'a mut T> {
-    slice.take_last_mut()
+    slice.split_off_last_mut()
 }
 
 #[cfg(not(feature = "unstable"))]

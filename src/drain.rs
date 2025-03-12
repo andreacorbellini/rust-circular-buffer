@@ -8,6 +8,7 @@ use crate::CircularBuffer;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
+#[cfg(not(feature = "unstable"))]
 use core::mem::MaybeUninit;
 use core::ops::Range;
 use core::ops::RangeBounds;
@@ -126,10 +127,7 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
         // SAFETY: The elements in these slices are guaranteed to be initialized
         #[cfg(feature = "unstable")]
         unsafe {
-            (
-                MaybeUninit::slice_assume_init_ref(right),
-                MaybeUninit::slice_assume_init_ref(left),
-            )
+            (right.assume_init_ref(), left.assume_init_ref())
         }
         #[cfg(not(feature = "unstable"))]
         unsafe {
@@ -164,10 +162,7 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
         // SAFETY: The elements in these slices are guaranteed to be initialized
         #[cfg(feature = "unstable")]
         unsafe {
-            (
-                MaybeUninit::slice_assume_init_mut(right),
-                MaybeUninit::slice_assume_init_mut(left),
-            )
+            (right.assume_init_mut(), left.assume_init_mut())
         }
         #[cfg(not(feature = "unstable"))]
         unsafe {

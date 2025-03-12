@@ -188,10 +188,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
-#![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
 #![cfg_attr(feature = "unstable", feature(one_sided_range))]
-#![cfg_attr(feature = "unstable", feature(slice_take))]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(unreachable_pub)]
@@ -262,7 +260,7 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
 const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
     #[cfg(feature = "unstable")]
     {
-        MaybeUninit::slice_assume_init_ref(slice)
+        slice.assume_init_ref()
     }
     #[cfg(not(feature = "unstable"))]
     {
@@ -274,7 +272,7 @@ const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
 unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
     #[cfg(feature = "unstable")]
     {
-        MaybeUninit::slice_assume_init_mut(slice)
+        slice.assume_init_mut()
     }
     #[cfg(not(feature = "unstable"))]
     {
@@ -312,7 +310,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
             Self {
                 size: 0,
                 start: 0,
-                items: MaybeUninit::uninit_array(),
+                items: [const { MaybeUninit::uninit() }; N],
             }
         }
         #[cfg(not(feature = "unstable"))]
@@ -1981,7 +1979,7 @@ where
 
             let write_len = core::cmp::min(right.len(), other.len());
             #[cfg(feature = "unstable")]
-            MaybeUninit::clone_from_slice(&mut right[..write_len], &other[..write_len]);
+            right[..write_len].write_clone_of_slice(&other[..write_len]);
             #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut right[..write_len], &other[..write_len]);
 
@@ -1989,7 +1987,7 @@ where
             debug_assert!(left.len() >= other.len());
             let write_len = other.len();
             #[cfg(feature = "unstable")]
-            MaybeUninit::clone_from_slice(&mut left[..write_len], other);
+            left[..write_len].write_clone_of_slice(other);
             #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut left[..write_len], other);
 
@@ -2003,7 +2001,7 @@ where
             let other = &other[other.len() - N..];
             debug_assert_eq!(self.items.len(), other.len());
             #[cfg(feature = "unstable")]
-            MaybeUninit::clone_from_slice(&mut self.items, other);
+            self.items.write_clone_of_slice(other);
             #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut self.items, other);
 
@@ -2044,7 +2042,7 @@ impl<const N: usize, T> Default for CircularBuffer<N, T> {
 impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<N, T> {
     fn from(mut arr: [T; M]) -> Self {
         #[cfg(feature = "unstable")]
-        let mut elems = MaybeUninit::<T>::uninit_array();
+        let mut elems = [const { MaybeUninit::uninit() }; N];
         #[cfg(not(feature = "unstable"))]
         let mut elems = unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
         let arr_ptr = &arr as *const T as *const MaybeUninit<T>;
