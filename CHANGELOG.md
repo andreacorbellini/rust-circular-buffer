@@ -1,5 +1,11 @@
 # Changelog
 
+## circular-buffer 1.1.0
+
+### New features
+
+* Added `nth_front()` and `nth_back()`.
+
 ## circular-buffer 1.0.0
 
 ### New features
