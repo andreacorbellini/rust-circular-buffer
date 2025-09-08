@@ -14,9 +14,9 @@
 use circular_buffer::CircularBuffer;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
-use rand::distributions::Distribution;
-use rand::distributions::Standard;
-use rand::distributions::Uniform;
+use rand::distr::Distribution;
+use rand::distr::StandardUniform;
+use rand::distr::Uniform;
 use rand::Rng;
 use std::collections::VecDeque;
 use std::fmt;
@@ -57,28 +57,28 @@ enum Action<T> {
     MakeContiguous,
 }
 
-impl<T> Distribution<Action<T>> for Standard
+impl<T> Distribution<Action<T>> for StandardUniform
 where
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Action<T> {
         fn random_vec<T, R: Rng + ?Sized>(rng: &mut R) -> Vec<T>
         where
-            Standard: Distribution<T>,
+            StandardUniform: Distribution<T>,
         {
-            let size = rng.gen_range(0..128);
+            let size = rng.random_range(0..128);
             let mut vec = Vec::with_capacity(size);
             for _ in 0..size {
-                vec.push(rng.gen());
+                vec.push(rng.random());
             }
             vec
         }
 
-        let action_num: u8 = rng.gen_range(0..=6);
+        let action_num: u8 = rng.random_range(0..=6);
 
         match action_num {
-            0 => Action::PushBack(rng.gen()),
-            1 => Action::PushFront(rng.gen()),
+            0 => Action::PushBack(rng.random()),
+            1 => Action::PushFront(rng.random()),
             2 => Action::PopBack,
             3 => Action::PopFront,
             4 => Action::Clear,
@@ -91,17 +91,17 @@ where
 
 impl<T> Distribution<Action<T>> for Uniform<usize>
 where
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Action<T> {
         fn random_vec<T, R: Rng + ?Sized>(rng: &mut R) -> Vec<T>
         where
-            Standard: Distribution<T>,
+            StandardUniform: Distribution<T>,
         {
-            let size = rng.gen_range(0..128);
+            let size = rng.random_range(0..128);
             let mut vec = Vec::with_capacity(size);
             for _ in 0..size {
-                vec.push(rng.gen());
+                vec.push(rng.random());
             }
             vec
         }
@@ -115,16 +115,16 @@ where
             low..=high
         }
 
-        let action_num: u8 = rng.gen_range(0..=20);
+        let action_num: u8 = rng.random_range(0..=20);
 
         match action_num {
-            0 => Action::BackMut(rng.gen()),
-            1 => Action::FrontMut(rng.gen()),
-            2 => Action::GetMut(self.sample(rng), rng.gen()),
-            3 => Action::NthFrontMut(self.sample(rng), rng.gen()),
-            4 => Action::NthBackMut(self.sample(rng), rng.gen()),
-            5 => Action::PushBack(rng.gen()),
-            6 => Action::PushFront(rng.gen()),
+            0 => Action::BackMut(rng.random()),
+            1 => Action::FrontMut(rng.random()),
+            2 => Action::GetMut(self.sample(rng), rng.random()),
+            3 => Action::NthFrontMut(self.sample(rng), rng.random()),
+            4 => Action::NthBackMut(self.sample(rng), rng.random()),
+            5 => Action::PushBack(rng.random()),
+            6 => Action::PushFront(rng.random()),
             7 => Action::PopBack,
             8 => Action::PopFront,
             9 => Action::Remove(self.sample(rng)),
@@ -422,18 +422,20 @@ where
 fn test<const N: usize, T>()
 where
     T: Clone + PartialEq + fmt::Debug,
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
     let mut reference = Reference::<T>::new(N);
     let mut buffer = CircularBuffer::<N, T>::boxed();
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..ROUNDS {
         // Generate a random action
         let action: Action<T> = if reference.is_empty() {
-            <Standard as Distribution<Action<T>>>::sample(&Standard, &mut rng)
+            <StandardUniform as Distribution<Action<T>>>::sample(&StandardUniform, &mut rng)
         } else {
-            Uniform::from(0..reference.len()).sample(&mut rng)
+            Uniform::new(0, reference.len())
+                .expect("failed to create uniform distribution")
+                .sample(&mut rng)
         };
 
         println!("{action:?}");
@@ -524,9 +526,9 @@ fn drop() {
     #[derive(Clone, PartialEq, Eq, Debug)]
     struct Item(Rc<DropItem<u64>>);
 
-    impl Distribution<Item> for Standard {
+    impl Distribution<Item> for StandardUniform {
         fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Item {
-            let n = rng.gen();
+            let n = rng.random();
             Item(Rc::new(tracker_mut().track(n)))
         }
     }
