@@ -1,5 +1,11 @@
 # Changelog
 
+## circular-buffer 1.2.0
+
+* Updated Rust edition from 2021 to 2024
+* Updated MSRV from 0.82 to 0.87
+* Removed polyfill code for features that have been stabilized in Rust 0.87
+
 ## circular-buffer 1.1.0
 
 ### New features
