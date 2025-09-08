@@ -8,7 +8,7 @@ use std::io::Read;
 use std::io::Result;
 use std::io::Write;
 
-impl<const N: usize> Write for CircularBuffer<N, u8> {
+impl<const N: usize> Write for CircularBuffer<u8, N> {
     #[inline]
     fn write(&mut self, src: &[u8]) -> Result<usize> {
         self.extend_from_slice(src);
@@ -21,7 +21,7 @@ impl<const N: usize> Write for CircularBuffer<N, u8> {
     }
 }
 
-impl<const N: usize> Read for CircularBuffer<N, u8> {
+impl<const N: usize> Read for CircularBuffer<u8, N> {
     fn read(&mut self, dst: &mut [u8]) -> Result<usize> {
         let (mut front, mut back) = self.as_slices();
         let mut count = front.read(dst)?;
@@ -31,7 +31,7 @@ impl<const N: usize> Read for CircularBuffer<N, u8> {
     }
 }
 
-impl<const N: usize> BufRead for CircularBuffer<N, u8> {
+impl<const N: usize> BufRead for CircularBuffer<u8, N> {
     fn fill_buf(&mut self) -> Result<&[u8]> {
         let (front, back) = self.as_slices();
         if !front.is_empty() {

@@ -10,12 +10,12 @@ use embedded_io::ErrorType;
 #[cfg(all(feature = "embedded-io-async", not(feature = "embedded-io")))]
 use embedded_io_async::ErrorType;
 
-impl<const N: usize> ErrorType for CircularBuffer<N, u8> {
+impl<const N: usize> ErrorType for CircularBuffer<u8, N> {
     type Error = Infallible;
 }
 
 #[cfg(feature = "embedded-io")]
-impl<const N: usize> embedded_io::Write for CircularBuffer<N, u8> {
+impl<const N: usize> embedded_io::Write for CircularBuffer<u8, N> {
     #[inline]
     fn write(&mut self, src: &[u8]) -> Result<usize, Self::Error> {
         self.extend_from_slice(src);
@@ -29,7 +29,7 @@ impl<const N: usize> embedded_io::Write for CircularBuffer<N, u8> {
 }
 
 #[cfg(feature = "embedded-io")]
-impl<const N: usize> embedded_io::Read for CircularBuffer<N, u8> {
+impl<const N: usize> embedded_io::Read for CircularBuffer<u8, N> {
     fn read(&mut self, dst: &mut [u8]) -> Result<usize, Self::Error> {
         let (mut front, mut back) = self.as_slices();
         let mut count = front.read(dst)?;
@@ -40,7 +40,7 @@ impl<const N: usize> embedded_io::Read for CircularBuffer<N, u8> {
 }
 
 #[cfg(feature = "embedded-io")]
-impl<const N: usize> embedded_io::BufRead for CircularBuffer<N, u8> {
+impl<const N: usize> embedded_io::BufRead for CircularBuffer<u8, N> {
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         let (front, back) = self.as_slices();
         if !front.is_empty() {
@@ -57,7 +57,7 @@ impl<const N: usize> embedded_io::BufRead for CircularBuffer<N, u8> {
 }
 
 #[cfg(feature = "embedded-io-async")]
-impl<const N: usize> embedded_io_async::Write for CircularBuffer<N, u8> {
+impl<const N: usize> embedded_io_async::Write for CircularBuffer<u8, N> {
     async fn flush(&mut self) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -69,7 +69,7 @@ impl<const N: usize> embedded_io_async::Write for CircularBuffer<N, u8> {
 }
 
 #[cfg(feature = "embedded-io-async")]
-impl<const N: usize> embedded_io_async::Read for CircularBuffer<N, u8> {
+impl<const N: usize> embedded_io_async::Read for CircularBuffer<u8, N> {
     async fn read(&mut self, dst: &mut [u8]) -> Result<usize, Self::Error> {
         let (mut front, mut back) = self.as_slices();
         let mut count = front.read(dst).await?;
@@ -80,7 +80,7 @@ impl<const N: usize> embedded_io_async::Read for CircularBuffer<N, u8> {
 }
 
 #[cfg(feature = "embedded-io-async")]
-impl<const N: usize> embedded_io_async::BufRead for CircularBuffer<N, u8> {
+impl<const N: usize> embedded_io_async::BufRead for CircularBuffer<u8, N> {
     async fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         let (front, back) = self.as_slices();
         if !front.is_empty() {

@@ -10,7 +10,7 @@ mod std {
 
     #[test]
     fn write() {
-        let mut buf = CircularBuffer::<4, u8>::new();
+        let mut buf = CircularBuffer::<u8, 4>::new();
         assert_eq!(buf, [] as [u8; 0]);
 
         assert!(write!(&mut buf, "hello").is_ok());
@@ -27,7 +27,7 @@ mod std {
             vec
         }
 
-        let mut buf = CircularBuffer::<4, u8>::new();
+        let mut buf = CircularBuffer::<u8, 4>::new();
         assert_eq!(buf, [] as [u8; 0]);
         assert_eq!(read_all(&mut buf), []);
         assert_eq!(buf, [] as [u8; 0]);
@@ -49,7 +49,7 @@ mod std {
 
     #[test]
     fn read_buf() {
-        let mut buf = CircularBuffer::<4, u8>::new();
+        let mut buf = CircularBuffer::<u8, 4>::new();
         assert_eq!(buf, [] as [u8; 0]);
         assert_eq!(buf.fill_buf().unwrap(), b"");
 
@@ -85,7 +85,7 @@ mod embedded_io {
 
     #[test]
     fn write() {
-        let mut buf = CircularBuffer::<4, u8>::new();
+        let mut buf = CircularBuffer::<u8, 4>::new();
         assert_eq!(buf, [] as [u8; 0]);
 
         assert!(write!(&mut buf, "hello").is_ok());
@@ -109,7 +109,7 @@ mod embedded_io {
             vec
         }
 
-        let mut buf = CircularBuffer::<4, u8>::new();
+        let mut buf = CircularBuffer::<u8, 4>::new();
         assert_eq!(buf, [] as [u8; 0]);
         assert_eq!(read_all(&mut buf), []);
         assert_eq!(buf, [] as [u8; 0]);
@@ -131,7 +131,7 @@ mod embedded_io {
 
     #[test]
     fn read_buf() {
-        let mut buf = CircularBuffer::<4, u8>::new();
+        let mut buf = CircularBuffer::<u8, 4>::new();
         assert_eq!(buf, [] as [u8; 0]);
         assert_eq!(buf.fill_buf().unwrap(), b"");
 
@@ -168,7 +168,7 @@ mod embedded_io_async {
     #[test]
     fn write() {
         futures_lite::future::block_on(async {
-            let mut buf = CircularBuffer::<4, u8>::new();
+            let mut buf = CircularBuffer::<u8, 4>::new();
             assert_eq!(buf, [] as [u8; 0]);
 
             assert!(buf.write_all(b"hello").await.is_ok());
@@ -194,7 +194,7 @@ mod embedded_io_async {
                 vec
             }
 
-            let mut buf = CircularBuffer::<4, u8>::new();
+            let mut buf = CircularBuffer::<u8, 4>::new();
             assert_eq!(buf, [] as [u8; 0]);
             assert_eq!(read_all(&mut buf).await, []);
             assert_eq!(buf, [] as [u8; 0]);
@@ -218,7 +218,7 @@ mod embedded_io_async {
     #[test]
     fn read_buf() {
         futures_lite::future::block_on(async {
-            let mut buf = CircularBuffer::<4, u8>::new();
+            let mut buf = CircularBuffer::<u8, 4>::new();
             assert_eq!(buf, [] as [u8; 0]);
             assert_eq!(buf.fill_buf().await.unwrap(), b"");
 

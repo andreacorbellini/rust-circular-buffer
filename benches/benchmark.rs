@@ -14,7 +14,7 @@ fn bench_push(c: &mut Criterion) {
 
     fn do_bench<M: Measurement, const N: usize>(
         group: &mut BenchmarkGroup<'_, M>,
-        buf: &mut CircularBuffer<N, u32>,
+        buf: &mut CircularBuffer<u32, N>,
     ) {
         group.throughput(Throughput::Elements(N as u64));
         group.bench_function("push_back", |b| {
@@ -29,10 +29,10 @@ fn bench_push(c: &mut Criterion) {
         });
     }
 
-    do_bench(&mut group, &mut CircularBuffer::<10, u32>::new());
-    do_bench(&mut group, &mut CircularBuffer::<100, u32>::new());
+    do_bench(&mut group, &mut CircularBuffer::<u32, 10>::new());
+    do_bench(&mut group, &mut CircularBuffer::<u32, 100>::new());
     #[cfg(feature = "std")]
-    do_bench(&mut group, &mut CircularBuffer::<1000, u32>::boxed());
+    do_bench(&mut group, &mut CircularBuffer::<u32, 1000>::boxed());
 
     group.finish();
 }
@@ -42,7 +42,7 @@ fn bench_pop(c: &mut Criterion) {
 
     fn do_bench<M: Measurement, const N: usize>(
         group: &mut BenchmarkGroup<'_, M>,
-        buf: &mut CircularBuffer<N, u32>,
+        buf: &mut CircularBuffer<u32, N>,
     ) {
         buf.fill(0);
         group.throughput(Throughput::Elements(N as u64));
@@ -64,10 +64,10 @@ fn bench_pop(c: &mut Criterion) {
         });
     }
 
-    do_bench(&mut group, &mut CircularBuffer::<10, u32>::new());
-    do_bench(&mut group, &mut CircularBuffer::<100, u32>::new());
+    do_bench(&mut group, &mut CircularBuffer::<u32, 10>::new());
+    do_bench(&mut group, &mut CircularBuffer::<u32, 100>::new());
     #[cfg(feature = "std")]
-    do_bench(&mut group, &mut CircularBuffer::<1000, u32>::boxed());
+    do_bench(&mut group, &mut CircularBuffer::<u32, 1000>::boxed());
 
     group.finish();
 }

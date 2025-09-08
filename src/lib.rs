@@ -16,7 +16,7 @@
 //! use circular_buffer::CircularBuffer;
 //!
 //! // Initialize a new, empty circular buffer with a capacity of 5 elements
-//! let mut buf = CircularBuffer::<5, u32>::new();
+//! let mut buf = CircularBuffer::<u32, 5>::new();
 //!
 //! // Add a few elements
 //! buf.push_back(1);
@@ -86,7 +86,7 @@
 //! use std::io::Read;
 //! use std::io::Write;
 //!
-//! let mut buf = CircularBuffer::<5, u8>::new();
+//! let mut buf = CircularBuffer::<u8, 5>::new();
 //! assert_eq!(buf, b"");
 //!
 //! write!(buf, "hello");
@@ -140,7 +140,7 @@
 //! # {
 //! use circular_buffer::CircularBuffer;
 //!
-//! let mut buf = CircularBuffer::<4096, u32>::boxed();
+//! let mut buf = CircularBuffer::<u32, 4096>::boxed();
 //! assert_eq!(buf.len(), 0);
 //!
 //! for i in 0..1024 {
@@ -285,20 +285,20 @@ unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
 /// using [`CircularBuffer::boxed()`] if you need the struct to be heap-allocated.
 ///
 /// See the [module-level documentation](self) for more details and examples.
-pub struct CircularBuffer<const N: usize, T> {
+pub struct CircularBuffer<T, const N: usize> {
     size: usize,
     start: usize,
     items: [MaybeUninit<T>; N],
 }
 
-impl<const N: usize, T> CircularBuffer<N, T> {
+impl<T, const N: usize> CircularBuffer<T, N> {
     /// Returns an empty `CircularBuffer`.
     ///
     /// # Examples
     ///
     /// ```
     /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<16, u32>::new();
+    /// let buf = CircularBuffer::<u32, 16>::new();
     /// assert_eq!(buf, []);
     /// ```
     #[inline]
@@ -328,7 +328,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// ```
     /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<1024, f64>::boxed();
+    /// let buf = CircularBuffer::<f64, 1024>::boxed();
     /// assert_eq!(buf.len(), 0);
     /// ```
     #[must_use]
@@ -356,7 +356,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<16, u32>::new();
+    /// let mut buf = CircularBuffer::<u32, 16>::new();
     /// assert_eq!(buf.len(), 0);
     ///
     /// buf.push_back(1);
@@ -379,7 +379,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// ```
     /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<16, u32>::new();
+    /// let buf = CircularBuffer::<u32, 16>::new();
     /// assert_eq!(buf.capacity(), 16);
     /// ```
     #[inline]
@@ -394,7 +394,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<16, u32>::new();
+    /// let mut buf = CircularBuffer::<u32, 16>::new();
     /// assert!(buf.is_empty());
     ///
     /// buf.push_back(1);
@@ -412,7 +412,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, u32>::new();
+    /// let mut buf = CircularBuffer::<u32, 5>::new();
     /// assert!(!buf.is_full());
     ///
     /// buf.push_back(1);
@@ -441,7 +441,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
+    /// let buf = CircularBuffer::<char, 5>::from_iter("abc".chars());
     /// let mut it = buf.iter();
     ///
     /// assert_eq!(it.next(), Some(&'a'));
@@ -455,7 +455,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let buf = CircularBuffer::<5, char>::from_iter("abc".chars());
+    /// let buf = CircularBuffer::<char, 5>::from_iter("abc".chars());
     /// let mut it = buf.iter().rev();
     ///
     /// assert_eq!(it.next(), Some(&'c'));
@@ -479,7 +479,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, u32>::from([1, 2, 3]);
+    /// let mut buf = CircularBuffer::<u32, 5>::from([1, 2, 3]);
     /// for elem in buf.iter_mut() {
     ///     *elem += 5;
     /// }
@@ -508,7 +508,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let buf = CircularBuffer::<16, char>::from_iter("abcdefghi".chars());
+    /// let buf = CircularBuffer::<char, 16>::from_iter("abcdefghi".chars());
     /// let mut it = buf.range(3..6);
     ///
     /// assert_eq!(it.next(), Some(&'d'));
@@ -522,7 +522,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let buf = CircularBuffer::<16, char>::from_iter("abcdefghi".chars());
+    /// let buf = CircularBuffer::<char, 16>::from_iter("abcdefghi".chars());
     /// let mut it = buf.range(3..6).rev();
     ///
     /// assert_eq!(it.next(), Some(&'f'));
@@ -557,7 +557,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<16, i32>::from_iter([1, 2, 3, 4, 5, 6]);
+    /// let mut buf = CircularBuffer::<i32, 16>::from_iter([1, 2, 3, 4, 5, 6]);
     /// for elem in buf.range_mut(..3) {
     ///     *elem *= -1;
     /// }
@@ -595,7 +595,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<6, char>::from_iter("abcdef".chars());
+    /// let mut buf = CircularBuffer::<char, 6>::from_iter("abcdef".chars());
     /// let drained = buf.drain(3..).collect::<Vec<char>>();
     ///
     /// assert_eq!(drained, ['d', 'e', 'f']);
@@ -607,13 +607,13 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<6, char>::from_iter("abcdef".chars());
+    /// let mut buf = CircularBuffer::<char, 6>::from_iter("abcdef".chars());
     /// buf.drain(3..);
     ///
     /// assert_eq!(buf, ['a', 'b', 'c']);
     /// ```
     #[inline]
-    pub fn drain<R>(&mut self, range: R) -> Drain<'_, N, T>
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T, N>
     where
         R: RangeBounds<usize>,
     {
@@ -649,7 +649,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// use circular_buffer::CircularBuffer;
     ///
     /// // Create a new buffer, adding more elements than its capacity
-    /// let mut buf = CircularBuffer::<4, u32>::from_iter([1, 4, 3, 0, 2, 5]);
+    /// let mut buf = CircularBuffer::<u32, 4>::from_iter([1, 4, 3, 0, 2, 5]);
     /// assert_eq!(buf, [3, 0, 2, 5]);
     ///
     /// // The buffer is disjoint: as_slices() returns two non-empty slices
@@ -700,7 +700,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<char, 4>::new();
     /// buf.push_back('a');
     /// buf.push_back('b');
     /// buf.push_back('c');
@@ -749,7 +749,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<char, 4>::new();
     /// buf.push_back('a');
     /// buf.push_back('b');
     /// buf.push_back('c');
@@ -939,7 +939,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.back(), None);
     ///
     /// buf.push_back('a');
@@ -964,7 +964,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.back_mut(), None);
     ///
     /// buf.push_back('a');
@@ -993,7 +993,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.front(), None);
     ///
     /// buf.push_back('a');
@@ -1018,7 +1018,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, char>::new();
+    /// let mut buf = CircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.front_mut(), None);
     ///
     /// buf.push_back('a');
@@ -1052,7 +1052,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// let mut buf = CircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.get(1), None);
     ///
     /// buf.push_back('a');
@@ -1083,7 +1083,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// let mut buf = CircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.get_mut(1), None);
     ///
     /// buf.push_back('a');
@@ -1120,7 +1120,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// let mut buf = CircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_front(1), None);
     ///
     /// buf.push_back('a');
@@ -1148,7 +1148,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// let mut buf = CircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_front_mut(1), None);
     ///
     /// buf.push_back('a');
@@ -1178,7 +1178,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// let mut buf = CircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_back(1), None);
     ///
     /// buf.push_back('a');
@@ -1205,7 +1205,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::new();
+    /// let mut buf = CircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_back_mut(1), None);
     ///
     /// buf.push_back('a');
@@ -1236,7 +1236,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
+    /// let mut buf = CircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.push_back('a'), None);
     /// assert_eq!(buf, ['a']);
@@ -1295,7 +1295,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
+    /// let mut buf = CircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.try_push_back('a'), Ok(()));
     /// assert_eq!(buf, ['a']);
@@ -1337,7 +1337,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
+    /// let mut buf = CircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.push_front('a'), None);
     /// assert_eq!(buf, ['a']);
@@ -1396,7 +1396,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<3, char>::new();
+    /// let mut buf = CircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.try_push_front('a'), Ok(()));
     /// assert_eq!(buf, ['a']);
@@ -1436,7 +1436,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<3, char>::from(['a', 'b', 'c']);
+    /// let mut buf = CircularBuffer::<char, 3>::from(['a', 'b', 'c']);
     ///
     /// assert_eq!(buf.pop_back(), Some('c'));
     /// assert_eq!(buf.pop_back(), Some('b'));
@@ -1464,7 +1464,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<3, char>::from(['a', 'b', 'c']);
+    /// let mut buf = CircularBuffer::<char, 3>::from(['a', 'b', 'c']);
     ///
     /// assert_eq!(buf.pop_front(), Some('a'));
     /// assert_eq!(buf.pop_front(), Some('b'));
@@ -1493,7 +1493,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<3, char>::from(['a', 'b', 'c']);
+    /// let mut buf = CircularBuffer::<char, 3>::from(['a', 'b', 'c']);
     ///
     /// assert_eq!(buf.remove(1), Some('b'));
     /// assert_eq!(buf, ['a', 'c']);
@@ -1545,7 +1545,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
+    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
     ///
     /// buf.swap(0, 3);
@@ -1556,7 +1556,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     ///
     /// ```should_panic
     /// use circular_buffer::CircularBuffer;
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
+    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// buf.swap(0, 7);
     /// ```
     pub fn swap(&mut self, i: usize, j: usize) {
@@ -1579,7 +1579,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
+    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
     ///
     /// assert_eq!(buf.swap_remove_back(2), Some('c'));
@@ -1604,7 +1604,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<5, char>::from(['a', 'b', 'c', 'd']);
+    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
     ///
     /// assert_eq!(buf.swap_remove_front(2), Some('c'));
@@ -1641,7 +1641,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// buf.fill(9);
@@ -1653,7 +1653,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let (front, back) = buf.as_mut_slices();
@@ -1690,7 +1690,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let mut x = 2;
@@ -1706,7 +1706,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let mut x = 2;
@@ -1744,7 +1744,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// buf.fill_spare(9);
@@ -1779,7 +1779,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<10, u32>::from([1, 2, 3]);
+    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let mut x = 2;
@@ -1813,7 +1813,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, u32>::from([10, 20, 30]);
+    /// let mut buf = CircularBuffer::<u32, 4>::from([10, 20, 30]);
     ///
     /// buf.truncate_back(1);
     /// assert_eq!(buf, [10]);
@@ -1847,7 +1847,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, u32>::from([10, 20, 30]);
+    /// let mut buf = CircularBuffer::<u32, 4>::from([10, 20, 30]);
     ///
     /// buf.truncate_front(1);
     /// assert_eq!(buf, [30]);
@@ -1879,7 +1879,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<4, u32>::from([10, 20, 30]);
+    /// let mut buf = CircularBuffer::<u32, 4>::from([10, 20, 30]);
     /// assert_eq!(buf, [10, 20, 30]);
     /// buf.clear();
     /// assert_eq!(buf, []);
@@ -1890,7 +1890,7 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     }
 }
 
-impl<const N: usize, T> CircularBuffer<N, T>
+impl<T, const N: usize> CircularBuffer<T, N>
 where
     T: Clone,
 {
@@ -1906,7 +1906,7 @@ where
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let mut buf: CircularBuffer<5, u32> = CircularBuffer::from([1, 2, 3]);
+    /// let mut buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
     /// buf.extend_from_slice(&[4, 5, 6, 7]);
     /// assert_eq!(buf, [3, 4, 5, 6, 7]);
     /// ```
@@ -2015,7 +2015,7 @@ where
     /// ```
     /// use circular_buffer::CircularBuffer;
     ///
-    /// let buf: CircularBuffer<5, u32> = CircularBuffer::from([1, 2, 3]);
+    /// let buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
     /// let vec: Vec<u32> = buf.to_vec();
     ///
     /// assert_eq!(buf, [1, 2, 3]);
@@ -2031,14 +2031,14 @@ where
     }
 }
 
-impl<const N: usize, T> Default for CircularBuffer<N, T> {
+impl<T, const N: usize> Default for CircularBuffer<T, N> {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<N, T> {
+impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<T, N> {
     fn from(mut arr: [T; M]) -> Self {
         #[cfg(feature = "unstable")]
         let mut elems = [const { MaybeUninit::uninit() }; N];
@@ -2075,7 +2075,7 @@ impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<N, T> {
     }
 }
 
-impl<const N: usize, T> FromIterator<T> for CircularBuffer<N, T> {
+impl<T, const N: usize> FromIterator<T> for CircularBuffer<T, N> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -2089,7 +2089,7 @@ impl<const N: usize, T> FromIterator<T> for CircularBuffer<N, T> {
     }
 }
 
-impl<const N: usize, T> Extend<T> for CircularBuffer<N, T> {
+impl<T, const N: usize> Extend<T> for CircularBuffer<T, N> {
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
@@ -2101,7 +2101,7 @@ impl<const N: usize, T> Extend<T> for CircularBuffer<N, T> {
     }
 }
 
-impl<'a, const N: usize, T> Extend<&'a T> for CircularBuffer<N, T>
+impl<'a, T, const N: usize> Extend<&'a T> for CircularBuffer<T, N>
 where
     T: Copy,
 {
@@ -2116,7 +2116,7 @@ where
     }
 }
 
-impl<const N: usize, T> Index<usize> for CircularBuffer<N, T> {
+impl<T, const N: usize> Index<usize> for CircularBuffer<T, N> {
     type Output = T;
 
     #[inline]
@@ -2125,16 +2125,16 @@ impl<const N: usize, T> Index<usize> for CircularBuffer<N, T> {
     }
 }
 
-impl<const N: usize, T> IndexMut<usize> for CircularBuffer<N, T> {
+impl<T, const N: usize> IndexMut<usize> for CircularBuffer<T, N> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.get_mut(index).expect("index out-of-bounds")
     }
 }
 
-impl<const N: usize, T> IntoIterator for CircularBuffer<N, T> {
+impl<T, const N: usize> IntoIterator for CircularBuffer<T, N> {
     type Item = T;
-    type IntoIter = IntoIter<N, T>;
+    type IntoIter = IntoIter<T, N>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -2142,7 +2142,7 @@ impl<const N: usize, T> IntoIterator for CircularBuffer<N, T> {
     }
 }
 
-impl<'a, const N: usize, T> IntoIterator for &'a CircularBuffer<N, T> {
+impl<'a, T, const N: usize> IntoIterator for &'a CircularBuffer<T, N> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -2152,11 +2152,11 @@ impl<'a, const N: usize, T> IntoIterator for &'a CircularBuffer<N, T> {
     }
 }
 
-impl<const N: usize, const M: usize, T, U> PartialEq<CircularBuffer<M, U>> for CircularBuffer<N, T>
+impl<T, U, const N: usize, const M: usize> PartialEq<CircularBuffer<U, M>> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
 {
-    fn eq(&self, other: &CircularBuffer<M, U>) -> bool {
+    fn eq(&self, other: &CircularBuffer<U, M>) -> bool {
         if self.len() != other.len() {
             return false;
         }
@@ -2188,9 +2188,9 @@ where
     }
 }
 
-impl<const N: usize, T> Eq for CircularBuffer<N, T> where T: Eq {}
+impl<T, const N: usize> Eq for CircularBuffer<T, N> where T: Eq {}
 
-impl<const N: usize, T, U> PartialEq<[U]> for CircularBuffer<N, T>
+impl<T, const N: usize, U> PartialEq<[U]> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
 {
@@ -2208,7 +2208,7 @@ where
     }
 }
 
-impl<const N: usize, const M: usize, T, U> PartialEq<[U; M]> for CircularBuffer<N, T>
+impl<const N: usize, const M: usize, T, U> PartialEq<[U; M]> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
 {
@@ -2218,7 +2218,7 @@ where
     }
 }
 
-impl<'a, const N: usize, T, U> PartialEq<&'a [U]> for CircularBuffer<N, T>
+impl<'a, T, const N: usize, U> PartialEq<&'a [U]> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
 {
@@ -2228,7 +2228,7 @@ where
     }
 }
 
-impl<'a, const N: usize, T, U> PartialEq<&'a mut [U]> for CircularBuffer<N, T>
+impl<'a, T, const N: usize, U> PartialEq<&'a mut [U]> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
 {
@@ -2238,7 +2238,7 @@ where
     }
 }
 
-impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a [U; M]> for CircularBuffer<N, T>
+impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a [U; M]> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
 {
@@ -2248,7 +2248,7 @@ where
     }
 }
 
-impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a mut [U; M]> for CircularBuffer<N, T>
+impl<'a, const N: usize, const M: usize, T, U> PartialEq<&'a mut [U; M]> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
 {
@@ -2258,16 +2258,16 @@ where
     }
 }
 
-impl<const N: usize, const M: usize, T, U> PartialOrd<CircularBuffer<M, U>> for CircularBuffer<N, T>
+impl<T, U, const N: usize, const M: usize> PartialOrd<CircularBuffer<U, M>> for CircularBuffer<T, N>
 where
     T: PartialOrd<U>,
 {
-    fn partial_cmp(&self, other: &CircularBuffer<M, U>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &CircularBuffer<U, M>) -> Option<Ordering> {
         self.iter().partial_cmp(other.iter())
     }
 }
 
-impl<const N: usize, T> Ord for CircularBuffer<N, T>
+impl<T, const N: usize> Ord for CircularBuffer<T, N>
 where
     T: Ord,
 {
@@ -2276,7 +2276,7 @@ where
     }
 }
 
-impl<const N: usize, T> Hash for CircularBuffer<N, T>
+impl<T, const N: usize> Hash for CircularBuffer<T, N>
 where
     T: Hash,
 {
@@ -2286,7 +2286,7 @@ where
     }
 }
 
-impl<const N: usize, T> Clone for CircularBuffer<N, T>
+impl<T, const N: usize> Clone for CircularBuffer<T, N>
 where
     T: Clone,
 {
@@ -2302,7 +2302,7 @@ where
     }
 }
 
-impl<const N: usize, T> Drop for CircularBuffer<N, T> {
+impl<T, const N: usize> Drop for CircularBuffer<T, N> {
     #[inline]
     fn drop(&mut self) {
         // `clear()` will make sure that every element is dropped in a safe way
@@ -2310,7 +2310,7 @@ impl<const N: usize, T> Drop for CircularBuffer<N, T> {
     }
 }
 
-impl<const N: usize, T> fmt::Debug for CircularBuffer<N, T>
+impl<T, const N: usize> fmt::Debug for CircularBuffer<T, N>
 where
     T: fmt::Debug,
 {

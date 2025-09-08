@@ -3,7 +3,7 @@
 
 use core::fmt;
 
-impl<const N: usize, T> Debug for CircularBuffer<N, T> {
+impl<T, const N: usize> Debug for CircularBuffer<T, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self).finish()
     }

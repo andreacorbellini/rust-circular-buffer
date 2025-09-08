@@ -228,7 +228,7 @@ trait Perform<T> {
     fn perform(&mut self, action: Action<T>) -> Result<T>;
 }
 
-impl<const N: usize, T> Perform<T> for CircularBuffer<N, T>
+impl<T, const N: usize> Perform<T> for CircularBuffer<T, N>
 where
     T: Clone,
 {
@@ -419,13 +419,13 @@ where
     }
 }
 
-fn test<const N: usize, T>()
+fn test<T, const N: usize>()
 where
     T: Clone + PartialEq + fmt::Debug,
     StandardUniform: Distribution<T>,
 {
     let mut reference = Reference::<T>::new(N);
-    let mut buffer = CircularBuffer::<N, T>::boxed();
+    let mut buffer = CircularBuffer::<T, N>::boxed();
     let mut rng = rand::rng();
 
     for _ in 0..ROUNDS {
@@ -481,29 +481,29 @@ where
 
 #[test]
 fn zero() {
-    test::<0, u64>();
+    test::<u64, 0>();
 }
 
 #[test]
 fn small() {
-    test::<10, u64>();
+    test::<u64, 10>();
 }
 
 #[test]
 fn medium() {
-    test::<1_000, u64>();
+    test::<u64, 1_000>();
 }
 
 #[test]
 fn large() {
-    test::<1_000_000, u64>();
+    test::<u64, 1_000_000>();
 }
 
 #[test]
 fn largest_with_zero_sized_struct() {
     type Zst = ();
     assert_eq!(mem::size_of::<Zst>(), 0);
-    test::<{ usize::MAX }, Zst>();
+    test::<Zst, { usize::MAX }>();
 }
 
 #[test]
@@ -533,7 +533,7 @@ fn drop() {
         }
     }
 
-    test::<100, Item>();
+    test::<Item, 100>();
 
     tracker().assert_fully_dropped();
 }

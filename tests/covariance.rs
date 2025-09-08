@@ -10,17 +10,17 @@ use circular_buffer::CircularBuffer;
 use circular_buffer::Drain;
 use circular_buffer::Iter;
 
-/// Verify that `CircularBuffer<N, T>` is covariant over `T`
+/// Verify that `CircularBuffer<T, N>` is covariant over `T`
 #[test]
 fn circular_buffer<'a>() {
-    let buf = CircularBuffer::<1, &'static str>::new();
-    let _: CircularBuffer<1, &'a str> = buf;
+    let buf = CircularBuffer::<&'static str, 1>::new();
+    let _: CircularBuffer<&'a str, 1> = buf;
 }
 
 /// Verify that `Iter<'_, T>` is covariant over `T`
 #[test]
 fn iter<'a>() {
-    let buf = CircularBuffer::<1, &'static str>::new();
+    let buf = CircularBuffer::<&'static str, 1>::new();
     let iter: Iter<'_, &'static str> = buf.iter();
     let _: Iter<'_, &'a str> = iter;
 }
@@ -32,15 +32,15 @@ fn iter<'a>() {
 //
 //#[test]
 //fn iter_mut<'a>() {
-//    let mut buf = CircularBuffer::<1, &'static str>::new();
+//    let mut buf = CircularBuffer::<&'static str, 1>::new();
 //    let iter: IterMut<'_, &'static str> = buf.iter_mut();
 //    let _: IterMut<'_, &'a str> = iter;
 //}
 
-/// Verify that `Drain<'_, N, T>` is covariant over `T`
+/// Verify that `Drain<'_, T, N>` is covariant over `T`
 #[test]
 fn drain<'a>() {
-    let mut buf = CircularBuffer::<1, &'static str>::new();
-    let drain: Drain<'_, 1, &'static str> = buf.drain(..);
-    let _: Drain<'_, 1, &'a str> = drain;
+    let mut buf = CircularBuffer::<&'static str, 1>::new();
+    let drain: Drain<'_, &'static str, 1> = buf.drain(..);
+    let _: Drain<'_, &'a str, 1> = drain;
 }

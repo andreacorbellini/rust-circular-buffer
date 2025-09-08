@@ -19,7 +19,7 @@ use core::ptr::NonNull;
 /// `CircularBuffer`.
 ///
 /// This struct is created by [`CircularBuffer::drain()`]. See its documentation for more details.
-pub struct Drain<'a, const N: usize, T> {
+pub struct Drain<'a, T, const N: usize> {
     /// This is a pointer and not a reference (`&'a mut CircularBuffer`) because using a reference
     /// would make `Drain` an invariant over `CircularBuffer`, but instead we want `Drain` to be
     /// covariant over `CircularBuffer`.
@@ -29,7 +29,7 @@ pub struct Drain<'a, const N: usize, T> {
     /// buffer, storing them into a vector, and returning an iterable over the vector.
     /// Equivalently, `Drain` owns the drained elements, so it would be unnecessarily restrictive
     /// to make this type invariant over `CircularBuffer`.
-    buf: NonNull<CircularBuffer<N, T>>,
+    buf: NonNull<CircularBuffer<T, N>>,
     /// A backup of the size of the buffer. Necessary because `buf.size` is set to 0 during the
     /// lifetime of the `Drain` and is restored only during drop.
     buf_size: usize,
@@ -46,8 +46,8 @@ pub struct Drain<'a, const N: usize, T> {
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, const N: usize, T> Drain<'a, N, T> {
-    pub(crate) fn over_range<R>(buf: &'a mut CircularBuffer<N, T>, range: R) -> Self
+impl<'a, T, const N: usize> Drain<'a, T, N> {
+    pub(crate) fn over_range<R>(buf: &'a mut CircularBuffer<T, N>, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {
@@ -174,7 +174,7 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
     }
 }
 
-impl<const N: usize, T> Iterator for Drain<'_, N, T> {
+impl<T, const N: usize> Iterator for Drain<'_, T, N> {
     type Item = T;
 
     #[inline]
@@ -189,16 +189,16 @@ impl<const N: usize, T> Iterator for Drain<'_, N, T> {
     }
 }
 
-impl<const N: usize, T> ExactSizeIterator for Drain<'_, N, T> {
+impl<T, const N: usize> ExactSizeIterator for Drain<'_, T, N> {
     #[inline]
     fn len(&self) -> usize {
         self.iter.len()
     }
 }
 
-impl<const N: usize, T> FusedIterator for Drain<'_, N, T> {}
+impl<T, const N: usize> FusedIterator for Drain<'_, T, N> {}
 
-impl<const N: usize, T> DoubleEndedIterator for Drain<'_, N, T> {
+impl<T, const N: usize> DoubleEndedIterator for Drain<'_, T, N> {
     fn next_back(&mut self) -> Option<Self::Item> {
         // SAFETY: the element at the index is guaranteed to be initialized
         self.iter
@@ -207,7 +207,7 @@ impl<const N: usize, T> DoubleEndedIterator for Drain<'_, N, T> {
     }
 }
 
-impl<const N: usize, T> Drop for Drain<'_, N, T> {
+impl<T, const N: usize> Drop for Drain<'_, T, N> {
     fn drop(&mut self) {
         // Drop the items that were not consumed
         struct Dropper<'a, T>(&'a mut [T]);
@@ -310,7 +310,7 @@ impl<const N: usize, T> Drop for Drain<'_, N, T> {
     }
 }
 
-impl<const N: usize, T> fmt::Debug for Drain<'_, N, T>
+impl<T, const N: usize> fmt::Debug for Drain<'_, T, N>
 where
     T: fmt::Debug,
 {

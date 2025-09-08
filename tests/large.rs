@@ -14,7 +14,7 @@ const SIZE: usize = 2 * 1024; // 2 KiB
 #[test]
 fn large_boxed() {
     let chunk = b"abcdefghijklmnopqrstuvxyz0123456789";
-    let mut buf = CircularBuffer::<SIZE, u8>::boxed();
+    let mut buf = CircularBuffer::<u8, SIZE>::boxed();
     let mut vec = Vec::new();
 
     assert_ne!(SIZE % chunk.len(), 0);

@@ -14,17 +14,17 @@ use core::ops::RangeBounds;
 /// This struct is created when iterating over a `CircularBuffer`. See the documentation for
 /// [`IntoIterator`] for more details.
 #[derive(Clone)]
-pub struct IntoIter<const N: usize, T> {
-    inner: CircularBuffer<N, T>,
+pub struct IntoIter<T, const N: usize> {
+    inner: CircularBuffer<T, N>,
 }
 
-impl<const N: usize, T> IntoIter<N, T> {
-    pub(crate) const fn new(inner: CircularBuffer<N, T>) -> Self {
+impl<T, const N: usize> IntoIter<T, N> {
+    pub(crate) const fn new(inner: CircularBuffer<T, N>) -> Self {
         Self { inner }
     }
 }
 
-impl<const N: usize, T> Iterator for IntoIter<N, T> {
+impl<T, const N: usize> Iterator for IntoIter<T, N> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -38,22 +38,22 @@ impl<const N: usize, T> Iterator for IntoIter<N, T> {
     }
 }
 
-impl<const N: usize, T> ExactSizeIterator for IntoIter<N, T> {
+impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {
     #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
 }
 
-impl<const N: usize, T> FusedIterator for IntoIter<N, T> {}
+impl<T, const N: usize> FusedIterator for IntoIter<T, N> {}
 
-impl<const N: usize, T> DoubleEndedIterator for IntoIter<N, T> {
+impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.inner.pop_back()
     }
 }
 
-impl<const N: usize, T> fmt::Debug for IntoIter<N, T>
+impl<T, const N: usize> fmt::Debug for IntoIter<T, N>
 where
     T: fmt::Debug,
 {
@@ -62,8 +62,8 @@ where
     }
 }
 
-pub(crate) fn translate_range_bounds<const N: usize, T, R>(
-    buf: &CircularBuffer<N, T>,
+pub(crate) fn translate_range_bounds<T, const N: usize, R>(
+    buf: &CircularBuffer<T, N>,
     range: R,
 ) -> (usize, usize)
 where
@@ -116,12 +116,12 @@ impl<'a, T> Iter<'a, T> {
         }
     }
 
-    pub(crate) fn new<const N: usize>(buf: &'a CircularBuffer<N, T>) -> Self {
+    pub(crate) fn new<const N: usize>(buf: &'a CircularBuffer<T, N>) -> Self {
         let (right, left) = buf.as_slices();
         Self { right, left }
     }
 
-    pub(crate) fn over_range<const N: usize, R>(buf: &'a CircularBuffer<N, T>, range: R) -> Self
+    pub(crate) fn over_range<const N: usize, R>(buf: &'a CircularBuffer<T, N>, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {
@@ -250,12 +250,12 @@ impl<'a, T> IterMut<'a, T> {
         }
     }
 
-    pub(crate) fn new<const N: usize>(buf: &'a mut CircularBuffer<N, T>) -> Self {
+    pub(crate) fn new<const N: usize>(buf: &'a mut CircularBuffer<T, N>) -> Self {
         let (right, left) = buf.as_mut_slices();
         Self { right, left }
     }
 
-    pub(crate) fn over_range<const N: usize, R>(buf: &'a mut CircularBuffer<N, T>, range: R) -> Self
+    pub(crate) fn over_range<const N: usize, R>(buf: &'a mut CircularBuffer<T, N>, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {
