@@ -18,9 +18,6 @@ default = ["std"]
 alloc = []
 std = ["alloc"]
 
-# Deprecated in favor of `std`
-use_std = ["std"]
-
 unstable = []
 
 [dependencies]
