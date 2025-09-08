@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 use circular_buffer::CircularBuffer;
-use criterion::criterion_group;
-use criterion::criterion_main;
-use criterion::measurement::Measurement;
 use criterion::BenchmarkGroup;
 use criterion::Criterion;
 use criterion::Throughput;
+use criterion::criterion_group;
+use criterion::criterion_main;
+use criterion::measurement::Measurement;
 
 fn bench_push(c: &mut Criterion) {
     let mut group = c.benchmark_group("push");

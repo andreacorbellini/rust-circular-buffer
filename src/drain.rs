@@ -1,10 +1,10 @@
 // Copyright © 2023-2025 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::add_mod;
-use crate::iter::translate_range_bounds;
-use crate::iter::Iter;
 use crate::CircularBuffer;
+use crate::add_mod;
+use crate::iter::Iter;
+use crate::iter::translate_range_bounds;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
