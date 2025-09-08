@@ -195,6 +195,7 @@
 #![warn(unused_qualifications)]
 #![doc(test(attr(deny(warnings))))]
 
+mod debug;
 mod drain;
 mod iter;
 
@@ -208,7 +209,6 @@ mod embedded_io;
 mod tests;
 
 use core::cmp::Ordering;
-use core::fmt;
 use core::hash::Hash;
 use core::hash::Hasher;
 use core::mem;
@@ -2307,14 +2307,5 @@ impl<T, const N: usize> Drop for CircularBuffer<T, N> {
     fn drop(&mut self) {
         // `clear()` will make sure that every element is dropped in a safe way
         self.clear();
-    }
-}
-
-impl<T, const N: usize> fmt::Debug for CircularBuffer<T, N>
-where
-    T: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self).finish()
     }
 }
