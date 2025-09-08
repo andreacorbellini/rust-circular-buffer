@@ -259,11 +259,11 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
 #[inline]
 const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
     #[cfg(feature = "unstable")]
-    {
+    unsafe {
         slice.assume_init_ref()
     }
     #[cfg(not(feature = "unstable"))]
-    {
+    unsafe {
         &*(slice as *const [MaybeUninit<T>] as *const [T])
     }
 }
@@ -271,11 +271,11 @@ const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
 #[inline]
 unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
     #[cfg(feature = "unstable")]
-    {
+    unsafe {
         slice.assume_init_mut()
     }
     #[cfg(not(feature = "unstable"))]
-    {
+    unsafe {
         &mut *(slice as *mut [MaybeUninit<T>] as *mut [T])
     }
 }

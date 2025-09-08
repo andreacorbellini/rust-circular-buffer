@@ -98,9 +98,9 @@ impl<'a, const N: usize, T> Drain<'a, N, T> {
             index < self.iter.start || index >= self.iter.end,
             "attempt to read an item that may be returned by the iterator"
         );
-        let buf = self.buf.as_ref();
+        let buf = unsafe { self.buf.as_ref() };
         let index = add_mod(buf.start, index, N);
-        ptr::read(buf.items[index].assume_init_ref())
+        unsafe { ptr::read(buf.items[index].assume_init_ref()) }
     }
 
     fn as_slices(&self) -> (&[T], &[T]) {
