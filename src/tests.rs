@@ -2096,27 +2096,27 @@ fn hash() {
 fn debug() {
     let mut buf = CircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
-    assert_eq!(format!("{:?}", buf), "[]");
-    assert_eq!(format!("{:x?}", buf), "[]");
-    assert_eq!(format!("{:X?}", buf), "[]");
+    assert_eq!(format!("{:?}", buf), "[_, _, _, _]");
+    assert_eq!(format!("{:x?}", buf), "[_, _, _, _]");
+    assert_eq!(format!("{:X?}", buf), "[_, _, _, _]");
 
     buf.push_back(10);
     assert_buf_eq!(buf, [10]);
-    assert_eq!(format!("{:?}", buf), "[10]");
-    assert_eq!(format!("{:x?}", buf), "[a]");
-    assert_eq!(format!("{:X?}", buf), "[A]");
+    assert_eq!(format!("{:?}", buf), "[10, _, _, _]");
+    assert_eq!(format!("{:x?}", buf), "[a, _, _, _]");
+    assert_eq!(format!("{:X?}", buf), "[A, _, _, _]");
 
     buf.push_back(20);
     assert_buf_eq!(buf, [10, 20]);
-    assert_eq!(format!("{:?}", buf), "[10, 20]");
-    assert_eq!(format!("{:x?}", buf), "[a, 14]");
-    assert_eq!(format!("{:X?}", buf), "[A, 14]");
+    assert_eq!(format!("{:?}", buf), "[10, 20, _, _]");
+    assert_eq!(format!("{:x?}", buf), "[a, 14, _, _]");
+    assert_eq!(format!("{:X?}", buf), "[A, 14, _, _]");
 
     buf.push_back(30);
     assert_buf_eq!(buf, [10, 20, 30]);
-    assert_eq!(format!("{:?}", buf), "[10, 20, 30]");
-    assert_eq!(format!("{:x?}", buf), "[a, 14, 1e]");
-    assert_eq!(format!("{:X?}", buf), "[A, 14, 1E]");
+    assert_eq!(format!("{:?}", buf), "[10, 20, 30, _]");
+    assert_eq!(format!("{:x?}", buf), "[a, 14, 1e, _]");
+    assert_eq!(format!("{:X?}", buf), "[A, 14, 1E, _]");
 
     buf.push_back(40);
     assert_buf_eq!(buf, [10, 20, 30, 40]);
