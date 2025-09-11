@@ -187,6 +187,13 @@
 //!   [`embedded_io_async`](https://docs.rs/embedded-io-async) traits.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![warn(clippy::dbg_macro)]
+#![warn(clippy::print_stderr)]
+#![warn(clippy::print_stdout)]
+#![warn(clippy::missing_safety_doc)]
+#![warn(clippy::unnecessary_safety_doc)]
+#![warn(clippy::unnecessary_safety_comment)]
+#![warn(clippy::undocumented_unsafe_blocks)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(unreachable_pub)]
@@ -256,12 +263,16 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
 #[inline]
 const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
     // TODO: replace with `slice.assume_init_ref()` once it's stabilized
+    //
+    // SAFETY: upheld by the caller
     unsafe { &*(slice as *const [MaybeUninit<T>] as *const [T]) }
 }
 
 #[inline]
 unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
     // TODO: replace with `slice.assume_init_mut()` once it's stabilized
+    //
+    // SAFETY: upheld by the caller
     unsafe { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
 }
 
@@ -312,16 +323,16 @@ impl<T, const N: usize> CircularBuffer<T, N> {
         let mut uninit: Box<MaybeUninit<Self>> = Box::new_uninit();
         let ptr = uninit.as_mut_ptr();
 
+        // SAFETY: the pointer contains enough memory to contain `Self` and `addr_of_mut` ensures
+        // that the address written to is properly aligned.
         unsafe {
-            // SAFETY: the pointer contains enough memory to contain `Self` and `addr_of_mut`
-            // ensures that the address written to is properly aligned.
             core::ptr::addr_of_mut!((*ptr).size).write(0);
             core::ptr::addr_of_mut!((*ptr).start).write(0);
-
-            // SAFETY: `size` and `start` have been properly initialized to 0; `items` does not
-            // need to be initialized if `size` is 0
-            uninit.assume_init()
         }
+
+        // SAFETY: `size` and `start` have been properly initialized to 0; `items` does not need to
+        // be initialized if `size` is 0
+        unsafe { uninit.assume_init() }
     }
 
     /// Returns the number of elements in the buffer.

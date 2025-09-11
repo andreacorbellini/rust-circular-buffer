@@ -1,7 +1,6 @@
 // Copyright © 2023-2025 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-#![allow(static_mut_refs)]
 #![cfg(feature = "std")]
 
 use crate::CircularBuffer;
@@ -1819,23 +1818,11 @@ fn extend_from_slice() {
 
 #[test]
 fn extend_from_slice_unwind_safety() {
-    // This needs to be `static` to be used in `fn clone()` below
-    static mut TRACKER: Option<DropTracker<String>> = None;
-
-    // SAFETY: the assumption is that this test function will be called only once
-    unsafe {
-        TRACKER.replace(DropTracker::new());
+    thread_local! {
+        static TRACKER: RefCell<DropTracker<String>> = RefCell::new(DropTracker::new());
     }
 
-    fn tracker() -> &'static DropTracker<String> {
-        unsafe { TRACKER.as_ref().unwrap() }
-    }
-
-    fn tracker_mut() -> &'static mut DropTracker<String> {
-        unsafe { TRACKER.as_mut().unwrap() }
-    }
-
-    #[derive(PartialEq, Eq, Hash)]
+    #[derive(Debug)]
     struct FaultyClonable {
         drop_item: DropItem<String>,
         panic_on_clone: bool,
@@ -1847,41 +1834,47 @@ fn extend_from_slice_unwind_safety() {
                 panic!("clone failed :(");
             } else {
                 Self {
-                    drop_item: tracker_mut().track(format!("clone of {}", self.drop_item)),
+                    drop_item: TRACKER.with_borrow_mut(|tracker| {
+                        tracker.track(format!("clone of {}", self.drop_item))
+                    }),
                     panic_on_clone: false,
                 }
             }
         }
     }
 
-    let array = [
-        FaultyClonable {
-            drop_item: tracker_mut().track("a".to_string()),
-            panic_on_clone: false,
-        },
-        FaultyClonable {
-            drop_item: tracker_mut().track("b".to_string()),
-            panic_on_clone: false,
-        },
-        FaultyClonable {
-            drop_item: tracker_mut().track("c".to_string()),
-            panic_on_clone: true,
-        },
-        FaultyClonable {
-            drop_item: tracker_mut().track("d".to_string()),
-            panic_on_clone: false,
-        },
-    ];
+    let array = TRACKER.with_borrow_mut(|tracker| {
+        [
+            FaultyClonable {
+                drop_item: tracker.track("a".to_string()),
+                panic_on_clone: false,
+            },
+            FaultyClonable {
+                drop_item: tracker.track("b".to_string()),
+                panic_on_clone: false,
+            },
+            FaultyClonable {
+                drop_item: tracker.track("c".to_string()),
+                panic_on_clone: true,
+            },
+            FaultyClonable {
+                drop_item: tracker.track("d".to_string()),
+                panic_on_clone: false,
+            },
+        ]
+    });
 
     let mut buf = CircularBuffer::<FaultyClonable, 4>::new();
 
     let res = std::panic::catch_unwind(move || buf.extend_from_slice(&array));
     assert!(res.is_err());
 
-    tracker().assert_dropped("clone of a");
-    tracker().assert_dropped("clone of b");
-    assert!(!tracker().is_tracked("clone of c"));
-    assert!(!tracker().is_tracked("clone of d"));
+    TRACKER.with_borrow(|tracker| {
+        tracker.assert_dropped("clone of a");
+        tracker.assert_dropped("clone of b");
+        assert!(!tracker.is_tracked("clone of c"));
+        assert!(!tracker.is_tracked("clone of d"));
+    });
 }
 
 #[test]
@@ -1923,20 +1916,8 @@ fn fill_efficiency() {
 
 #[test]
 fn fill_unwind_safety() {
-    // This needs to be `static` to be used in `fn clone()` below
-    static mut TRACKER: Option<DropTracker<String>> = None;
-
-    // SAFETY: the assumption is that this test function will be called only once
-    unsafe {
-        TRACKER.replace(DropTracker::new());
-    }
-
-    fn tracker() -> &'static DropTracker<String> {
-        unsafe { TRACKER.as_ref().unwrap() }
-    }
-
-    fn tracker_mut() -> &'static mut DropTracker<String> {
-        unsafe { TRACKER.as_mut().unwrap() }
+    thread_local! {
+        static TRACKER: RefCell<DropTracker<String>> = RefCell::new(DropTracker::new());
     }
 
     #[derive(Debug)]
@@ -1954,8 +1935,9 @@ fn fill_unwind_safety() {
                 panic!("clone failed :(");
             }
             Self {
-                drop_item: tracker_mut()
-                    .track(format!("clone #{} of {}", num_clones, self.drop_item)),
+                drop_item: TRACKER.with_borrow_mut(|tracker| {
+                    tracker.track(format!("clone #{} of {}", num_clones, self.drop_item))
+                }),
                 num_clones: RefCell::default(),
                 panic_at: self.panic_at,
             }
@@ -1965,37 +1947,27 @@ fn fill_unwind_safety() {
     let mut buf = CircularBuffer::<FaultyClonable, 6>::new();
 
     let value = FaultyClonable {
-        drop_item: tracker_mut().track("value".to_string()),
+        drop_item: TRACKER.with_borrow_mut(|tracker| tracker.track("value".to_string())),
         num_clones: RefCell::default(),
         panic_at: 4,
     };
     let res = std::panic::catch_unwind(move || buf.fill(value));
     assert!(res.is_err());
 
-    tracker().assert_dropped("value");
-    tracker().assert_dropped("clone #1 of value");
-    tracker().assert_dropped("clone #2 of value");
-    tracker().assert_dropped("clone #3 of value");
-    assert!(!tracker().is_tracked("clone #4 of value"));
-    assert!(!tracker().is_tracked("clone #5 of value"));
+    TRACKER.with_borrow(|tracker| {
+        tracker.assert_dropped("value");
+        tracker.assert_dropped("clone #1 of value");
+        tracker.assert_dropped("clone #2 of value");
+        tracker.assert_dropped("clone #3 of value");
+        assert!(!tracker.is_tracked("clone #4 of value"));
+        assert!(!tracker.is_tracked("clone #5 of value"));
+    });
 }
 
 #[test]
 fn fill_with_unwind_safety() {
-    // This needs to be `static` to be used in `fn closure()` below
-    static mut TRACKER: Option<DropTracker<u32>> = None;
-
-    // SAFETY: the assumption is that this test function will be called only once
-    unsafe {
-        TRACKER.replace(DropTracker::new());
-    }
-
-    fn tracker() -> &'static DropTracker<u32> {
-        unsafe { TRACKER.as_ref().unwrap() }
-    }
-
-    fn tracker_mut() -> &'static mut DropTracker<u32> {
-        unsafe { TRACKER.as_mut().unwrap() }
+    thread_local! {
+        static TRACKER: RefCell<DropTracker<u32>> = RefCell::new(DropTracker::new());
     }
 
     let mut buf = CircularBuffer::<DropItem<u32>, 6>::new();
@@ -2007,17 +1979,19 @@ fn fill_with_unwind_safety() {
             if counter > 4 {
                 panic!("closure failed :(");
             }
-            tracker_mut().track(counter)
+            TRACKER.with_borrow_mut(|tracker| tracker.track(counter))
         })
     });
     assert!(res.is_err());
 
-    tracker().assert_dropped(&1);
-    tracker().assert_dropped(&2);
-    tracker().assert_dropped(&3);
-    tracker().assert_dropped(&4);
-    assert!(!tracker().is_tracked(&5));
-    assert!(!tracker().is_tracked(&6));
+    TRACKER.with_borrow(|tracker| {
+        tracker.assert_dropped(&1);
+        tracker.assert_dropped(&2);
+        tracker.assert_dropped(&3);
+        tracker.assert_dropped(&4);
+        assert!(!tracker.is_tracked(&5));
+        assert!(!tracker.is_tracked(&6));
+    });
 }
 
 #[test]

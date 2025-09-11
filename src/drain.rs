@@ -98,8 +98,13 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
             index < self.iter.start || index >= self.iter.end,
             "attempt to read an item that may be returned by the iterator"
         );
+
+        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
+        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
+        // shared reference to the buffer.
         let buf = unsafe { self.buf.as_ref() };
         let index = add_mod(buf.start, index, N);
+        // SAFETY: upheld by the caller
         unsafe { ptr::read(buf.items[index].assume_init_ref()) }
     }
 
@@ -108,6 +113,9 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
             return (&[][..], &[][..]);
         }
 
+        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
+        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
+        // shared reference to the buffer.
         let buf = unsafe { self.buf.as_ref() };
 
         debug_assert!(buf.start < N, "start out-of-bounds");
@@ -133,6 +141,9 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
             return (&mut [][..], &mut [][..]);
         }
 
+        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
+        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
+        // shared reference to the buffer.
         let buf = unsafe { self.buf.as_mut() };
 
         debug_assert!(buf.start < N, "start out-of-bounds");
