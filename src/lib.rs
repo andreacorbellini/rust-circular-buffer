@@ -187,8 +187,6 @@
 //!   [`embedded_io_async`](https://docs.rs/embedded-io-async) traits.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
-#![cfg_attr(feature = "unstable", feature(maybe_uninit_write_slice))]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(unreachable_pub)]
@@ -257,26 +255,14 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
 
 #[inline]
 const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
-    #[cfg(feature = "unstable")]
-    unsafe {
-        slice.assume_init_ref()
-    }
-    #[cfg(not(feature = "unstable"))]
-    unsafe {
-        &*(slice as *const [MaybeUninit<T>] as *const [T])
-    }
+    // TODO: replace with `slice.assume_init_ref()` once it's stabilized
+    unsafe { &*(slice as *const [MaybeUninit<T>] as *const [T]) }
 }
 
 #[inline]
 unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
-    #[cfg(feature = "unstable")]
-    unsafe {
-        slice.assume_init_mut()
-    }
-    #[cfg(not(feature = "unstable"))]
-    unsafe {
-        &mut *(slice as *mut [MaybeUninit<T>] as *mut [T])
-    }
+    // TODO: replace with `slice.assume_init_mut()` once it's stabilized
+    unsafe { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
 }
 
 /// A fixed-size circular buffer.
@@ -304,21 +290,10 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     #[inline]
     #[must_use]
     pub const fn new() -> Self {
-        #[cfg(feature = "unstable")]
-        {
-            Self {
-                size: 0,
-                start: 0,
-                items: [const { MaybeUninit::uninit() }; N],
-            }
-        }
-        #[cfg(not(feature = "unstable"))]
-        {
-            Self {
-                size: 0,
-                start: 0,
-                items: unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() },
-            }
+        Self {
+            size: 0,
+            start: 0,
+            items: [const { MaybeUninit::uninit() }; N],
         }
     }
 
@@ -1918,7 +1893,7 @@ where
         debug_assert!(self.start < N, "start out-of-bounds");
         debug_assert!(self.size <= N, "size out-of-bounds");
 
-        #[cfg(not(feature = "unstable"))]
+        // TODO: replace with `slice.write_clone_of_slice()` once it's stabilized
         fn write_uninit_slice_cloned<T: Clone>(dst: &mut [MaybeUninit<T>], src: &[T]) {
             // Each call to `clone()` may panic, therefore we need to track how many elements we
             // successfully cloned so that we can drop them in case of panic. This `Guard` struct
@@ -1977,17 +1952,11 @@ where
             let (right, left) = self.slices_uninit_mut();
 
             let write_len = core::cmp::min(right.len(), other.len());
-            #[cfg(feature = "unstable")]
-            right[..write_len].write_clone_of_slice(&other[..write_len]);
-            #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut right[..write_len], &other[..write_len]);
 
             let other = &other[write_len..];
             debug_assert!(left.len() >= other.len());
             let write_len = other.len();
-            #[cfg(feature = "unstable")]
-            left[..write_len].write_clone_of_slice(other);
-            #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut left[..write_len], other);
 
             self.size = final_size;
@@ -1999,9 +1968,6 @@ where
 
             let other = &other[other.len() - N..];
             debug_assert_eq!(self.items.len(), other.len());
-            #[cfg(feature = "unstable")]
-            self.items.write_clone_of_slice(other);
-            #[cfg(not(feature = "unstable"))]
             write_uninit_slice_cloned(&mut self.items, other);
 
             self.size = N;
@@ -2040,10 +2006,7 @@ impl<T, const N: usize> Default for CircularBuffer<T, N> {
 
 impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<T, N> {
     fn from(mut arr: [T; M]) -> Self {
-        #[cfg(feature = "unstable")]
         let mut elems = [const { MaybeUninit::uninit() }; N];
-        #[cfg(not(feature = "unstable"))]
-        let mut elems = unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
         let arr_ptr = &arr as *const T as *const MaybeUninit<T>;
         let elems_ptr = &mut elems as *mut MaybeUninit<T>;
         let size = if N >= M { M } else { N };

@@ -5,11 +5,11 @@ use crate::CircularBuffer;
 use crate::add_mod;
 use crate::iter::Iter;
 use crate::iter::translate_range_bounds;
+use crate::slice_assume_init_mut;
+use crate::slice_assume_init_ref;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
-#[cfg(not(feature = "unstable"))]
-use core::mem::MaybeUninit;
 use core::ops::Range;
 use core::ops::RangeBounds;
 use core::ptr;
@@ -125,17 +125,7 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        #[cfg(feature = "unstable")]
-        unsafe {
-            (right.assume_init_ref(), left.assume_init_ref())
-        }
-        #[cfg(not(feature = "unstable"))]
-        unsafe {
-            (
-                &*(right as *const [MaybeUninit<T>] as *const [T]),
-                &*(left as *const [MaybeUninit<T>] as *const [T]),
-            )
-        }
+        unsafe { (slice_assume_init_ref(right), slice_assume_init_ref(left)) }
     }
 
     fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
@@ -160,17 +150,7 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        #[cfg(feature = "unstable")]
-        unsafe {
-            (right.assume_init_mut(), left.assume_init_mut())
-        }
-        #[cfg(not(feature = "unstable"))]
-        unsafe {
-            (
-                &mut *(right as *mut [MaybeUninit<T>] as *mut [T]),
-                &mut *(left as *mut [MaybeUninit<T>] as *mut [T]),
-            )
-        }
+        unsafe { (slice_assume_init_mut(right), slice_assume_init_mut(left)) }
     }
 }
 
