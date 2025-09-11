@@ -86,8 +86,13 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
     /// the element at `index` must be considered as uninitialized memory and therefore the `index`
     /// must not be reused.
     unsafe fn read(&self, index: usize) -> T {
+        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
+        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
+        // shared reference to the buffer.
+        let buf = unsafe { self.buf.as_ref() };
+
         debug_assert!(
-            index < N && index < self.buf_size,
+            index < buf.capacity() && index < self.buf_size,
             "index out-of-bounds for buffer"
         );
         debug_assert!(
@@ -99,30 +104,26 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
             "attempt to read an item that may be returned by the iterator"
         );
 
-        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
-        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
-        // shared reference to the buffer.
-        let buf = unsafe { self.buf.as_ref() };
-        let index = add_mod(buf.start, index, N);
+        let index = add_mod(buf.start, index, buf.capacity());
         // SAFETY: upheld by the caller
         unsafe { ptr::read(buf.items[index].assume_init_ref()) }
     }
 
     fn as_slices(&self) -> (&[T], &[T]) {
-        if N == 0 || self.buf_size == 0 || self.iter.is_empty() {
-            return (&[][..], &[][..]);
-        }
-
         // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
         // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
         // shared reference to the buffer.
         let buf = unsafe { self.buf.as_ref() };
 
-        debug_assert!(buf.start < N, "start out-of-bounds");
-        debug_assert!(self.buf_size <= N, "size out-of-bounds");
+        if buf.capacity() == 0 || self.buf_size == 0 || self.iter.is_empty() {
+            return (&[][..], &[][..]);
+        }
 
-        let start = add_mod(buf.start, self.iter.start, N);
-        let end = add_mod(buf.start, self.iter.end, N);
+        debug_assert!(buf.start < buf.capacity(), "start out-of-bounds");
+        debug_assert!(self.buf_size <= buf.capacity(), "size out-of-bounds");
+
+        let start = add_mod(buf.start, self.iter.start, buf.capacity());
+        let end = add_mod(buf.start, self.iter.end, buf.capacity());
 
         let (right, left) = if start < end {
             (&buf.items[start..end], &[][..])
@@ -137,20 +138,20 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
     }
 
     fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        if N == 0 || self.buf_size == 0 || self.iter.is_empty() {
-            return (&mut [][..], &mut [][..]);
-        }
-
         // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
         // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
         // shared reference to the buffer.
         let buf = unsafe { self.buf.as_mut() };
 
-        debug_assert!(buf.start < N, "start out-of-bounds");
-        debug_assert!(self.buf_size <= N, "size out-of-bounds");
+        if buf.capacity() == 0 || self.buf_size == 0 || self.iter.is_empty() {
+            return (&mut [][..], &mut [][..]);
+        }
 
-        let start = add_mod(buf.start, self.iter.start, N);
-        let end = add_mod(buf.start, self.iter.end, N);
+        debug_assert!(buf.start < buf.capacity(), "start out-of-bounds");
+        debug_assert!(self.buf_size <= buf.capacity(), "size out-of-bounds");
+
+        let start = add_mod(buf.start, self.iter.start, buf.capacity());
+        let end = add_mod(buf.start, self.iter.end, buf.capacity());
 
         let (right, left) = if start < end {
             (&mut buf.items[start..end], &mut [][..])
