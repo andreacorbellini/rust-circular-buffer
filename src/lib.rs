@@ -1508,7 +1508,11 @@ impl<T, const N: usize> CircularBuffer<T, N> {
                 ptr::copy(ptr.add(index).add(1), ptr.add(index), back_index - index);
             } else {
                 // Move the values at the right of `index` by 1 position to the left
-                ptr::copy(ptr.add(index).add(1), ptr.add(index), self.capacity() - index - 1);
+                ptr::copy(
+                    ptr.add(index).add(1),
+                    ptr.add(index),
+                    self.capacity() - index - 1,
+                );
                 // Move the leftmost value to the end of the array
                 ptr::copy(ptr, ptr.add(self.capacity() - 1), 1);
                 // Move the values at the left of `back_index` by 1 position to the left

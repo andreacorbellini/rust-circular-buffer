@@ -8,7 +8,7 @@ use core::iter;
 #[derive(Default, Copy, Clone)]
 struct Placeholder;
 
-impl fmt::Debug for Placeholder { 
+impl fmt::Debug for Placeholder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("_")
     }
