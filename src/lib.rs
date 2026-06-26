@@ -761,7 +761,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     }
 
     #[inline]
-    fn front_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
+    const fn front_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
         debug_assert!(self.size > 0, "empty buffer");
         debug_assert!(self.start < self.capacity(), "start out-of-bounds");
         &mut self.items[self.start]
@@ -785,7 +785,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     }
 
     #[inline]
-    fn back_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
+    const fn back_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
         debug_assert!(self.size > 0, "empty buffer");
         debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
         debug_assert!(self.start < self.capacity(), "start out-of-bounds");
@@ -803,7 +803,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     }
 
     #[inline]
-    fn get_maybe_uninit_mut(&mut self, index: usize) -> &mut MaybeUninit<T> {
+    const fn get_maybe_uninit_mut(&mut self, index: usize) -> &mut MaybeUninit<T> {
         debug_assert!(self.size > 0, "empty buffer");
         debug_assert!(index < self.capacity(), "index out-of-bounds");
         debug_assert!(self.start < self.capacity(), "start out-of-bounds");
@@ -832,26 +832,26 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     }
 
     #[inline]
-    fn inc_start(&mut self) {
+    const fn inc_start(&mut self) {
         debug_assert!(self.start < self.capacity(), "start out-of-bounds");
         self.start = add_mod(self.start, 1, self.capacity());
     }
 
     #[inline]
-    fn dec_start(&mut self) {
+    const fn dec_start(&mut self) {
         debug_assert!(self.start < self.capacity(), "start out-of-bounds");
         self.start = sub_mod(self.start, 1, self.capacity());
     }
 
     #[inline]
-    fn inc_size(&mut self) {
+    const fn inc_size(&mut self) {
         debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
         debug_assert!(self.size < self.capacity(), "size at capacity limit");
         self.size += 1;
     }
 
     #[inline]
-    fn dec_size(&mut self) {
+    const fn dec_size(&mut self) {
         debug_assert!(self.size > 0, "size is 0");
         self.size -= 1;
     }
@@ -918,7 +918,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.back(), Some(&'c'));
     /// ```
     #[inline]
-    pub fn back(&self) -> Option<&T> {
+    pub const fn back(&self) -> Option<&T> {
         if self.capacity() == 0 || self.size == 0 {
             // Nothing to do
             return None;
@@ -947,7 +947,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, ['a', 'b', 'z']);
     /// ```
     #[inline]
-    pub fn back_mut(&mut self) -> Option<&mut T> {
+    pub const fn back_mut(&mut self) -> Option<&mut T> {
         if self.capacity() == 0 || self.size == 0 {
             // Nothing to do
             return None;
@@ -972,7 +972,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.front(), Some(&'a'));
     /// ```
     #[inline]
-    pub fn front(&self) -> Option<&T> {
+    pub const fn front(&self) -> Option<&T> {
         if self.capacity() == 0 || self.size == 0 {
             // Nothing to do
             return None;
@@ -1001,7 +1001,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, ['z', 'b', 'c']);
     /// ```
     #[inline]
-    pub fn front_mut(&mut self) -> Option<&mut T> {
+    pub const fn front_mut(&mut self) -> Option<&mut T> {
         if self.capacity() == 0 || self.size == 0 {
             // Nothing to do
             return None;
@@ -1032,7 +1032,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.get(1), Some(&'b'));
     /// ```
     #[inline]
-    pub fn get(&self, index: usize) -> Option<&T> {
+    pub const fn get(&self, index: usize) -> Option<&T> {
         if self.capacity() == 0 || index >= self.size {
             // Nothing to do
             return None;
@@ -1067,7 +1067,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, ['a', 'z', 'c', 'd']);
     /// ```
     #[inline]
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+    pub const fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         if self.capacity() == 0 || index >= self.size {
             // Nothing to do
             return None;
@@ -1100,7 +1100,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.nth_front(1), Some(&'b'));
     /// ```
     #[inline]
-    pub fn nth_front(&self, index: usize) -> Option<&T> {
+    pub const fn nth_front(&self, index: usize) -> Option<&T> {
         self.get(index)
     }
 
@@ -1132,7 +1132,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, ['a', 'z', 'c', 'd']);
     /// ```
     #[inline]
-    pub fn nth_front_mut(&mut self, index: usize) -> Option<&mut T> {
+    pub const fn nth_front_mut(&mut self, index: usize) -> Option<&mut T> {
         self.get_mut(index)
     }
 
@@ -1228,7 +1228,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.push_back('f'), Some('c'));
     /// assert_eq!(buf, ['d', 'e', 'f']);
     /// ```
-    pub fn push_back(&mut self, item: T) -> Option<T> {
+    pub const fn push_back(&mut self, item: T) -> Option<T> {
         if self.capacity() == 0 {
             // Nothing to do
             return Some(item);
@@ -1328,7 +1328,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.push_front('f'), Some('c'));
     /// assert_eq!(buf, ['f', 'e', 'd']);
     /// ```
-    pub fn push_front(&mut self, item: T) -> Option<T> {
+    pub const fn push_front(&mut self, item: T) -> Option<T> {
         if self.capacity() == 0 {
             // Nothing to do
             return Some(item);
@@ -1413,7 +1413,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.pop_back(), Some('a'));
     /// assert_eq!(buf.pop_back(), None);
     /// ```
-    pub fn pop_back(&mut self) -> Option<T> {
+    pub const fn pop_back(&mut self) -> Option<T> {
         if self.capacity() == 0 || self.size == 0 {
             // Nothing to do
             return None;
@@ -1441,7 +1441,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.pop_front(), Some('c'));
     /// assert_eq!(buf.pop_front(), None);
     /// ```
-    pub fn pop_front(&mut self) -> Option<T> {
+    pub const fn pop_front(&mut self) -> Option<T> {
         if self.capacity() == 0 || self.size == 0 {
             // Nothing to do
             return None;
@@ -1470,7 +1470,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     ///
     /// assert_eq!(buf.remove(5), None);
     /// ```
-    pub fn remove(&mut self, index: usize) -> Option<T> {
+    pub const fn remove(&mut self, index: usize) -> Option<T> {
         if self.capacity() == 0 || index >= self.size {
             return None;
         }
@@ -1533,7 +1533,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// buf.swap(0, 7);
     /// ```
-    pub fn swap(&mut self, i: usize, j: usize) {
+    pub const fn swap(&mut self, i: usize, j: usize) {
         assert!(i < self.size, "i index out-of-bounds");
         assert!(j < self.size, "j index out-of-bounds");
         if i != j {
@@ -1561,7 +1561,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     ///
     /// assert_eq!(buf.swap_remove_back(7), None);
     /// ```
-    pub fn swap_remove_back(&mut self, index: usize) -> Option<T> {
+    pub const fn swap_remove_back(&mut self, index: usize) -> Option<T> {
         if index >= self.size {
             return None;
         }
@@ -1586,7 +1586,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     ///
     /// assert_eq!(buf.swap_remove_front(7), None);
     /// ```
-    pub fn swap_remove_front(&mut self, index: usize) -> Option<T> {
+    pub const fn swap_remove_front(&mut self, index: usize) -> Option<T> {
         if index >= self.size {
             return None;
         }
