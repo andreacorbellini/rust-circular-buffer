@@ -1168,6 +1168,8 @@ fn zero_capacity() {
     run_assertions(&buf);
     buf.clear();
     run_assertions(&buf);
+    buf.drain(..);
+    run_assertions(&buf);
 }
 
 #[test]
@@ -1506,6 +1508,23 @@ fn drain_full() {
     let _ = buf.drain(..);
     assert_buf_eq!(buf, [] as [i32; 0]);
     tracker.assert_fully_dropped();
+}
+
+#[test]
+fn drain_full_no_items() {
+    // Fully consume the drain
+    let mut buf = CircularBuffer::<10, i32>::new();
+    let mut drain = buf.drain(..);
+    assert_eq!(drain.next(), None);
+    assert_eq!(drain.next(), None);
+    assert_eq!(drain.next(), None);
+    drop(drain);
+    assert_buf_eq!(buf, [] as [i32; 0]);
+
+    // Do not consume the drain
+    let mut buf = CircularBuffer::<10, i32>::new();
+    let _ = buf.drain(..);
+    assert_buf_eq!(buf, [] as [i32; 0]);
 }
 
 #[test]

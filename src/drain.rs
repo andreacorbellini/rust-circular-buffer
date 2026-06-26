@@ -209,6 +209,11 @@ impl<const N: usize, T> DoubleEndedIterator for Drain<'_, N, T> {
 
 impl<const N: usize, T> Drop for Drain<'_, N, T> {
     fn drop(&mut self) {
+        if N == 0 {
+            // Nothing to do
+            return;
+        }
+
         // Drop the items that were not consumed
         struct Dropper<'a, T>(&'a mut [T]);
 
