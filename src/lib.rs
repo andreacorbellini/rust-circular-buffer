@@ -260,22 +260,6 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
     add_mod(x, m - y, m)
 }
 
-#[inline]
-const unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
-    // TODO: replace with `slice.assume_init_ref()` once it's stabilized
-    //
-    // SAFETY: upheld by the caller
-    unsafe { &*(slice as *const [MaybeUninit<T>] as *const [T]) }
-}
-
-#[inline]
-unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
-    // TODO: replace with `slice.assume_init_mut()` once it's stabilized
-    //
-    // SAFETY: upheld by the caller
-    unsafe { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
-}
-
 /// A fixed-size circular buffer.
 ///
 /// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
@@ -674,7 +658,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
         };
 
         // SAFETY: The elements in the slice are guaranteed to be initialized
-        unsafe { slice_assume_init_mut(slice) }
+        unsafe { slice.assume_init_mut() }
     }
 
     /// Returns a pair of slices which contain the elements of this buffer.
@@ -721,7 +705,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe { (slice_assume_init_ref(front), slice_assume_init_ref(back)) }
+        unsafe { (front.assume_init_ref(), back.assume_init_ref()) }
     }
 
     /// Returns a pair of mutable slices which contain the elements of this buffer.
@@ -773,7 +757,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe { (slice_assume_init_mut(front), slice_assume_init_mut(back)) }
+        unsafe { (front.assume_init_mut(), back.assume_init_mut()) }
     }
 
     #[inline]
@@ -898,7 +882,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
                 // SAFETY: the caller of `drop_range` is responsible to check that this slice was
                 // initialized.
                 unsafe {
-                    ptr::drop_in_place(slice_assume_init_mut(self.0));
+                    ptr::drop_in_place(self.0.assume_init_mut());
                 }
             }
         }
@@ -1908,50 +1892,6 @@ where
         debug_assert!(self.start < self.capacity(), "start out-of-bounds");
         debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
 
-        // TODO: replace with `slice.write_clone_of_slice()` once it's stabilized
-        fn write_uninit_slice_cloned<T: Clone>(dst: &mut [MaybeUninit<T>], src: &[T]) {
-            // Each call to `clone()` may panic, therefore we need to track how many elements we
-            // successfully cloned so that we can drop them in case of panic. This `Guard` struct
-            // does exactly that: it keeps track of how many items have been successfully cloned
-            // and drops them if the guard is dropped.
-            //
-            // This implementation was highly inspired by the implementation of
-            // `MaybeUninit::clone_from_slice`
-            struct Guard<'a, T> {
-                dst: &'a mut [MaybeUninit<T>],
-                initialized: usize,
-            }
-
-            impl<T> Drop for Guard<'_, T> {
-                fn drop(&mut self) {
-                    let initialized = &mut self.dst[..self.initialized];
-                    // SAFETY: this slice contain only initialized objects; `MaybeUninit<T>` has
-                    // the same alignment and size as `T`
-                    unsafe {
-                        let initialized =
-                            &mut *(initialized as *mut [MaybeUninit<T>] as *mut [T]);
-                        ptr::drop_in_place(initialized);
-                    }
-                }
-            }
-
-            debug_assert_eq!(dst.len(), src.len());
-            let len = dst.len();
-            let mut guard = Guard {
-                dst,
-                initialized: 0,
-            };
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..len {
-                guard.dst[i].write(src[i].clone());
-                guard.initialized += 1;
-            }
-
-            // All the `clone()` calls succeded; get rid of the guard without running its `drop()`
-            // implementation
-            mem::forget(guard);
-        }
-
         if other.len() < self.capacity() {
             // All the elements of `other` fit into the buffer
             let free_size = self.capacity() - self.size;
@@ -1967,12 +1907,12 @@ where
             let (right, left) = self.slices_uninit_mut();
 
             let write_len = core::cmp::min(right.len(), other.len());
-            write_uninit_slice_cloned(&mut right[..write_len], &other[..write_len]);
+            right[..write_len].write_clone_of_slice(&other[..write_len]);
 
             let other = &other[write_len..];
             debug_assert!(left.len() >= other.len());
             let write_len = other.len();
-            write_uninit_slice_cloned(&mut left[..write_len], other);
+            left[..write_len].write_clone_of_slice(other);
 
             self.size = final_size;
         } else {
@@ -1983,7 +1923,7 @@ where
 
             let other = &other[other.len() - self.capacity()..];
             debug_assert_eq!(self.items.len(), other.len());
-            write_uninit_slice_cloned(&mut self.items, other);
+            self.items.write_clone_of_slice(other);
 
             self.size = self.capacity();
         }

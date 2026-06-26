@@ -5,8 +5,6 @@ use crate::CircularBuffer;
 use crate::add_mod;
 use crate::iter::Iter;
 use crate::iter::translate_range_bounds;
-use crate::slice_assume_init_mut;
-use crate::slice_assume_init_ref;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
@@ -134,7 +132,7 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe { (slice_assume_init_ref(right), slice_assume_init_ref(left)) }
+        unsafe { (right.assume_init_ref(), left.assume_init_ref()) }
     }
 
     fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
@@ -162,7 +160,7 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
         };
 
         // SAFETY: The elements in these slices are guaranteed to be initialized
-        unsafe { (slice_assume_init_mut(right), slice_assume_init_mut(left)) }
+        unsafe { (right.assume_init_mut(), left.assume_init_mut()) }
     }
 }
 
