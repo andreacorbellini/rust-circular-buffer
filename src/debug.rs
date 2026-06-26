@@ -21,7 +21,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut list = f.debug_list();
         list.entries(self);
-        list.entries(iter::repeat(Placeholder).take(self.capacity() - self.len()));
+        list.entries(iter::repeat_n(Placeholder, self.capacity() - self.len()));
         list.finish()
     }
 }
