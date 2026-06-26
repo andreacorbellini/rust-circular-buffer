@@ -14,7 +14,7 @@
 use circular_buffer::CircularBuffer;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rand::distr::Distribution;
 use rand::distr::StandardUniform;
 use rand::distr::Uniform;
