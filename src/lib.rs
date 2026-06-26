@@ -1,4 +1,4 @@
-// Copyright © 2023-2025 Andrea Corbellini and contributors
+// Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! This crate implements a [circular buffer], also known as cyclic buffer, circular queue or ring.
@@ -218,6 +218,8 @@ use core::hash::Hash;
 use core::hash::Hasher;
 use core::mem;
 use core::mem::MaybeUninit;
+use core::ops::Deref;
+use core::ops::DerefMut;
 use core::ops::Index;
 use core::ops::IndexMut;
 use core::ops::Range;
@@ -260,65 +262,55 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
     add_mod(x, m - y, m)
 }
 
-/// A fixed-size circular buffer.
+/// Internal structure shared by `CircularBufferRef`, `CircularBuffer`, and `HeapCircularBuffer`.
 ///
-/// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
-/// using [`CircularBuffer::boxed()`] if you need the struct to be heap-allocated.
-///
-/// See the [module-level documentation](self) for more details and examples.
-pub struct CircularBuffer<T, const N: usize> {
+/// The main purpose of this structure is to allow safe coercion to `CircularBufferRef`. It may go
+/// away once `core::ptr::from_raw_parts()` is stabilized.
+struct Inner<T: ?Sized> {
     size: usize,
     start: usize,
-    items: [MaybeUninit<T>; N],
+    items: T,
 }
 
-impl<T, const N: usize> CircularBuffer<T, N> {
-    /// Returns an empty `CircularBuffer`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<u32, 16>::new();
-    /// assert_eq!(buf, []);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub const fn new() -> Self {
-        Self {
-            size: 0,
-            start: 0,
-            items: [const { MaybeUninit::uninit() }; N],
-        }
-    }
+/// A reference to a circular buffer.
+///
+/// This type can be thought as the equivalent of a Rust [slice](primitive:slice), in the sense that
+/// it _points_ to the data held by a circular buffer (either a [`CircularBuffer`] or a
+/// [`HeapCircularBuffer`]) but does not actually own the data. The relationship between the types
+/// `CircularBufferRef<T>`, `CircularBuffer<T, N>`, and `HeapCircularBuffer<T>` is akin to the
+/// relationship between types `[T]` (slice), `[T; N]` (array), `Vec<T>`. In particular:
+///
+/// - Both [`CircularBuffer`] and [`HeapCircularBuffer`] can be [dereferenced] to a
+///   `CircularBufferRef`.
+/// - Most of the circular buffer logic (such as adding/removing/getting elements) is implemented in
+///   `CircularBufferRef`.
+///
+/// [dereferenced]: https://doc.rust-lang.org/reference/expressions/operator-expr.html#the-dereference-operator
+///
+/// You generally don't need to interact with `CircularBufferRef` directly, although you may want to
+/// use it as an input type to functions as shown in the following example.
+///
+/// # Examples
+///
+/// ```
+/// use circular_buffer::{CircularBuffer, CircularBufferRef};
+///
+/// fn push_some_elements(buf: &mut CircularBufferRef<u32>) {
+///     buf.push_back(1);
+///     buf.push_back(2);
+///     buf.push_back(3);
+/// }
+///
+/// let mut fixed_buf = CircularBuffer::<u32, 5>::new();
+/// push_some_elements(&mut fixed_buf);
+/// assert_eq!(fixed_buf, [1, 2, 3]);
+/// ```
+#[repr(transparent)]
+pub struct CircularBufferRef<T> {
+    inner: Inner<[MaybeUninit<T>]>,
+}
 
-    /// Returns an empty heap-allocated `CircularBuffer`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<f64, 1024>::boxed();
-    /// assert_eq!(buf.len(), 0);
-    /// ```
-    #[must_use]
-    #[cfg(feature = "alloc")]
-    pub fn boxed() -> Box<Self> {
-        let mut uninit: Box<MaybeUninit<Self>> = Box::new_uninit();
-        let ptr = uninit.as_mut_ptr();
-
-        // SAFETY: the pointer contains enough memory to contain `Self` and `addr_of_mut` ensures
-        // that the address written to is properly aligned.
-        unsafe {
-            core::ptr::addr_of_mut!((*ptr).size).write(0);
-            core::ptr::addr_of_mut!((*ptr).start).write(0);
-        }
-
-        // SAFETY: `size` and `start` have been properly initialized to 0; `items` does not need to
-        // be initialized if `size` is 0
-        unsafe { uninit.assume_init() }
-    }
-
+impl<T> CircularBufferRef<T> {
     /// Returns the number of elements in the buffer.
     ///
     /// # Examples
@@ -336,7 +328,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn len(&self) -> usize {
-        self.size
+        self.inner.size
     }
 
     /// Returns the capacity of the buffer.
@@ -354,7 +346,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn capacity(&self) -> usize {
-        self.items.len()
+        self.inner.items.len()
     }
 
     /// Returns `true` if the buffer contains 0 elements.
@@ -372,7 +364,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn is_empty(&self) -> bool {
-        self.size == 0
+        self.inner.size == 0
     }
 
     /// Returns `true` if the number of elements in the buffer matches the buffer capacity.
@@ -396,7 +388,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn is_full(&self) -> bool {
-        self.size == self.capacity()
+        self.inner.size == self.capacity()
     }
 
     /// Returns an iterator over the elements of the buffer.
@@ -583,7 +575,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, ['a', 'b', 'c']);
     /// ```
     #[inline]
-    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T, N>
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
     where
         R: RangeBounds<usize>,
     {
@@ -637,24 +629,24 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, [0, 2, 3, 5]);
     /// ```
     pub fn make_contiguous(&mut self) -> &mut [T] {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             return &mut [];
         }
 
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
 
-        let start = self.start;
-        let end = add_mod(self.start, self.size, self.capacity());
+        let start = self.inner.start;
+        let end = add_mod(self.inner.start, self.inner.size, self.capacity());
 
         let slice = if start < end {
             // Already contiguous; nothing to do
-            &mut self.items[start..end]
+            &mut self.inner.items[start..end]
         } else {
             // Not contiguous; need to rotate
-            self.start = 0;
-            self.items.rotate_left(start);
-            &mut self.items[..self.size]
+            self.inner.start = 0;
+            self.inner.items.rotate_left(start);
+            &mut self.inner.items[..self.inner.size]
         };
 
         // SAFETY: The elements in the slice are guaranteed to be initialized
@@ -687,20 +679,20 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub fn as_slices(&self) -> (&[T], &[T]) {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             return (&[], &[]);
         }
 
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
 
-        let start = self.start;
-        let end = add_mod(self.start, self.size, self.capacity());
+        let start = self.inner.start;
+        let end = add_mod(self.inner.start, self.inner.size, self.capacity());
 
         let (front, back) = if start < end {
-            (&self.items[start..end], &[][..])
+            (&self.inner.items[start..end], &[][..])
         } else {
-            let (back, front) = self.items.split_at(start);
+            let (back, front) = self.inner.items.split_at(start);
             (front, &back[..end])
         };
 
@@ -739,20 +731,20 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             return (&mut [][..], &mut [][..]);
         }
 
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
 
-        let start = self.start;
-        let end = add_mod(self.start, self.size, self.capacity());
+        let start = self.inner.start;
+        let end = add_mod(self.inner.start, self.inner.size, self.capacity());
 
         let (front, back) = if start < end {
-            (&mut self.items[start..end], &mut [][..])
+            (&mut self.inner.items[start..end], &mut [][..])
         } else {
-            let (back, front) = self.items.split_at_mut(start);
+            let (back, front) = self.inner.items.split_at_mut(start);
             (front, &mut back[..end])
         };
 
@@ -762,53 +754,53 @@ impl<T, const N: usize> CircularBuffer<T, N> {
 
     #[inline]
     const fn front_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        &mut self.items[self.start]
+        debug_assert!(self.inner.size > 0, "empty buffer");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        &mut self.inner.items[self.inner.start]
     }
 
     #[inline]
     const fn front_maybe_uninit(&self) -> &MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        &self.items[self.start]
+        debug_assert!(self.inner.size > 0, "empty buffer");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        &self.inner.items[self.inner.start]
     }
 
     #[inline]
     const fn back_maybe_uninit(&self) -> &MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        let back = add_mod(self.start, self.size - 1, self.capacity());
-        &self.items[back]
+        debug_assert!(self.inner.size > 0, "empty buffer");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        let back = add_mod(self.inner.start, self.inner.size - 1, self.capacity());
+        &self.inner.items[back]
     }
 
     #[inline]
     const fn back_maybe_uninit_mut(&mut self) -> &mut MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        let back = add_mod(self.start, self.size - 1, self.capacity());
-        &mut self.items[back]
+        debug_assert!(self.inner.size > 0, "empty buffer");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        let back = add_mod(self.inner.start, self.inner.size - 1, self.capacity());
+        &mut self.inner.items[back]
     }
 
     #[inline]
     const fn get_maybe_uninit(&self, index: usize) -> &MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
+        debug_assert!(self.inner.size > 0, "empty buffer");
         debug_assert!(index < self.capacity(), "index out-of-bounds");
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        let index = add_mod(self.start, index, self.capacity());
-        &self.items[index]
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        let index = add_mod(self.inner.start, index, self.capacity());
+        &self.inner.items[index]
     }
 
     #[inline]
     const fn get_maybe_uninit_mut(&mut self, index: usize) -> &mut MaybeUninit<T> {
-        debug_assert!(self.size > 0, "empty buffer");
+        debug_assert!(self.inner.size > 0, "empty buffer");
         debug_assert!(index < self.capacity(), "index out-of-bounds");
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        let index = add_mod(self.start, index, self.capacity());
-        &mut self.items[index]
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        let index = add_mod(self.inner.start, index, self.capacity());
+        &mut self.inner.items[index]
     }
 
     #[inline]
@@ -817,15 +809,15 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             return (&mut [][..], &mut [][..]);
         }
 
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
 
-        let start = self.start;
-        let end = add_mod(start, self.size, self.capacity());
+        let start = self.inner.start;
+        let end = add_mod(start, self.inner.size, self.capacity());
         if end < start {
-            (&mut self.items[end..start], &mut [][..])
+            (&mut self.inner.items[end..start], &mut [][..])
         } else {
-            let (left, right) = self.items.split_at_mut(end);
+            let (left, right) = self.inner.items.split_at_mut(end);
             let left = &mut left[..start];
             (right, left)
         }
@@ -833,27 +825,27 @@ impl<T, const N: usize> CircularBuffer<T, N> {
 
     #[inline]
     const fn inc_start(&mut self) {
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        self.start = add_mod(self.start, 1, self.capacity());
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        self.inner.start = add_mod(self.inner.start, 1, self.capacity());
     }
 
     #[inline]
     const fn dec_start(&mut self) {
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        self.start = sub_mod(self.start, 1, self.capacity());
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        self.inner.start = sub_mod(self.inner.start, 1, self.capacity());
     }
 
     #[inline]
     const fn inc_size(&mut self) {
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
-        debug_assert!(self.size < self.capacity(), "size at capacity limit");
-        self.size += 1;
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.size < self.capacity(), "size at capacity limit");
+        self.inner.size += 1;
     }
 
     #[inline]
     const fn dec_size(&mut self) {
-        debug_assert!(self.size > 0, "size is 0");
-        self.size -= 1;
+        debug_assert!(self.inner.size > 0, "size is 0");
+        self.inner.size -= 1;
     }
 
     #[inline]
@@ -862,13 +854,16 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             return;
         }
 
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
-        debug_assert!(range.start < self.size, "start of range out-of-bounds");
-        debug_assert!(range.end <= self.size, "end of range out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(
+            range.start < self.inner.size,
+            "start of range out-of-bounds"
+        );
+        debug_assert!(range.end <= self.inner.size, "end of range out-of-bounds");
         debug_assert!(range.start < range.end, "start of range is past its end");
         debug_assert!(
-            range.start == 0 || range.end == self.size,
+            range.start == 0 || range.end == self.inner.size,
             "range does not include boundary of the buffer"
         );
 
@@ -887,13 +882,13 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             }
         }
 
-        let drop_from = add_mod(self.start, range.start, self.capacity());
-        let drop_to = add_mod(self.start, range.end, self.capacity());
+        let drop_from = add_mod(self.inner.start, range.start, self.capacity());
+        let drop_to = add_mod(self.inner.start, range.end, self.capacity());
 
         let (right, left) = if drop_from < drop_to {
-            (&mut self.items[drop_from..drop_to], &mut [][..])
+            (&mut self.inner.items[drop_from..drop_to], &mut [][..])
         } else {
-            let (left, right) = self.items.split_at_mut(drop_from);
+            let (left, right) = self.inner.items.split_at_mut(drop_from);
             let left = &mut left[..drop_to];
             (right, left)
         };
@@ -919,7 +914,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn back(&self) -> Option<&T> {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             // Nothing to do
             return None;
         }
@@ -948,7 +943,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn back_mut(&mut self) -> Option<&mut T> {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             // Nothing to do
             return None;
         }
@@ -973,7 +968,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn front(&self) -> Option<&T> {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             // Nothing to do
             return None;
         }
@@ -1002,7 +997,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn front_mut(&mut self) -> Option<&mut T> {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             // Nothing to do
             return None;
         }
@@ -1033,7 +1028,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn get(&self, index: usize) -> Option<&T> {
-        if self.capacity() == 0 || index >= self.size {
+        if self.capacity() == 0 || index >= self.inner.size {
             // Nothing to do
             return None;
         }
@@ -1068,7 +1063,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub const fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        if self.capacity() == 0 || index >= self.size {
+        if self.capacity() == 0 || index >= self.inner.size {
             // Nothing to do
             return None;
         }
@@ -1159,7 +1154,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub fn nth_back(&self, index: usize) -> Option<&T> {
-        let index = self.size.checked_sub(index)?.checked_sub(1)?;
+        let index = self.inner.size.checked_sub(index)?.checked_sub(1)?;
         self.get(index)
     }
 
@@ -1190,7 +1185,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// ```
     #[inline]
     pub fn nth_back_mut(&mut self, index: usize) -> Option<&mut T> {
-        let index = self.size.checked_sub(index)?.checked_sub(1)?;
+        let index = self.inner.size.checked_sub(index)?.checked_sub(1)?;
         self.get_mut(index)
     }
 
@@ -1234,7 +1229,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             return Some(item);
         }
 
-        if self.size >= self.capacity() {
+        if self.inner.size >= self.capacity() {
             // At capacity; need to replace the front item
             //
             // SAFETY: if size is greater than 0, the front item is guaranteed to be initialized.
@@ -1284,7 +1279,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             // Nothing to do
             return Ok(());
         }
-        if self.size >= self.capacity() {
+        if self.inner.size >= self.capacity() {
             // At capacity; return the pushed item as error
             Err(item)
         } else {
@@ -1334,7 +1329,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             return Some(item);
         }
 
-        if self.size >= self.capacity() {
+        if self.inner.size >= self.capacity() {
             // At capacity; need to replace the back item
             //
             // SAFETY: if size is greater than 0, the back item is guaranteed to be initialized.
@@ -1385,7 +1380,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             // Nothing to do
             return Ok(());
         }
-        if self.size >= self.capacity() {
+        if self.inner.size >= self.capacity() {
             // At capacity; return the pushed item as error
             Err(item)
         } else {
@@ -1414,7 +1409,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.pop_back(), None);
     /// ```
     pub const fn pop_back(&mut self) -> Option<T> {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             // Nothing to do
             return None;
         }
@@ -1442,7 +1437,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.pop_front(), None);
     /// ```
     pub const fn pop_front(&mut self) -> Option<T> {
-        if self.capacity() == 0 || self.size == 0 {
+        if self.capacity() == 0 || self.inner.size == 0 {
             // Nothing to do
             return None;
         }
@@ -1471,22 +1466,22 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.remove(5), None);
     /// ```
     pub const fn remove(&mut self, index: usize) -> Option<T> {
-        if self.capacity() == 0 || index >= self.size {
+        if self.capacity() == 0 || index >= self.inner.size {
             return None;
         }
 
-        let index = add_mod(self.start, index, self.capacity());
-        let back_index = add_mod(self.start, self.size - 1, self.capacity());
+        let index = add_mod(self.inner.start, index, self.capacity());
+        let back_index = add_mod(self.inner.start, self.inner.size - 1, self.capacity());
 
         // SAFETY: `index` is in a valid range; the element is guaranteed to be initialized
-        let item = unsafe { self.items[index].assume_init_read() };
+        let item = unsafe { self.inner.items[index].assume_init_read() };
 
         // SAFETY: the pointers being moved are in a valid range; the elements behind those
         // pointers are guaranteed to be initialized
         unsafe {
             // TODO: optimize for the case where `index < len - index` (i.e. when copying items to
             // the right is cheaper than moving items to the left)
-            let ptr = self.items.as_mut_ptr();
+            let ptr = self.inner.items.as_mut_ptr();
             if back_index >= index {
                 // Move the values at the right of `index` by 1 position to the left
                 ptr::copy(ptr.add(index).add(1), ptr.add(index), back_index - index);
@@ -1534,13 +1529,15 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// buf.swap(0, 7);
     /// ```
     pub const fn swap(&mut self, i: usize, j: usize) {
-        assert!(i < self.size, "i index out-of-bounds");
-        assert!(j < self.size, "j index out-of-bounds");
+        assert!(i < self.inner.size, "i index out-of-bounds");
+        assert!(j < self.inner.size, "j index out-of-bounds");
         if i != j {
-            let i = add_mod(self.start, i, self.capacity());
-            let j = add_mod(self.start, j, self.capacity());
+            let i = add_mod(self.inner.start, i, self.capacity());
+            let j = add_mod(self.inner.start, j, self.capacity());
             // SAFETY: these are valid pointers
-            unsafe { ptr::swap_nonoverlapping(&mut self.items[i], &mut self.items[j], 1) };
+            unsafe {
+                ptr::swap_nonoverlapping(&mut self.inner.items[i], &mut self.inner.items[j], 1)
+            };
         }
     }
 
@@ -1562,10 +1559,10 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.swap_remove_back(7), None);
     /// ```
     pub const fn swap_remove_back(&mut self, index: usize) -> Option<T> {
-        if index >= self.size {
+        if index >= self.inner.size {
             return None;
         }
-        self.swap(index, self.size - 1);
+        self.swap(index, self.inner.size - 1);
         self.pop_back()
     }
 
@@ -1587,7 +1584,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf.swap_remove_front(7), None);
     /// ```
     pub const fn swap_remove_front(&mut self, index: usize) -> Option<T> {
-        if index >= self.size {
+        if index >= self.inner.size {
             return None;
         }
         self.swap(index, 0);
@@ -1728,11 +1725,11 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     where
         T: Clone,
     {
-        if self.size == self.capacity() {
+        if self.inner.size == self.capacity() {
             return;
         }
         // TODO Optimize
-        while self.size < self.capacity() - 1 {
+        while self.inner.size < self.capacity() - 1 {
             self.push_back(value.clone());
         }
         self.push_back(value);
@@ -1771,7 +1768,7 @@ impl<T, const N: usize> CircularBuffer<T, N> {
             return;
         }
         // TODO Optimize
-        while self.size < self.capacity() {
+        while self.inner.size < self.capacity() {
             self.push_back(f());
         }
     }
@@ -1797,17 +1794,17 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, [10]);
     /// ```
     pub fn truncate_back(&mut self, len: usize) {
-        if self.capacity() == 0 || len >= self.size {
+        if self.capacity() == 0 || len >= self.inner.size {
             // Nothing to do
             return;
         }
 
-        let drop_range = len..self.size;
+        let drop_range = len..self.inner.size;
         // SAFETY: `drop_range` is a valid range, so elements within are guaranteed to be
         // initialized. The `size` of the buffer is shrunk before dropping, so no value will be
         // dropped twice in case of panics.
         unsafe { self.drop_range(drop_range) };
-        self.size = len;
+        self.inner.size = len;
     }
 
     /// Shortens the buffer, keeping only the back `len` elements and dropping the rest.
@@ -1831,19 +1828,19 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     /// assert_eq!(buf, [30]);
     /// ```
     pub fn truncate_front(&mut self, len: usize) {
-        if self.capacity() == 0 || len >= self.size {
+        if self.capacity() == 0 || len >= self.inner.size {
             // Nothing to do
             return;
         }
 
-        let drop_len = self.size - len;
+        let drop_len = self.inner.size - len;
         let drop_range = 0..drop_len;
         // SAFETY: `drop_range` is a valid range, so elements within are guaranteed to be
         // initialized. The `start` of the buffer is shrunk before dropping, so no value will be
         // dropped twice in case of panics.
         unsafe { self.drop_range(drop_range) };
-        self.start = add_mod(self.start, drop_len, self.capacity());
-        self.size = len;
+        self.inner.start = add_mod(self.inner.start, drop_len, self.capacity());
+        self.inner.size = len;
     }
 
     /// Drops all the elements in the buffer.
@@ -1861,6 +1858,109 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     #[inline]
     pub fn clear(&mut self) {
         self.truncate_back(0)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a CircularBufferRef<T> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        Iter::new(self)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut CircularBufferRef<T> {
+    type Item = &'a mut T;
+    type IntoIter = IterMut<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        IterMut::new(self)
+    }
+}
+
+/// A fixed-size circular buffer.
+///
+/// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
+/// using [`CircularBuffer::boxed()`] if you need the struct to be heap-allocated.
+///
+/// See the [module-level documentation](self) for more details and examples.
+#[repr(transparent)]
+pub struct CircularBuffer<T, const N: usize> {
+    inner: Inner<[MaybeUninit<T>; N]>,
+}
+
+impl<T, const N: usize> CircularBuffer<T, N> {
+    /// Returns an empty `CircularBuffer`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    /// let buf = CircularBuffer::<u32, 16>::new();
+    /// assert_eq!(buf, []);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            inner: Inner {
+                size: 0,
+                start: 0,
+                items: [const { MaybeUninit::uninit() }; N],
+            },
+        }
+    }
+
+    /// Returns an empty heap-allocated `CircularBuffer`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    /// let buf = CircularBuffer::<f64, 1024>::boxed();
+    /// assert_eq!(buf.len(), 0);
+    /// ```
+    #[must_use]
+    #[cfg(feature = "alloc")]
+    pub fn boxed() -> Box<Self> {
+        let mut uninit: Box<MaybeUninit<Self>> = Box::new_uninit();
+        let ptr = uninit.as_mut_ptr();
+
+        // SAFETY: the pointer contains enough memory to contain `Self` and `addr_of_mut` ensures
+        // that the address written to is properly aligned.
+        unsafe {
+            core::ptr::addr_of_mut!((*ptr).inner.size).write(0);
+            core::ptr::addr_of_mut!((*ptr).inner.start).write(0);
+        }
+
+        // SAFETY: `size` and `start` have been properly initialized to 0; `items` does not need to
+        // be initialized if `size` is 0
+        unsafe { uninit.assume_init() }
+    }
+
+    pub const fn as_ref(&self) -> &CircularBufferRef<T> {
+        // Mutate `&self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of type
+        // `Inner<[X]>`.
+        let inner_unsized: &Inner<[MaybeUninit<T>]> = &self.inner;
+        // Transmute the fat-pointer to a `CircularBufferRef<T>`.
+        //
+        // SAFETY: `CircularBufferRef` uses `repr(transparent)`, therefore it has the same layout
+        // and representation as `Inner<[MaybeUninit<T>]>`.
+        unsafe { mem::transmute(inner_unsized) }
+    }
+
+    pub const fn as_mut(&mut self) -> &mut CircularBufferRef<T> {
+        // Mutate `&mut self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of
+        // type `Inner<[X]>`.
+        let inner_unsized: &mut Inner<[MaybeUninit<T>]> = &mut self.inner;
+        // Transmute the fat-pointer to a `CircularBufferRef<T>`.
+        //
+        // SAFETY: `CircularBufferRef` uses `repr(transparent)`, therefore it has the same layout
+        // and representation as `Inner<[MaybeUninit<T>]>`.
+        unsafe { mem::transmute(inner_unsized) }
     }
 }
 
@@ -1889,18 +1989,19 @@ where
             return;
         }
 
-        debug_assert!(self.start < self.capacity(), "start out-of-bounds");
-        debug_assert!(self.size <= self.capacity(), "size out-of-bounds");
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
 
         if other.len() < self.capacity() {
             // All the elements of `other` fit into the buffer
-            let free_size = self.capacity() - self.size;
+            let free_size = self.capacity() - self.inner.size;
             let final_size = if other.len() < free_size {
                 // All the elements of `other` fit at the back of the buffer
-                self.size + other.len()
+                self.inner.size + other.len()
             } else {
                 // Some of the elements of `other` need to overwrite the front of the buffer
-                self.truncate_front(self.capacity() - other.len());
+                let truncate_to = self.capacity() - other.len();
+                self.truncate_front(truncate_to);
                 self.capacity()
             };
 
@@ -1914,18 +2015,18 @@ where
             let write_len = other.len();
             left[..write_len].write_clone_of_slice(other);
 
-            self.size = final_size;
+            self.inner.size = final_size;
         } else {
             // `other` overwrites the whole buffer; get only the last `N` elements from `other` and
             // overwrite
             self.clear();
-            self.start = 0;
+            self.inner.start = 0;
 
             let other = &other[other.len() - self.capacity()..];
-            debug_assert_eq!(self.items.len(), other.len());
-            self.items.write_clone_of_slice(other);
+            debug_assert_eq!(self.inner.items.len(), other.len());
+            self.inner.items.write_clone_of_slice(other);
 
-            self.size = self.capacity();
+            self.inner.size = self.capacity();
         }
     }
 
@@ -1945,9 +2046,9 @@ where
     #[must_use]
     #[cfg(feature = "alloc")]
     pub fn to_vec(&self) -> Vec<T> {
-        let mut vec = Vec::with_capacity(self.size);
+        let mut vec = Vec::with_capacity(self.inner.size);
         vec.extend(self.iter().cloned());
-        debug_assert_eq!(vec.len(), self.size);
+        debug_assert_eq!(vec.len(), self.inner.size);
         vec
     }
 }
@@ -1986,9 +2087,11 @@ impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<T, N> {
         mem::forget(arr);
 
         Self {
-            size,
-            start: 0,
-            items: elems,
+            inner: Inner {
+                size,
+                start: 0,
+                items: elems,
+            },
         }
     }
 }
@@ -2004,6 +2107,20 @@ impl<T, const N: usize> FromIterator<T> for CircularBuffer<T, N> {
             buf.push_back(item);
         });
         buf
+    }
+}
+
+impl<T, const N: usize> Deref for CircularBuffer<T, N> {
+    type Target = CircularBufferRef<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl<T, const N: usize> DerefMut for CircularBuffer<T, N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut()
     }
 }
 
@@ -2199,7 +2316,7 @@ where
     T: Hash,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.size.hash(state);
+        self.inner.size.hash(state);
         self.iter().for_each(|item| item.hash(state));
     }
 }

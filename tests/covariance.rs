@@ -1,4 +1,4 @@
-// Copyright © 2023-2025 Andrea Corbellini and contributors
+// Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 #![allow(clippy::extra_unused_lifetimes)]
@@ -37,10 +37,10 @@ fn iter<'a>() {
 //    let _: IterMut<'_, &'a str> = iter;
 //}
 
-/// Verify that `Drain<'_, T, N>` is covariant over `T`
+/// Verify that `Drain<'_, T>` is covariant over `T`
 #[test]
 fn drain<'a>() {
     let mut buf = CircularBuffer::<&'static str, 1>::new();
-    let drain: Drain<'_, &'static str, 1> = buf.drain(..);
-    let _: Drain<'_, &'a str, 1> = drain;
+    let drain: Drain<'_, &'static str> = buf.drain(..);
+    let _: Drain<'_, &'a str> = drain;
 }

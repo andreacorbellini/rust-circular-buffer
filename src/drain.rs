@@ -1,7 +1,7 @@
-// Copyright © 2023-2025 Andrea Corbellini and contributors
+// Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::CircularBuffer;
+use crate::CircularBufferRef;
 use crate::add_mod;
 use crate::iter::Iter;
 use crate::iter::translate_range_bounds;
@@ -17,19 +17,19 @@ use core::ptr::NonNull;
 /// `CircularBuffer`.
 ///
 /// This struct is created by [`CircularBuffer::drain()`]. See its documentation for more details.
-pub struct Drain<'a, T, const N: usize> {
-    /// This is a pointer and not a reference (`&'a mut CircularBuffer`) because using a reference
-    /// would make `Drain` an invariant over `CircularBuffer`, but instead we want `Drain` to be
-    /// covariant over `CircularBuffer`.
+pub struct Drain<'a, T> {
+    /// This is a pointer and not a reference (`&'a mut CircularBufferRef`) because using a
+    /// reference would make `Drain` an invariant over `CircularBuffer`, but instead we want `Drain`
+    /// to be covariant over `CircularBuffer`.
     ///
     /// The reason why `Drain` needs to be covariant is that, semantically,
     /// `CircularBuffer::drain()` should be equivalent to popping all the drained elements from the
     /// buffer, storing them into a vector, and returning an iterable over the vector.
-    /// Equivalently, `Drain` owns the drained elements, so it would be unnecessarily restrictive
-    /// to make this type invariant over `CircularBuffer`.
-    buf: NonNull<CircularBuffer<T, N>>,
-    /// A backup of the size of the buffer. Necessary because `buf.size` is set to 0 during the
-    /// lifetime of the `Drain` and is restored only during drop.
+    /// Equivalently, `Drain` owns the drained elements, so it would be unnecessarily restrictive to
+    /// make this type invariant over `CircularBuffer`.
+    buf: NonNull<CircularBufferRef<T>>,
+    /// A backup of the size of the buffer. Necessary because `buf.inner.size` is set to 0 during
+    /// the lifetime of the `Drain` and is restored only during drop.
     buf_size: usize,
     /// The range that was requested to drain. Necessary to properly rearrange the buffer memory
     /// during drop.
@@ -44,8 +44,8 @@ pub struct Drain<'a, T, const N: usize> {
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, T, const N: usize> Drain<'a, T, N> {
-    pub(crate) fn over_range<R>(buf: &'a mut CircularBuffer<T, N>, range: R) -> Self
+impl<'a, T> Drain<'a, T> {
+    pub(crate) fn over_range<R>(buf: &'a mut CircularBufferRef<T>, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {
@@ -62,8 +62,8 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
         // will therefore forget all the items in the buffer (even the ones that were not drained).
         // This ensures maximum safety while keeping the implementation simple and performant
         // enough.
-        let buf_size = buf.size;
-        buf.size = 0;
+        let buf_size = buf.inner.size;
+        buf.inner.size = 0;
 
         let buf = NonNull::from(buf);
 
@@ -102,9 +102,9 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
             "attempt to read an item that may be returned by the iterator"
         );
 
-        let index = add_mod(buf.start, index, buf.capacity());
+        let index = add_mod(buf.inner.start, index, buf.capacity());
         // SAFETY: upheld by the caller
-        unsafe { ptr::read(buf.items[index].assume_init_ref()) }
+        unsafe { ptr::read(buf.inner.items[index].assume_init_ref()) }
     }
 
     fn as_slices(&self) -> (&[T], &[T]) {
@@ -117,16 +117,16 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
             return (&[][..], &[][..]);
         }
 
-        debug_assert!(buf.start < buf.capacity(), "start out-of-bounds");
+        debug_assert!(buf.inner.start < buf.capacity(), "start out-of-bounds");
         debug_assert!(self.buf_size <= buf.capacity(), "size out-of-bounds");
 
-        let start = add_mod(buf.start, self.iter.start, buf.capacity());
-        let end = add_mod(buf.start, self.iter.end, buf.capacity());
+        let start = add_mod(buf.inner.start, self.iter.start, buf.capacity());
+        let end = add_mod(buf.inner.start, self.iter.end, buf.capacity());
 
         let (right, left) = if start < end {
-            (&buf.items[start..end], &[][..])
+            (&buf.inner.items[start..end], &[][..])
         } else {
-            let (left, right) = buf.items.split_at(end);
+            let (left, right) = buf.inner.items.split_at(end);
             let right = &right[start - end..];
             (right, left)
         };
@@ -145,16 +145,16 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
             return (&mut [][..], &mut [][..]);
         }
 
-        debug_assert!(buf.start < buf.capacity(), "start out-of-bounds");
+        debug_assert!(buf.inner.start < buf.capacity(), "start out-of-bounds");
         debug_assert!(self.buf_size <= buf.capacity(), "size out-of-bounds");
 
-        let start = add_mod(buf.start, self.iter.start, buf.capacity());
-        let end = add_mod(buf.start, self.iter.end, buf.capacity());
+        let start = add_mod(buf.inner.start, self.iter.start, buf.capacity());
+        let end = add_mod(buf.inner.start, self.iter.end, buf.capacity());
 
         let (right, left) = if start < end {
-            (&mut buf.items[start..end], &mut [][..])
+            (&mut buf.inner.items[start..end], &mut [][..])
         } else {
-            let (left, right) = buf.items.split_at_mut(end);
+            let (left, right) = buf.inner.items.split_at_mut(end);
             let right = &mut right[start - end..];
             (right, left)
         };
@@ -164,7 +164,7 @@ impl<'a, T, const N: usize> Drain<'a, T, N> {
     }
 }
 
-impl<T, const N: usize> Iterator for Drain<'_, T, N> {
+impl<T> Iterator for Drain<'_, T> {
     type Item = T;
 
     #[inline]
@@ -179,16 +179,16 @@ impl<T, const N: usize> Iterator for Drain<'_, T, N> {
     }
 }
 
-impl<T, const N: usize> ExactSizeIterator for Drain<'_, T, N> {
+impl<T> ExactSizeIterator for Drain<'_, T> {
     #[inline]
     fn len(&self) -> usize {
         self.iter.len()
     }
 }
 
-impl<T, const N: usize> FusedIterator for Drain<'_, T, N> {}
+impl<T> FusedIterator for Drain<'_, T> {}
 
-impl<T, const N: usize> DoubleEndedIterator for Drain<'_, T, N> {
+impl<T> DoubleEndedIterator for Drain<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         // SAFETY: the element at the index is guaranteed to be initialized
         self.iter
@@ -197,9 +197,9 @@ impl<T, const N: usize> DoubleEndedIterator for Drain<'_, T, N> {
     }
 }
 
-impl<T, const N: usize> Drop for Drain<'_, T, N> {
+impl<T> Drop for Drain<'_, T> {
     fn drop(&mut self) {
-        if N == 0 {
+        if self.buf_size == 0 {
             // Nothing to do
             return;
         }
@@ -282,7 +282,7 @@ impl<T, const N: usize> Drop for Drain<'_, T, N> {
         let buf = unsafe { self.buf.as_mut() };
         let mut remaining = self.buf_size - self.range.end;
 
-        let items = CircularSlicePtr::new(&mut buf.items).add(buf.start);
+        let items = CircularSlicePtr::new(&mut buf.inner.items).add(buf.inner.start);
         let mut hole = items.add(self.range.start);
         let mut backfill = items.add(self.range.end);
 
@@ -301,11 +301,11 @@ impl<T, const N: usize> Drop for Drain<'_, T, N> {
         }
 
         // Now that the buffer memory contains valid items, the size can be restored
-        buf.size = self.buf_size - self.range.len();
+        buf.inner.size = self.buf_size - self.range.len();
     }
 }
 
-impl<T, const N: usize> fmt::Debug for Drain<'_, T, N>
+impl<T> fmt::Debug for Drain<'_, T>
 where
     T: fmt::Debug,
 {

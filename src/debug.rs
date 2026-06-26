@@ -1,7 +1,8 @@
-// Copyright © 2023-2025 Andrea Corbellini and contributors
+// Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 use crate::CircularBuffer;
+use crate::CircularBufferRef;
 use core::fmt;
 use core::iter;
 
@@ -14,7 +15,7 @@ impl fmt::Debug for Placeholder {
     }
 }
 
-impl<T, const N: usize> fmt::Debug for CircularBuffer<T, N>
+impl<T> fmt::Debug for CircularBufferRef<T>
 where
     T: fmt::Debug,
 {
@@ -23,5 +24,14 @@ where
         list.entries(self);
         list.entries(iter::repeat_n(Placeholder, self.capacity() - self.len()));
         list.finish()
+    }
+}
+
+impl<T, const N: usize> fmt::Debug for CircularBuffer<T, N>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_ref().fmt(f)
     }
 }
