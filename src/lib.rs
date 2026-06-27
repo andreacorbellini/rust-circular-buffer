@@ -2187,6 +2187,16 @@ impl<'a, T, const N: usize> IntoIterator for &'a CircularBuffer<T, N> {
     }
 }
 
+impl<'a, T, const N: usize> IntoIterator for &'a mut CircularBuffer<T, N> {
+    type Item = &'a mut T;
+    type IntoIter = IterMut<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        IterMut::new(self)
+    }
+}
+
 impl<T, U, const N: usize, const M: usize> PartialEq<CircularBuffer<U, M>> for CircularBuffer<T, N>
 where
     T: PartialEq<U>,
