@@ -238,14 +238,15 @@
 #![warn(unused_qualifications)]
 #![doc(test(attr(deny(warnings))))]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 mod cmp;
 mod debug;
 mod drain;
 mod hash;
-mod iter;
-
-#[cfg(feature = "std")]
 mod io;
+mod iter;
 
 #[cfg(any(feature = "embedded-io", feature = "embedded-io-async"))]
 mod embedded_io;
@@ -266,6 +267,9 @@ use core::ops::Range;
 use core::ops::RangeBounds;
 use core::ptr;
 
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::vec::Vec;
+
 pub use crate::drain::Drain;
 pub use crate::fixed::FixedCircularBuffer;
 pub use crate::iter::Iter;
@@ -273,12 +277,6 @@ pub use crate::iter::IterMut;
 
 #[cfg(feature = "alloc")]
 pub use crate::heap::HeapCircularBuffer;
-
-#[cfg(feature = "alloc")]
-extern crate alloc;
-
-#[cfg(all(not(feature = "std"), feature = "alloc"))]
-use alloc::vec::Vec;
 
 /// Returns `(x + y) % m` without risk of overflows if `x + y` cannot fit in `usize`.
 ///
