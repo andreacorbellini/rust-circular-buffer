@@ -12,6 +12,8 @@ use core::mem;
 use core::mem::MaybeUninit;
 use core::ops::Deref;
 use core::ops::DerefMut;
+use core::ops::Index;
+use core::ops::IndexMut;
 use core::ptr;
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
@@ -253,5 +255,21 @@ impl<T> AsMut<CircularBuffer<T>> for HeapCircularBuffer<T> {
     #[inline]
     fn as_mut(&mut self) -> &mut CircularBuffer<T> {
         self.as_mut_circular_buffer()
+    }
+}
+
+impl<T> Index<usize> for HeapCircularBuffer<T> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        self.deref().index(index)
+    }
+}
+
+impl<T> IndexMut<usize> for HeapCircularBuffer<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.deref_mut().index_mut(index)
     }
 }
