@@ -377,6 +377,7 @@ pub(crate) mod heap {
     ///
     /// This struct is created when iterating over a `HeapCircularBuffer`. See the documentation for
     /// [`IntoIterator`] for more details.
+    #[derive(Clone)]
     pub struct IntoIter<T> {
         inner: HeapCircularBuffer<T>,
     }

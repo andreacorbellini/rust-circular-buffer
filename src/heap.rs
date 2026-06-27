@@ -309,3 +309,21 @@ impl<'a, T> IntoIterator for &'a mut HeapCircularBuffer<T> {
         IterMut::new(self)
     }
 }
+
+impl<T> Clone for HeapCircularBuffer<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        // TODO Optimize
+        let mut clone = Self::with_capacity(self.capacity());
+        clone.extend(self.iter().cloned());
+        clone
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        // TODO Optimize
+        self.clear();
+        self.extend(other.iter().cloned());
+    }
+}
