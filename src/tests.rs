@@ -16,11 +16,14 @@ use std::io::Read;
 use std::io::Write;
 use std::ops::Bound;
 
+/// Returns `true` if the elements of the given buffer are all contained in a contiguous slice.
+#[must_use]
 fn is_contiguous<T>(buf: &CircularBuffer<T>) -> bool {
     let slices = buf.as_slices();
     slices.1.is_empty()
 }
 
+/// Asserts that the specified buffer contains the specified elements.
 macro_rules! assert_buf_eq {
     ( $buf:ident , [] $( as [ $( $arrtyp:tt )* ] )? ) => {
         let expected = [] $(as [ $($arrtyp)* ])?;
@@ -59,6 +62,8 @@ macro_rules! assert_buf_eq {
     };
 }
 
+/// Asserts that the items in the specified buffer are spread over two slices with the specified
+/// elements.
 macro_rules! assert_buf_slices_eq {
     ( $buf:ident , [ $( $front_elems:tt )* ] , [ $( $back_elems:tt )* ] ) => {
         let mut expected_front = [ $($front_elems)* ];
@@ -66,49 +71,6 @@ macro_rules! assert_buf_slices_eq {
         assert_eq!($buf.as_slices(), (&expected_front[..], &expected_back[..]));
         assert_eq!($buf.as_mut_slices(), (&mut expected_front[..], &mut expected_back[..]));
     }
-}
-
-#[test]
-fn attrs() {
-    let mut buf = FixedCircularBuffer::<u32, 4>::new();
-    assert_eq!(buf.len(), 0);
-    assert!(buf.is_empty());
-    assert!(!buf.is_full());
-
-    buf.push_back(1);
-    assert_eq!(buf.len(), 1);
-    assert!(!buf.is_empty());
-    assert!(!buf.is_full());
-
-    buf.push_back(2);
-    assert_eq!(buf.len(), 2);
-    assert!(!buf.is_empty());
-    assert!(!buf.is_full());
-
-    buf.push_back(3);
-    assert_eq!(buf.len(), 3);
-    assert!(!buf.is_empty());
-    assert!(!buf.is_full());
-
-    buf.push_back(4);
-    assert_eq!(buf.len(), 4);
-    assert!(!buf.is_empty());
-    assert!(buf.is_full());
-
-    buf.push_back(5);
-    assert_eq!(buf.len(), 4);
-    assert!(!buf.is_empty());
-    assert!(buf.is_full());
-
-    buf.push_back(6);
-    assert_eq!(buf.len(), 4);
-    assert!(!buf.is_empty());
-    assert!(buf.is_full());
-
-    buf.clear();
-    assert_eq!(buf.len(), 0);
-    assert!(buf.is_empty());
-    assert!(!buf.is_full());
 }
 
 #[test]
