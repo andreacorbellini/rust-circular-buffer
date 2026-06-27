@@ -41,7 +41,8 @@ macro_rules! assert_buf_eq {
 }
 
 macro_rules! define_tests {
-    ( $new_buffer:ident ) => {
+    ( $new_buffer:ident , $buffer_from:ident , $buffer_from_iter:ident $(,)? ) => {
+        use core::ops::Bound;
         use drop_tracker::DropItem;
         use drop_tracker::DropTracker;
         use $crate::common::assert_buf_eq;
@@ -662,6 +663,450 @@ macro_rules! define_tests {
             assert_eq!(buf[2], 7);
             assert_eq!(buf[3], 8);
             assert!(std::panic::catch_unwind(|| buf[4]).is_err());
+        }
+
+        #[test]
+        fn iter() {
+            let buf = $new_buffer::<u32, 8>();
+            let mut iter = buf.iter();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4]);
+            let mut iter = buf.iter();
+            assert_eq!(iter.next(), Some(&1));
+            assert_eq!(iter.next(), Some(&2));
+            assert_eq!(iter.next(), Some(&3));
+            assert_eq!(iter.next(), Some(&4));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4, 5, 6, 7, 8]);
+            let mut iter = buf.iter();
+            assert_eq!(iter.next(), Some(&1));
+            assert_eq!(iter.next(), Some(&2));
+            assert_eq!(iter.next(), Some(&3));
+            assert_eq!(iter.next(), Some(&4));
+            assert_eq!(iter.next(), Some(&5));
+            assert_eq!(iter.next(), Some(&6));
+            assert_eq!(iter.next(), Some(&7));
+            assert_eq!(iter.next(), Some(&8));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn iter_rev() {
+            let buf = $new_buffer::<u32, 8>();
+            let mut iter = buf.iter().rev();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4]);
+            let mut iter = buf.iter().rev();
+            assert_eq!(iter.next(), Some(&4));
+            assert_eq!(iter.next(), Some(&3));
+            assert_eq!(iter.next(), Some(&2));
+            assert_eq!(iter.next(), Some(&1));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4, 5, 6, 7, 8]);
+            let mut iter = buf.iter().rev();
+            assert_eq!(iter.next(), Some(&8));
+            assert_eq!(iter.next(), Some(&7));
+            assert_eq!(iter.next(), Some(&6));
+            assert_eq!(iter.next(), Some(&5));
+            assert_eq!(iter.next(), Some(&4));
+            assert_eq!(iter.next(), Some(&3));
+            assert_eq!(iter.next(), Some(&2));
+            assert_eq!(iter.next(), Some(&1));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn into_iter() {
+            let buf = $new_buffer::<u32, 8>();
+            let mut iter = buf.into_iter();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4]);
+            let mut iter = buf.into_iter();
+            assert_eq!(iter.next(), Some(1));
+            assert_eq!(iter.next(), Some(2));
+            assert_eq!(iter.next(), Some(3));
+            assert_eq!(iter.next(), Some(4));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4, 5, 6, 7, 8]);
+            let mut iter = buf.into_iter();
+            assert_eq!(iter.next(), Some(1));
+            assert_eq!(iter.next(), Some(2));
+            assert_eq!(iter.next(), Some(3));
+            assert_eq!(iter.next(), Some(4));
+            assert_eq!(iter.next(), Some(5));
+            assert_eq!(iter.next(), Some(6));
+            assert_eq!(iter.next(), Some(7));
+            assert_eq!(iter.next(), Some(8));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn into_iter_rev() {
+            let buf = $new_buffer::<u32, 8>();
+            let mut iter = buf.into_iter().rev();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4]);
+            let mut iter = buf.into_iter().rev();
+            assert_eq!(iter.next(), Some(4));
+            assert_eq!(iter.next(), Some(3));
+            assert_eq!(iter.next(), Some(2));
+            assert_eq!(iter.next(), Some(1));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4, 5, 6, 7, 8]);
+            let mut iter = buf.into_iter().rev();
+            assert_eq!(iter.next(), Some(8));
+            assert_eq!(iter.next(), Some(7));
+            assert_eq!(iter.next(), Some(6));
+            assert_eq!(iter.next(), Some(5));
+            assert_eq!(iter.next(), Some(4));
+            assert_eq!(iter.next(), Some(3));
+            assert_eq!(iter.next(), Some(2));
+            assert_eq!(iter.next(), Some(1));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn iter_mut() {
+            let mut buf = $new_buffer::<u32, 8>();
+            let mut iter = buf.iter_mut();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4]);
+            let mut iter = buf.iter_mut();
+            assert_eq!(iter.next(), Some(&mut 1));
+            assert_eq!(iter.next(), Some(&mut 2));
+            assert_eq!(iter.next(), Some(&mut 3));
+            assert_eq!(iter.next(), Some(&mut 4));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4, 5, 6, 7, 8]);
+            let mut iter = buf.iter_mut();
+            assert_eq!(iter.next(), Some(&mut 1));
+            assert_eq!(iter.next(), Some(&mut 2));
+            assert_eq!(iter.next(), Some(&mut 3));
+            assert_eq!(iter.next(), Some(&mut 4));
+            assert_eq!(iter.next(), Some(&mut 5));
+            assert_eq!(iter.next(), Some(&mut 6));
+            assert_eq!(iter.next(), Some(&mut 7));
+            assert_eq!(iter.next(), Some(&mut 8));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn iter_mut_rev() {
+            let mut buf = $new_buffer::<u32, 8>();
+            let mut iter = buf.iter_mut().rev();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4]);
+            let mut iter = buf.iter_mut().rev();
+            assert_eq!(iter.next(), Some(&mut 4));
+            assert_eq!(iter.next(), Some(&mut 3));
+            assert_eq!(iter.next(), Some(&mut 2));
+            assert_eq!(iter.next(), Some(&mut 1));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from::<u32, 8, _>([1, 2, 3, 4, 5, 6, 7, 8]);
+            let mut iter = buf.iter_mut().rev();
+            assert_eq!(iter.next(), Some(&mut 8));
+            assert_eq!(iter.next(), Some(&mut 7));
+            assert_eq!(iter.next(), Some(&mut 6));
+            assert_eq!(iter.next(), Some(&mut 5));
+            assert_eq!(iter.next(), Some(&mut 4));
+            assert_eq!(iter.next(), Some(&mut 3));
+            assert_eq!(iter.next(), Some(&mut 2));
+            assert_eq!(iter.next(), Some(&mut 1));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn range() {
+            let buf = $new_buffer::<char, 8>();
+            let mut iter = buf.range(..);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range(..);
+            assert_eq!(iter.next(), Some(&'a'));
+            assert_eq!(iter.next(), Some(&'b'));
+            assert_eq!(iter.next(), Some(&'c'));
+            assert_eq!(iter.next(), Some(&'d'));
+            assert_eq!(iter.next(), Some(&'e'));
+            assert_eq!(iter.next(), Some(&'f'));
+            assert_eq!(iter.next(), Some(&'g'));
+            assert_eq!(iter.next(), Some(&'h'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range(5..);
+            assert_eq!(iter.next(), Some(&'f'));
+            assert_eq!(iter.next(), Some(&'g'));
+            assert_eq!(iter.next(), Some(&'h'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range(..3);
+            assert_eq!(iter.next(), Some(&'a'));
+            assert_eq!(iter.next(), Some(&'b'));
+            assert_eq!(iter.next(), Some(&'c'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range(..=2);
+            assert_eq!(iter.next(), Some(&'a'));
+            assert_eq!(iter.next(), Some(&'b'));
+            assert_eq!(iter.next(), Some(&'c'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range(3..6);
+            assert_eq!(iter.next(), Some(&'d'));
+            assert_eq!(iter.next(), Some(&'e'));
+            assert_eq!(iter.next(), Some(&'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range(3..=5);
+            assert_eq!(iter.next(), Some(&'d'));
+            assert_eq!(iter.next(), Some(&'e'));
+            assert_eq!(iter.next(), Some(&'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range(0..0);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range((Bound::Excluded(4), Bound::Unbounded));
+            assert_eq!(iter.next(), Some(&'f'));
+            assert_eq!(iter.next(), Some(&'g'));
+            assert_eq!(iter.next(), Some(&'h'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range((Bound::Excluded(2), Bound::Excluded(6)));
+            assert_eq!(iter.next(), Some(&'d'));
+            assert_eq!(iter.next(), Some(&'e'));
+            assert_eq!(iter.next(), Some(&'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range((Bound::Excluded(2), Bound::Included(5)));
+            assert_eq!(iter.next(), Some(&'d'));
+            assert_eq!(iter.next(), Some(&'e'));
+            assert_eq!(iter.next(), Some(&'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range((Bound::Excluded(2), Bound::Excluded(3)));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range((Bound::Excluded(2), Bound::Included(2)));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let buf = $buffer_from_iter::<char, 8, _>("abcdefghijkl".chars());
+            let mut iter = buf.range(2..6);
+            assert_eq!(iter.next(), Some(&'g'));
+            assert_eq!(iter.next(), Some(&'h'));
+            assert_eq!(iter.next(), Some(&'i'));
+            assert_eq!(iter.next(), Some(&'j'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn range_mut() {
+            let mut buf = $new_buffer::<char, 8>();
+            let mut iter = buf.range_mut(..);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut(..);
+            assert_eq!(iter.next(), Some(&mut 'a'));
+            assert_eq!(iter.next(), Some(&mut 'b'));
+            assert_eq!(iter.next(), Some(&mut 'c'));
+            assert_eq!(iter.next(), Some(&mut 'd'));
+            assert_eq!(iter.next(), Some(&mut 'e'));
+            assert_eq!(iter.next(), Some(&mut 'f'));
+            assert_eq!(iter.next(), Some(&mut 'g'));
+            assert_eq!(iter.next(), Some(&mut 'h'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut(5..);
+            assert_eq!(iter.next(), Some(&mut 'f'));
+            assert_eq!(iter.next(), Some(&mut 'g'));
+            assert_eq!(iter.next(), Some(&mut 'h'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut(..3);
+            assert_eq!(iter.next(), Some(&mut 'a'));
+            assert_eq!(iter.next(), Some(&mut 'b'));
+            assert_eq!(iter.next(), Some(&mut 'c'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut(..=2);
+            assert_eq!(iter.next(), Some(&mut 'a'));
+            assert_eq!(iter.next(), Some(&mut 'b'));
+            assert_eq!(iter.next(), Some(&mut 'c'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut(3..6);
+            assert_eq!(iter.next(), Some(&mut 'd'));
+            assert_eq!(iter.next(), Some(&mut 'e'));
+            assert_eq!(iter.next(), Some(&mut 'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut(3..=5);
+            assert_eq!(iter.next(), Some(&mut 'd'));
+            assert_eq!(iter.next(), Some(&mut 'e'));
+            assert_eq!(iter.next(), Some(&mut 'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut(0..0);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut((Bound::Excluded(4), Bound::Unbounded));
+            assert_eq!(iter.next(), Some(&mut 'f'));
+            assert_eq!(iter.next(), Some(&mut 'g'));
+            assert_eq!(iter.next(), Some(&mut 'h'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Excluded(6)));
+            assert_eq!(iter.next(), Some(&mut 'd'));
+            assert_eq!(iter.next(), Some(&mut 'e'));
+            assert_eq!(iter.next(), Some(&mut 'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Included(5)));
+            assert_eq!(iter.next(), Some(&mut 'd'));
+            assert_eq!(iter.next(), Some(&mut 'e'));
+            assert_eq!(iter.next(), Some(&mut 'f'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Excluded(3)));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefgh".chars());
+            let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Included(2)));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+
+            let mut buf = $buffer_from_iter::<char, 8, _>("abcdefghijkl".chars());
+            let mut iter = buf.range_mut(2..6);
+            assert_eq!(iter.next(), Some(&mut 'g'));
+            assert_eq!(iter.next(), Some(&mut 'h'));
+            assert_eq!(iter.next(), Some(&mut 'i'));
+            assert_eq!(iter.next(), Some(&mut 'j'));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
         }
     };
 }

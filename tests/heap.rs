@@ -12,4 +12,28 @@ fn heap_circular_buffer<T, const N: usize>() -> HeapCircularBuffer<T> {
     HeapCircularBuffer::<T>::with_capacity(N)
 }
 
-common::define_tests!(heap_circular_buffer);
+#[must_use]
+fn heap_circular_buffer_from<T, const N: usize, I>(input: I) -> HeapCircularBuffer<T>
+where
+    I: IntoIterator<Item = T>,
+{
+    let mut buf = heap_circular_buffer::<T, N>();
+    buf.extend(input);
+    buf
+}
+
+#[must_use]
+fn heap_circular_buffer_from_iter<T, const N: usize, I>(input: I) -> HeapCircularBuffer<T>
+where
+    I: IntoIterator<Item = T>,
+{
+    let mut buf = heap_circular_buffer::<T, N>();
+    buf.extend(input);
+    buf
+}
+
+common::define_tests!(
+    heap_circular_buffer,
+    heap_circular_buffer_from,
+    heap_circular_buffer_from_iter,
+);
