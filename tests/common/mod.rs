@@ -1531,6 +1531,99 @@ macro_rules! define_tests {
             assert_buf_eq!(buf, [1, 2, 3, 4]);
             tracker.assert_fully_alive();
         }
+
+        #[test]
+        fn eq_contiguous() {
+            let mut buf1 = $buffer_from_iter::<_, 5, _>([1, 2, 3]);
+            let mut buf2 = $buffer_from_iter::<_, 5, _>([1, 2, 3]);
+            assert!(is_contiguous(&buf1));
+            assert!(is_contiguous(&buf2));
+            assert_eq!(buf1, buf2);
+
+            buf1.push_back(4);
+            assert!(is_contiguous(&buf1));
+            assert!(is_contiguous(&buf2));
+            assert_ne!(buf1, buf2);
+
+            buf2.push_back(4);
+            assert!(is_contiguous(&buf1));
+            assert!(is_contiguous(&buf2));
+            assert_eq!(buf1, buf2);
+        }
+
+        #[test]
+        fn eq_disjoint() {
+            let mut buf1 = $buffer_from_iter::<_, 5, _>([1, 2, 3, 4, 5]);
+            let mut buf2 = $buffer_from_iter::<_, 5, _>([0, 1, 2, 3, 4]);
+
+            buf1.push_back(6);
+            buf2.push_back(5);
+            assert!(!is_contiguous(&buf1));
+            assert!(!is_contiguous(&buf2));
+            assert_ne!(buf1, buf2);
+
+            buf2.push_back(6);
+            assert!(!is_contiguous(&buf1));
+            assert!(!is_contiguous(&buf2));
+            assert_eq!(buf1, buf2);
+
+            buf1.push_back(7);
+            buf2.push_back(7);
+            assert!(!is_contiguous(&buf1));
+            assert!(!is_contiguous(&buf2));
+            assert_eq!(buf1, buf2);
+
+            buf1.push_back(8);
+            buf2.push_back(8);
+            assert!(!is_contiguous(&buf1));
+            assert!(!is_contiguous(&buf2));
+            assert_eq!(buf1, buf2);
+
+            buf1.push_back(9);
+            buf2.push_back(9);
+            assert!(!is_contiguous(&buf1));
+            assert!(is_contiguous(&buf2));
+            assert_eq!(buf1, buf2);
+
+            buf1.push_back(10);
+            buf2.push_back(10);
+            assert!(is_contiguous(&buf1));
+            assert!(!is_contiguous(&buf2));
+            assert_eq!(buf1, buf2);
+        }
+
+        #[test]
+        fn eq_mixed_types() {
+            let mut buf = $buffer_from_iter::<u32, 5, _>([1, 2, 3]);
+            let mut other_buf = $buffer_from_iter::<u32, 20, _>([1, 2, 3]);
+            let mut other_arr = [1, 2, 3];
+
+            assert_eq!(buf, buf);
+            assert_eq!(buf, other_buf);
+            assert_eq!(buf, other_buf.as_circular_buffer());
+            assert_eq!(buf, other_buf.as_mut_circular_buffer());
+            assert_eq!(buf, other_arr);
+            assert_eq!(buf, other_arr.as_slice());
+            assert_eq!(buf, other_arr.as_mut_slice());
+
+            assert_eq!(buf.as_circular_buffer(), buf);
+            assert_eq!(buf.as_circular_buffer(), other_buf);
+            assert_eq!(buf.as_circular_buffer(), other_buf.as_circular_buffer());
+            assert_eq!(buf.as_circular_buffer(), other_buf.as_mut_circular_buffer());
+            assert_eq!(buf.as_circular_buffer(), other_arr);
+            assert_eq!(buf.as_circular_buffer(), other_arr.as_slice());
+            assert_eq!(buf.as_circular_buffer(), other_arr.as_mut_slice());
+
+            assert_eq!(buf.as_mut_circular_buffer(), other_buf);
+            assert_eq!(buf.as_mut_circular_buffer(), other_buf.as_circular_buffer());
+            assert_eq!(
+                buf.as_mut_circular_buffer(),
+                other_buf.as_mut_circular_buffer()
+            );
+            assert_eq!(buf.as_mut_circular_buffer(), other_arr);
+            assert_eq!(buf.as_mut_circular_buffer(), other_arr.as_slice());
+            assert_eq!(buf.as_mut_circular_buffer(), other_arr.as_mut_slice());
+        }
     };
 }
 
