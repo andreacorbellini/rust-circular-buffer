@@ -78,7 +78,8 @@ impl<T, const N: usize> FixedCircularBuffer<T, N> {
         unsafe { uninit.assume_init() }
     }
 
-    pub const fn as_ref(&self) -> &CircularBuffer<T> {
+    /// Returns a reference to this buffer.
+    pub const fn as_circular_buffer(&self) -> &CircularBuffer<T> {
         // Mutate `&self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of type
         // `Inner<[X]>`.
         let inner_unsized: &Inner<[MaybeUninit<T>]> = &self.inner;
@@ -89,7 +90,8 @@ impl<T, const N: usize> FixedCircularBuffer<T, N> {
         unsafe { mem::transmute(inner_unsized) }
     }
 
-    pub const fn as_mut(&mut self) -> &mut CircularBuffer<T> {
+    /// Returns a mutable reference to this buffer.
+    pub const fn as_mut_circular_buffer(&mut self) -> &mut CircularBuffer<T> {
         // Mutate `&mut self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of
         // type `Inner<[X]>`.
         let inner_unsized: &mut Inner<[MaybeUninit<T>]> = &mut self.inner;
@@ -162,13 +164,13 @@ impl<T, const N: usize> Deref for FixedCircularBuffer<T, N> {
     type Target = CircularBuffer<T>;
 
     fn deref(&self) -> &Self::Target {
-        self.as_ref()
+        self.as_circular_buffer()
     }
 }
 
 impl<T, const N: usize> DerefMut for FixedCircularBuffer<T, N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_mut()
+        self.as_mut_circular_buffer()
     }
 }
 
@@ -177,7 +179,7 @@ impl<T, const N: usize> Extend<T> for FixedCircularBuffer<T, N> {
     where
         I: IntoIterator<Item = T>,
     {
-        self.as_mut().extend(iter);
+        self.deref_mut().extend(iter);
     }
 }
 
@@ -189,7 +191,7 @@ where
     where
         I: IntoIterator<Item = &'a T>,
     {
-        self.as_mut().extend(iter);
+        self.deref_mut().extend(iter);
     }
 }
 
@@ -198,14 +200,14 @@ impl<T, const N: usize> Index<usize> for FixedCircularBuffer<T, N> {
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        self.as_ref().index(index)
+        self.deref().index(index)
     }
 }
 
 impl<T, const N: usize> IndexMut<usize> for FixedCircularBuffer<T, N> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.as_mut().index_mut(index)
+        self.deref_mut().index_mut(index)
     }
 }
 

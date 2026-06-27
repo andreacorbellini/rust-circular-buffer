@@ -1617,26 +1617,29 @@ fn eq_mixed_types() {
 
     assert_eq!(buf, buf);
     assert_eq!(buf, other_buf);
-    assert_eq!(buf, other_buf.as_ref());
-    assert_eq!(buf, other_buf.as_mut());
+    assert_eq!(buf, other_buf.as_circular_buffer());
+    assert_eq!(buf, other_buf.as_mut_circular_buffer());
     assert_eq!(buf, other_arr);
     assert_eq!(buf, other_arr.as_slice());
     assert_eq!(buf, other_arr.as_mut_slice());
 
-    assert_eq!(buf.as_ref(), buf);
-    assert_eq!(buf.as_ref(), other_buf);
-    assert_eq!(buf.as_ref(), other_buf.as_ref());
-    assert_eq!(buf.as_ref(), other_buf.as_mut());
-    assert_eq!(buf.as_ref(), other_arr);
-    assert_eq!(buf.as_ref(), other_arr.as_slice());
-    assert_eq!(buf.as_ref(), other_arr.as_mut_slice());
+    assert_eq!(buf.as_circular_buffer(), buf);
+    assert_eq!(buf.as_circular_buffer(), other_buf);
+    assert_eq!(buf.as_circular_buffer(), other_buf.as_circular_buffer());
+    assert_eq!(buf.as_circular_buffer(), other_buf.as_mut_circular_buffer());
+    assert_eq!(buf.as_circular_buffer(), other_arr);
+    assert_eq!(buf.as_circular_buffer(), other_arr.as_slice());
+    assert_eq!(buf.as_circular_buffer(), other_arr.as_mut_slice());
 
-    assert_eq!(buf.as_mut(), other_buf);
-    assert_eq!(buf.as_mut(), other_buf.as_ref());
-    assert_eq!(buf.as_mut(), other_buf.as_mut());
-    assert_eq!(buf.as_mut(), other_arr);
-    assert_eq!(buf.as_mut(), other_arr.as_slice());
-    assert_eq!(buf.as_mut(), other_arr.as_mut_slice());
+    assert_eq!(buf.as_mut_circular_buffer(), other_buf);
+    assert_eq!(buf.as_mut_circular_buffer(), other_buf.as_circular_buffer());
+    assert_eq!(
+        buf.as_mut_circular_buffer(),
+        other_buf.as_mut_circular_buffer()
+    );
+    assert_eq!(buf.as_mut_circular_buffer(), other_arr);
+    assert_eq!(buf.as_mut_circular_buffer(), other_arr.as_slice());
+    assert_eq!(buf.as_mut_circular_buffer(), other_arr.as_mut_slice());
 }
 
 #[test]

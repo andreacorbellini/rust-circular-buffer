@@ -5,6 +5,7 @@ use crate::CircularBuffer;
 use crate::FixedCircularBuffer;
 use core::fmt;
 use core::iter;
+use core::ops::Deref;
 
 #[derive(Default, Copy, Clone)]
 struct Placeholder;
@@ -32,6 +33,6 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_ref().fmt(f)
+        self.deref().fmt(f)
     }
 }
