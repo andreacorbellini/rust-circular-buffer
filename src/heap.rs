@@ -197,26 +197,20 @@ impl<T> HeapCircularBuffer<T> {
 
     /// Returns a reference to this buffer.
     pub const fn as_circular_buffer(&self) -> &CircularBuffer<T> {
-        // Mutate `&self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of type
-        // `Inner<[X]>`.
-        let inner_unsized: &Inner<[MaybeUninit<T>]> = &self.inner;
-        // Transmute the fat-pointer to a `CircularBuffer<T>`.
+        // Transmute the inner pointer to a `CircularBuffer<T>`.
         //
         // SAFETY: `CircularBuffer` uses `repr(transparent)`, therefore it has the same layout and
         // representation as `Inner<[MaybeUninit<T>]>`.
-        unsafe { mem::transmute(inner_unsized) }
+        unsafe { mem::transmute(&*self.inner) }
     }
 
     /// Returns a mutable reference to this buffer.
     pub const fn as_mut_circular_buffer(&mut self) -> &mut CircularBuffer<T> {
-        // Mutate `&mut self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of
-        // type `Inner<[X]>`.
-        let inner_unsized: &mut Inner<[MaybeUninit<T>]> = &mut self.inner;
-        // Transmute the fat-pointer to a `CircularBuffer<T>`.
+        // Transmute the inner pointer to a `CircularBuffer<T>`.
         //
         // SAFETY: `CircularBuffer` uses `repr(transparent)`, therefore it has the same layout and
         // representation as `Inner<[MaybeUninit<T>]>`.
-        unsafe { mem::transmute(inner_unsized) }
+        unsafe { mem::transmute(&mut *self.inner) }
     }
 }
 
