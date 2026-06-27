@@ -1329,10 +1329,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// assert_eq!(buf.try_push_back('d'), Err('d'))
     /// ```
     pub fn try_push_back(&mut self, item: T) -> Result<(), T> {
-        if N == 0 {
-            // Nothing to do
-            return Ok(());
-        }
         if self.size >= N {
             // At capacity; return the pushed item as error
             Err(item)
@@ -1430,10 +1426,6 @@ impl<const N: usize, T> CircularBuffer<N, T> {
     /// assert_eq!(buf.try_push_front('d'), Err('d'));
     /// ```
     pub fn try_push_front(&mut self, item: T) -> Result<(), T> {
-        if N == 0 {
-            // Nothing to do
-            return Ok(());
-        }
         if self.size >= N {
             // At capacity; return the pushed item as error
             Err(item)
