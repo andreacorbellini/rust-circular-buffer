@@ -1216,6 +1216,93 @@ macro_rules! define_tests {
             buf.clear();
             assert_buf_eq!(buf, [] as [u32; 0]);
         }
+
+        #[test]
+        fn drop_contiguous() {
+            let mut tracker = DropTracker::new();
+            let mut buf = $new_buffer::<DropItem<i32>, 4>();
+            assert_buf_eq!(buf, [] as [i32; 0]);
+
+            buf.push_back(tracker.track(1));
+            buf.push_back(tracker.track(2));
+            assert_buf_eq!(buf, [1, 2]);
+            assert!(is_contiguous(&buf));
+            tracker.assert_all_alive([1, 2]);
+            tracker.assert_fully_alive();
+
+            drop(buf);
+
+            tracker.assert_fully_dropped();
+            tracker.assert_all_dropped([1, 2]);
+        }
+
+        #[test]
+        fn drop_full_contiguous() {
+            let mut tracker = DropTracker::new();
+            let mut buf = $new_buffer::<DropItem<i32>, 4>();
+            assert_buf_eq!(buf, [] as [i32; 0]);
+
+            buf.push_back(tracker.track(1));
+            buf.push_back(tracker.track(2));
+            buf.push_back(tracker.track(3));
+            buf.push_back(tracker.track(4));
+            assert_buf_eq!(buf, [1, 2, 3, 4]);
+            assert!(is_contiguous(&buf));
+            tracker.assert_all_alive([1, 2, 3, 4]);
+            tracker.assert_fully_alive();
+
+            drop(buf);
+
+            tracker.assert_fully_dropped();
+            tracker.assert_all_dropped([1, 2, 3, 4]);
+        }
+
+        #[test]
+        fn drop_full_disjoint() {
+            let mut tracker = DropTracker::new();
+            let mut buf = $new_buffer::<DropItem<i32>, 4>();
+            assert_buf_eq!(buf, [] as [i32; 0]);
+
+            buf.push_back(tracker.track(1));
+            buf.push_back(tracker.track(2));
+            buf.push_back(tracker.track(3));
+            buf.push_back(tracker.track(4));
+            buf.push_back(tracker.track(5));
+            buf.push_back(tracker.track(6));
+            assert_buf_eq!(buf, [3, 4, 5, 6]);
+            assert!(!is_contiguous(&buf));
+            tracker.assert_all_alive([3, 4, 5, 6]);
+            tracker.assert_all_dropped([1, 2]);
+
+            drop(buf);
+
+            tracker.assert_fully_dropped();
+            tracker.assert_all_dropped([1, 2, 3, 4, 5, 6]);
+        }
+
+        #[test]
+        fn drop_disjoint() {
+            let mut tracker = DropTracker::new();
+            let mut buf = $new_buffer::<DropItem<i32>, 4>();
+            assert_buf_eq!(buf, [] as [i32; 0]);
+
+            buf.push_back(tracker.track(1));
+            buf.push_back(tracker.track(2));
+            buf.push_back(tracker.track(3));
+            buf.push_back(tracker.track(4));
+            buf.push_back(tracker.track(5));
+            buf.push_back(tracker.track(6));
+            buf.pop_back();
+            assert_buf_eq!(buf, [3, 4, 5]);
+            assert!(!is_contiguous(&buf));
+            tracker.assert_all_alive([3, 4, 5]);
+            tracker.assert_all_dropped([1, 2, 6]);
+
+            drop(buf);
+
+            tracker.assert_fully_dropped();
+            tracker.assert_all_dropped([1, 2, 3, 4, 5, 6]);
+        }
     };
 }
 
