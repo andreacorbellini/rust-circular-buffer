@@ -1,6 +1,15 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
+use circular_buffer::CircularBuffer;
+
+/// Returns `true` if the elements of the given buffer are all contained in a contiguous slice.
+#[must_use]
+pub(crate) fn is_contiguous<T>(buf: &CircularBuffer<T>) -> bool {
+    let slices = buf.as_slices();
+    slices.1.is_empty()
+}
+
 /// Asserts that the specified buffer contains the specified elements.
 macro_rules! assert_buf_eq {
     ( $buf:ident , [] $( as [ $( $arrtyp:tt )* ] )? ) => {
@@ -46,6 +55,7 @@ macro_rules! define_tests {
         use drop_tracker::DropItem;
         use drop_tracker::DropTracker;
         use $crate::common::assert_buf_eq;
+        use $crate::common::is_contiguous;
 
         #[test]
         fn attrs() {
@@ -323,6 +333,29 @@ macro_rules! define_tests {
             assert_buf_eq!(buf, [5]);
             assert_eq!(buf.remove(0), Some(5));
             assert_buf_eq!(buf, [] as [u32; 0]);
+        }
+
+        #[test]
+        fn swap() {
+            let mut buf = $buffer_from::<u32, 4, _>([1, 2, 3, 4]);
+
+            buf.swap(0, 3);
+            assert_buf_eq!(buf, [4, 2, 3, 1]);
+            buf.swap(1, 2);
+            assert_buf_eq!(buf, [4, 3, 2, 1]);
+            buf.pop_front();
+            assert_buf_eq!(buf, [3, 2, 1]);
+            buf.push_back(4);
+            assert_buf_eq!(buf, [3, 2, 1, 4]);
+            assert!(!is_contiguous(&buf));
+            buf.swap(0, 1);
+            assert_buf_eq!(buf, [2, 3, 1, 4]);
+            buf.swap(1, 2);
+            assert_buf_eq!(buf, [2, 1, 3, 4]);
+            buf.swap(2, 3);
+            assert_buf_eq!(buf, [2, 1, 4, 3]);
+            buf.swap(3, 0);
+            assert_buf_eq!(buf, [3, 1, 4, 2]);
         }
 
         #[test]
@@ -1107,6 +1140,81 @@ macro_rules! define_tests {
             assert_eq!(iter.next(), None);
             assert_eq!(iter.next(), None);
             assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn zero_capacity() {
+            let mut buf = $new_buffer::<u32, 0>();
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.push_back(1);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            assert_eq!(buf.pop_back(), None);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.push_front(1);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            assert_eq!(buf.pop_front(), None);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            assert_eq!(buf.remove(0), None);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.extend(&[1, 2, 3]);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.extend_from_slice(&[1, 2, 3]);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_back(10);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_back(0);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_front(10);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_front(0);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.clear();
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.drain(..);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+        }
+
+        #[test]
+        fn remove_on_empty() {
+            let mut buf = $new_buffer::<u32, 10>();
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            assert_eq!(buf.pop_back(), None);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            assert_eq!(buf.pop_front(), None);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            assert_eq!(buf.remove(0), None);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_back(10);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_back(0);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_front(10);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.truncate_front(0);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.clear();
+            assert_buf_eq!(buf, [] as [u32; 0]);
         }
     };
 }
