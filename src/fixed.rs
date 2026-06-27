@@ -28,8 +28,9 @@ pub use crate::iter::fixed::IntoIter;
 /// [`array`]. It may live on the stack or be initialized in `const` contexts.
 ///
 /// Wrap the `FixedCircularBuffer` in a [`Box`](std::boxed) using [`FixedCircularBuffer::boxed()`]
-/// if you need the struct to be heap-allocated. Consider using [`HeapCircularBuffer`] if the
-/// capacity cannot be specified at compile-time.
+/// if you need the struct to be heap-allocated. Consider using
+/// [`HeapCircularBuffer`](crate::HeapCircularBuffer) if the capacity cannot be specified at
+/// compile-time.
 ///
 /// See the [module-level documentation](crate) for more details and examples.
 #[repr(transparent)]
