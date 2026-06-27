@@ -1860,6 +1860,33 @@ impl<T> CircularBufferRef<T> {
     }
 }
 
+impl<T> Extend<T> for CircularBufferRef<T> {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        // TODO Optimize
+        iter.into_iter().for_each(|item| {
+            self.push_back(item);
+        });
+    }
+}
+
+impl<'a, T> Extend<&'a T> for CircularBufferRef<T>
+where
+    T: Copy,
+{
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = &'a T>,
+    {
+        // TODO Optimize
+        iter.into_iter().for_each(|item| {
+            self.push_back(*item);
+        });
+    }
+}
+
 impl<'a, T> IntoIterator for &'a CircularBufferRef<T> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
@@ -2128,10 +2155,7 @@ impl<T, const N: usize> Extend<T> for CircularBuffer<T, N> {
     where
         I: IntoIterator<Item = T>,
     {
-        // TODO Optimize
-        iter.into_iter().for_each(|item| {
-            self.push_back(item);
-        });
+        self.as_mut().extend(iter);
     }
 }
 
@@ -2143,10 +2167,7 @@ where
     where
         I: IntoIterator<Item = &'a T>,
     {
-        // TODO Optimize
-        iter.into_iter().for_each(|item| {
-            self.push_back(*item);
-        });
+        self.as_mut().extend(iter);
     }
 }
 
