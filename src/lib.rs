@@ -244,13 +244,11 @@ extern crate alloc;
 mod cmp;
 mod debug;
 mod drain;
+mod embedded_io;
 mod hash;
 mod io;
 mod iter;
 mod tests;
-
-#[cfg(any(feature = "embedded-io", feature = "embedded-io-async"))]
-mod embedded_io;
 
 pub mod fixed;
 
