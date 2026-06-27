@@ -4,6 +4,7 @@
 #![cfg(feature = "std")]
 
 use crate::CircularBuffer;
+use crate::CircularBufferRef;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
 use std::cell::RefCell;
@@ -15,7 +16,7 @@ use std::io::Read;
 use std::io::Write;
 use std::ops::Bound;
 
-fn is_contiguous<T, const N: usize>(buf: &CircularBuffer<T, N>) -> bool {
+fn is_contiguous<T>(buf: &CircularBufferRef<T>) -> bool {
     let slices = buf.as_slices();
     slices.1.is_empty()
 }
@@ -1131,7 +1132,7 @@ fn range_mut() {
 
 #[test]
 fn zero_capacity() {
-    fn run_assertions(buf: &CircularBuffer<u32, 0>) {
+    fn run_assertions(buf: &CircularBufferRef<u32>) {
         assert_eq!(*buf, []);
         assert_eq!(buf.len(), 0);
         assert_eq!(buf.capacity(), 0);
@@ -1173,7 +1174,7 @@ fn zero_capacity() {
 
 #[test]
 fn remove_on_empty() {
-    fn run_assertions(buf: &CircularBuffer<u32, 10>) {
+    fn run_assertions(buf: &CircularBufferRef<u32>) {
         assert_eq!(*buf, []);
         assert_eq!(buf.len(), 0);
         assert_eq!(buf.to_vec(), []);
@@ -2109,7 +2110,7 @@ fn clone() {
 
 #[test]
 fn hash() {
-    fn hash<T: Hash, const N: usize>(buf: &CircularBuffer<T, N>) -> u64 {
+    fn hash<T: Hash>(buf: &CircularBufferRef<T>) -> u64 {
         let mut hasher = DefaultHasher::new();
         buf.hash(&mut hasher);
         hasher.finish()
