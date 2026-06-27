@@ -1860,6 +1860,95 @@ impl<T> CircularBufferRef<T> {
     }
 }
 
+impl<T> CircularBufferRef<T>
+where
+    T: Clone,
+{
+    /// Clones and appends all the elements from the slice to the back of the buffer.
+    ///
+    /// This is an optimized version of [`extend()`](CircularBuffer::extend) for slices.
+    ///
+    /// If slice contains more values than the available capacity, the elements at the front of the
+    /// buffer are dropped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let mut buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
+    /// buf.extend_from_slice(&[4, 5, 6, 7]);
+    /// assert_eq!(buf, [3, 4, 5, 6, 7]);
+    /// ```
+    pub fn extend_from_slice(&mut self, other: &[T]) {
+        if self.capacity() == 0 {
+            return;
+        }
+
+        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
+        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
+
+        if other.len() < self.capacity() {
+            // All the elements of `other` fit into the buffer
+            let free_size = self.capacity() - self.inner.size;
+            let final_size = if other.len() < free_size {
+                // All the elements of `other` fit at the back of the buffer
+                self.inner.size + other.len()
+            } else {
+                // Some of the elements of `other` need to overwrite the front of the buffer
+                let truncate_to = self.capacity() - other.len();
+                self.truncate_front(truncate_to);
+                self.capacity()
+            };
+
+            let (right, left) = self.slices_uninit_mut();
+
+            let write_len = core::cmp::min(right.len(), other.len());
+            right[..write_len].write_clone_of_slice(&other[..write_len]);
+
+            let other = &other[write_len..];
+            debug_assert!(left.len() >= other.len());
+            let write_len = other.len();
+            left[..write_len].write_clone_of_slice(other);
+
+            self.inner.size = final_size;
+        } else {
+            // `other` overwrites the whole buffer; get only the last `N` elements from `other` and
+            // overwrite
+            self.clear();
+            self.inner.start = 0;
+
+            let other = &other[other.len() - self.capacity()..];
+            debug_assert_eq!(self.inner.items.len(), other.len());
+            self.inner.items.write_clone_of_slice(other);
+
+            self.inner.size = self.capacity();
+        }
+    }
+
+    /// Clones the elements of the buffer into a new [`Vec`], leaving the buffer unchanged.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    ///
+    /// let buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
+    /// let vec: Vec<u32> = buf.to_vec();
+    ///
+    /// assert_eq!(buf, [1, 2, 3]);
+    /// assert_eq!(vec, [1, 2, 3]);
+    /// ```
+    #[must_use]
+    #[cfg(feature = "alloc")]
+    pub fn to_vec(&self) -> Vec<T> {
+        let mut vec = Vec::with_capacity(self.inner.size);
+        vec.extend(self.iter().cloned());
+        debug_assert_eq!(vec.len(), self.inner.size);
+        vec
+    }
+}
+
 impl<T> Index<usize> for CircularBufferRef<T> {
     type Output = T;
 
@@ -2003,95 +2092,6 @@ impl<T, const N: usize> CircularBuffer<T, N> {
         // SAFETY: `CircularBufferRef` uses `repr(transparent)`, therefore it has the same layout
         // and representation as `Inner<[MaybeUninit<T>]>`.
         unsafe { mem::transmute(inner_unsized) }
-    }
-}
-
-impl<T, const N: usize> CircularBuffer<T, N>
-where
-    T: Clone,
-{
-    /// Clones and appends all the elements from the slice to the back of the buffer.
-    ///
-    /// This is an optimized version of [`extend()`](CircularBuffer::extend) for slices.
-    ///
-    /// If slice contains more values than the available capacity, the elements at the front of the
-    /// buffer are dropped.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let mut buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
-    /// buf.extend_from_slice(&[4, 5, 6, 7]);
-    /// assert_eq!(buf, [3, 4, 5, 6, 7]);
-    /// ```
-    pub fn extend_from_slice(&mut self, other: &[T]) {
-        if self.capacity() == 0 {
-            return;
-        }
-
-        debug_assert!(self.inner.start < self.capacity(), "start out-of-bounds");
-        debug_assert!(self.inner.size <= self.capacity(), "size out-of-bounds");
-
-        if other.len() < self.capacity() {
-            // All the elements of `other` fit into the buffer
-            let free_size = self.capacity() - self.inner.size;
-            let final_size = if other.len() < free_size {
-                // All the elements of `other` fit at the back of the buffer
-                self.inner.size + other.len()
-            } else {
-                // Some of the elements of `other` need to overwrite the front of the buffer
-                let truncate_to = self.capacity() - other.len();
-                self.truncate_front(truncate_to);
-                self.capacity()
-            };
-
-            let (right, left) = self.slices_uninit_mut();
-
-            let write_len = core::cmp::min(right.len(), other.len());
-            right[..write_len].write_clone_of_slice(&other[..write_len]);
-
-            let other = &other[write_len..];
-            debug_assert!(left.len() >= other.len());
-            let write_len = other.len();
-            left[..write_len].write_clone_of_slice(other);
-
-            self.inner.size = final_size;
-        } else {
-            // `other` overwrites the whole buffer; get only the last `N` elements from `other` and
-            // overwrite
-            self.clear();
-            self.inner.start = 0;
-
-            let other = &other[other.len() - self.capacity()..];
-            debug_assert_eq!(self.inner.items.len(), other.len());
-            self.inner.items.write_clone_of_slice(other);
-
-            self.inner.size = self.capacity();
-        }
-    }
-
-    /// Clones the elements of the buffer into a new [`Vec`], leaving the buffer unchanged.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use circular_buffer::CircularBuffer;
-    ///
-    /// let buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
-    /// let vec: Vec<u32> = buf.to_vec();
-    ///
-    /// assert_eq!(buf, [1, 2, 3]);
-    /// assert_eq!(vec, [1, 2, 3]);
-    /// ```
-    #[must_use]
-    #[cfg(feature = "alloc")]
-    pub fn to_vec(&self) -> Vec<T> {
-        let mut vec = Vec::with_capacity(self.inner.size);
-        vec.extend(self.iter().cloned());
-        debug_assert_eq!(vec.len(), self.inner.size);
-        vec
     }
 }
 
