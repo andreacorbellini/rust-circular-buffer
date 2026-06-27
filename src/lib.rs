@@ -203,6 +203,7 @@
 mod cmp;
 mod debug;
 mod drain;
+mod hash;
 mod iter;
 
 #[cfg(feature = "std")]
@@ -214,8 +215,6 @@ mod embedded_io;
 #[cfg(test)]
 mod tests;
 
-use core::hash::Hash;
-use core::hash::Hasher;
 use core::mem;
 use core::mem::MaybeUninit;
 use core::ops::Deref;
@@ -1881,17 +1880,6 @@ impl<'a, T> IntoIterator for &'a mut CircularBufferRef<T> {
     }
 }
 
-impl<T> Hash for CircularBufferRef<T>
-where
-    T: Hash,
-{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // TODO: Use `Hasher::write_length_prefix()` once it's stabilized
-        self.inner.size.hash(state);
-        self.iter().for_each(|item| item.hash(state));
-    }
-}
-
 /// A fixed-size circular buffer.
 ///
 /// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
@@ -2205,16 +2193,6 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut CircularBuffer<T, N> {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IterMut::new(self)
-    }
-}
-
-impl<T, const N: usize> Hash for CircularBuffer<T, N>
-where
-    T: Hash,
-{
-    #[inline]
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_ref().hash(state);
     }
 }
 
