@@ -51,6 +51,7 @@ macro_rules! assert_buf_eq {
 
 macro_rules! define_tests {
     ( $new_buffer:ident , $buffer_from:ident , $buffer_from_iter:ident $(,)? ) => {
+        use core::cell::RefCell;
         use core::ops::Bound;
         use drop_tracker::DropItem;
         use drop_tracker::DropTracker;
@@ -1699,6 +1700,124 @@ macro_rules! define_tests {
 
             buf.consume(2);
             assert_eq!(buf.fill_buf().unwrap(), b"");
+        }
+
+        #[test]
+        fn extend() {
+            let mut buf = $new_buffer::<u32, 4>();
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.extend([] as [u32; 0]);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+            buf.extend([1]);
+            assert_buf_eq!(buf, [1]);
+            buf.extend([2, 3]);
+            assert_buf_eq!(buf, [1, 2, 3]);
+            buf.extend([4, 5, 6]);
+            assert_buf_eq!(buf, [3, 4, 5, 6]);
+            buf.extend([7, 8, 9, 10]);
+            assert_buf_eq!(buf, [7, 8, 9, 10]);
+            buf.extend([11, 12, 13, 14, 15]);
+            assert_buf_eq!(buf, [12, 13, 14, 15]);
+        }
+
+        #[test]
+        fn extend_ref() {
+            let mut buf = $new_buffer::<u32, 4>();
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.extend([].iter());
+            assert_buf_eq!(buf, [] as [u32; 0]);
+            buf.extend([1].iter());
+            assert_buf_eq!(buf, [1]);
+            buf.extend([2, 3].iter());
+            assert_buf_eq!(buf, [1, 2, 3]);
+            buf.extend([4, 5, 6].iter());
+            assert_buf_eq!(buf, [3, 4, 5, 6]);
+            buf.extend([7, 8, 9, 10].iter());
+            assert_buf_eq!(buf, [7, 8, 9, 10]);
+            buf.extend([11, 12, 13, 14, 15].iter());
+            assert_buf_eq!(buf, [12, 13, 14, 15]);
+        }
+
+        #[test]
+        fn extend_from_slice() {
+            let mut buf = $new_buffer::<u32, 4>();
+            assert_buf_eq!(buf, [] as [u32; 0]);
+
+            buf.extend_from_slice(&[][..]);
+            assert_buf_eq!(buf, [] as [u32; 0]);
+            buf.extend_from_slice(&[1][..]);
+            assert_buf_eq!(buf, [1]);
+            buf.extend_from_slice(&[2, 3][..]);
+            assert_buf_eq!(buf, [1, 2, 3]);
+            buf.extend_from_slice(&[4, 5, 6][..]);
+            assert_buf_eq!(buf, [3, 4, 5, 6]);
+            buf.extend_from_slice(&[7, 8, 9, 10][..]);
+            assert_buf_eq!(buf, [7, 8, 9, 10]);
+            buf.extend_from_slice(&[11, 12, 13, 14, 15][..]);
+            assert_buf_eq!(buf, [12, 13, 14, 15]);
+        }
+
+        #[test]
+        fn extend_from_slice_unwind_safety() {
+            thread_local! {
+                static TRACKER: RefCell<DropTracker<String>> = RefCell::new(DropTracker::new());
+            }
+
+            #[derive(Debug)]
+            struct FaultyClonable {
+                drop_item: DropItem<String>,
+                panic_on_clone: bool,
+            }
+
+            impl Clone for FaultyClonable {
+                fn clone(&self) -> Self {
+                    if self.panic_on_clone {
+                        panic!("clone failed :(");
+                    } else {
+                        Self {
+                            drop_item: TRACKER.with_borrow_mut(|tracker| {
+                                tracker.track(format!("clone of {}", self.drop_item))
+                            }),
+                            panic_on_clone: false,
+                        }
+                    }
+                }
+            }
+
+            let array = TRACKER.with_borrow_mut(|tracker| {
+                [
+                    FaultyClonable {
+                        drop_item: tracker.track("a".to_string()),
+                        panic_on_clone: false,
+                    },
+                    FaultyClonable {
+                        drop_item: tracker.track("b".to_string()),
+                        panic_on_clone: false,
+                    },
+                    FaultyClonable {
+                        drop_item: tracker.track("c".to_string()),
+                        panic_on_clone: true,
+                    },
+                    FaultyClonable {
+                        drop_item: tracker.track("d".to_string()),
+                        panic_on_clone: false,
+                    },
+                ]
+            });
+
+            let mut buf = $new_buffer::<FaultyClonable, 4>();
+
+            let res = std::panic::catch_unwind(move || buf.extend_from_slice(&array));
+            assert!(res.is_err());
+
+            TRACKER.with_borrow(|tracker| {
+                tracker.assert_dropped("clone of a");
+                tracker.assert_dropped("clone of b");
+                assert!(!tracker.is_tracked("clone of c"));
+                assert!(!tracker.is_tracked("clone of d"));
+            });
         }
     };
 }
