@@ -62,7 +62,6 @@ macro_rules! assert_buf_slices_eq {
 
 macro_rules! define_tests {
     ( $new_buffer:ident , $buffer_from:ident , $buffer_from_iter:ident $(,)? ) => {
-        use circular_buffer::CircularBuffer;
         use core::cell::RefCell;
         use core::ops::Bound;
         use drop_tracker::DropItem;
@@ -1941,6 +1940,7 @@ macro_rules! define_tests {
         #[test]
         #[cfg(feature = "std")]
         fn hash() {
+            use circular_buffer::CircularBuffer;
             use core::hash::Hash;
             use core::hash::Hasher;
             use std::collections::hash_map::DefaultHasher;
