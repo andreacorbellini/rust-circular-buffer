@@ -1325,11 +1325,7 @@ impl<T> CircularBuffer<T> {
     /// // The buffer is now full; adding more values results in an error
     /// assert_eq!(buf.try_push_back('d'), Err('d'))
     /// ```
-    pub fn try_push_back(&mut self, item: T) -> Result<(), T> {
-        if self.capacity() == 0 {
-            // Nothing to do
-            return Ok(());
-        }
+    pub const fn try_push_back(&mut self, item: T) -> Result<(), T> {
         if self.inner.size >= self.capacity() {
             // At capacity; return the pushed item as error
             Err(item)
@@ -1426,11 +1422,7 @@ impl<T> CircularBuffer<T> {
     /// // The buffer is now full; adding more values results in an error
     /// assert_eq!(buf.try_push_front('d'), Err('d'));
     /// ```
-    pub fn try_push_front(&mut self, item: T) -> Result<(), T> {
-        if self.capacity() == 0 {
-            // Nothing to do
-            return Ok(());
-        }
+    pub const fn try_push_front(&mut self, item: T) -> Result<(), T> {
         if self.inner.size >= self.capacity() {
             // At capacity; return the pushed item as error
             Err(item)
