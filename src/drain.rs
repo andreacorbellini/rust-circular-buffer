@@ -1,7 +1,7 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::CircularBufferRef;
+use crate::CircularBuffer;
 use crate::add_mod;
 use crate::iter::Iter;
 use crate::iter::translate_range_bounds;
@@ -18,16 +18,16 @@ use core::ptr::NonNull;
 ///
 /// This struct is created by [`CircularBuffer::drain()`]. See its documentation for more details.
 pub struct Drain<'a, T> {
-    /// This is a pointer and not a reference (`&'a mut CircularBufferRef`) because using a
-    /// reference would make `Drain` an invariant over `CircularBuffer`, but instead we want `Drain`
-    /// to be covariant over `CircularBuffer`.
+    /// This is a pointer and not a reference (`&'a mut CircularBuffer`) because using a reference
+    /// would make `Drain` an invariant over `CircularBuffer`, but instead we want `Drain` to be
+    /// covariant over `CircularBuffer`.
     ///
     /// The reason why `Drain` needs to be covariant is that, semantically,
     /// `CircularBuffer::drain()` should be equivalent to popping all the drained elements from the
     /// buffer, storing them into a vector, and returning an iterable over the vector.
     /// Equivalently, `Drain` owns the drained elements, so it would be unnecessarily restrictive to
     /// make this type invariant over `CircularBuffer`.
-    buf: NonNull<CircularBufferRef<T>>,
+    buf: NonNull<CircularBuffer<T>>,
     /// A backup of the size of the buffer. Necessary because `buf.inner.size` is set to 0 during
     /// the lifetime of the `Drain` and is restored only during drop.
     buf_size: usize,
@@ -45,7 +45,7 @@ pub struct Drain<'a, T> {
 }
 
 impl<'a, T> Drain<'a, T> {
-    pub(crate) fn over_range<R>(buf: &'a mut CircularBufferRef<T>, range: R) -> Self
+    pub(crate) fn over_range<R>(buf: &'a mut CircularBuffer<T>, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {

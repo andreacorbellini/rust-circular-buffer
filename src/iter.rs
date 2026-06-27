@@ -1,7 +1,7 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::CircularBufferRef;
+use crate::CircularBuffer;
 use crate::FixedCircularBuffer;
 use core::fmt;
 use core::iter::FusedIterator;
@@ -63,7 +63,7 @@ where
     }
 }
 
-pub(crate) fn translate_range_bounds<T, R>(buf: &CircularBufferRef<T>, range: R) -> (usize, usize)
+pub(crate) fn translate_range_bounds<T, R>(buf: &CircularBuffer<T>, range: R) -> (usize, usize)
 where
     R: RangeBounds<usize>,
 {
@@ -114,12 +114,12 @@ impl<'a, T> Iter<'a, T> {
         }
     }
 
-    pub(crate) fn new(buf: &'a CircularBufferRef<T>) -> Self {
+    pub(crate) fn new(buf: &'a CircularBuffer<T>) -> Self {
         let (right, left) = buf.as_slices();
         Self { right, left }
     }
 
-    pub(crate) fn over_range<R>(buf: &'a CircularBufferRef<T>, range: R) -> Self
+    pub(crate) fn over_range<R>(buf: &'a CircularBuffer<T>, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {
@@ -248,12 +248,12 @@ impl<'a, T> IterMut<'a, T> {
         }
     }
 
-    pub(crate) fn new(buf: &'a mut CircularBufferRef<T>) -> Self {
+    pub(crate) fn new(buf: &'a mut CircularBuffer<T>) -> Self {
         let (right, left) = buf.as_mut_slices();
         Self { right, left }
     }
 
-    pub(crate) fn over_range<R>(buf: &'a mut CircularBufferRef<T>, range: R) -> Self
+    pub(crate) fn over_range<R>(buf: &'a mut CircularBuffer<T>, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {

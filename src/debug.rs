@@ -1,7 +1,7 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::CircularBufferRef;
+use crate::CircularBuffer;
 use crate::FixedCircularBuffer;
 use core::fmt;
 use core::iter;
@@ -15,7 +15,7 @@ impl fmt::Debug for Placeholder {
     }
 }
 
-impl<T> fmt::Debug for CircularBufferRef<T>
+impl<T> fmt::Debug for CircularBuffer<T>
 where
     T: fmt::Debug,
 {

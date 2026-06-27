@@ -3,13 +3,13 @@
 
 //! Implementations of [`Hash`].
 
-use crate::CircularBufferRef;
+use crate::CircularBuffer;
 use crate::FixedCircularBuffer;
 use core::hash::Hash;
 use core::hash::Hasher;
 use core::ops::Deref;
 
-impl<T> Hash for CircularBufferRef<T>
+impl<T> Hash for CircularBuffer<T>
 where
     T: Hash,
 {

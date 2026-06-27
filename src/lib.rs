@@ -261,10 +261,9 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
     add_mod(x, m - y, m)
 }
 
-/// Internal structure shared by `CircularBufferRef`, `FixedCircularBuffer`, and
-/// `HeapCircularBuffer`.
+/// Internal structure shared by `CircularBuffer`, `FixedCircularBuffer`, and `HeapCircularBuffer`.
 ///
-/// The main purpose of this structure is to allow safe coercion to `CircularBufferRef`. It may go
+/// The main purpose of this structure is to allow safe coercion to `CircularBuffer`. It may go
 /// away once `core::ptr::from_raw_parts()` is stabilized.
 struct Inner<T: ?Sized> {
     size: usize,
@@ -277,25 +276,25 @@ struct Inner<T: ?Sized> {
 /// This type can be thought as the equivalent of a Rust [slice](primitive:slice), in the sense that
 /// it _points_ to the data held by a circular buffer (either a [`FixedCircularBuffer`] or a
 /// [`HeapCircularBuffer`]) but does not actually own the data. The relationship between the types
-/// `CircularBufferRef<T>`, `FixedCircularBuffer<T, N>`, and `HeapCircularBuffer<T>` is akin to the
+/// `CircularBuffer<T>`, `FixedCircularBuffer<T, N>`, and `HeapCircularBuffer<T>` is akin to the
 /// relationship between types `[T]` (slice), `[T; N]` (array), `Vec<T>`. In particular:
 ///
 /// - Both [`FixedCircularBuffer`] and [`HeapCircularBuffer`] can be [dereferenced] to a
-///   `CircularBufferRef`.
+///   `CircularBuffer`.
 /// - Most of the circular buffer logic (such as adding/removing/getting elements) is implemented in
-///   `CircularBufferRef`.
+///   `CircularBuffer`.
 ///
 /// [dereferenced]: https://doc.rust-lang.org/reference/expressions/operator-expr.html#the-dereference-operator
 ///
-/// You generally don't need to interact with `CircularBufferRef` directly, although you may want to
+/// You generally don't need to interact with `CircularBuffer` directly, although you may want to
 /// use it as an input type to functions as shown in the following example.
 ///
 /// # Examples
 ///
 /// ```
-/// use circular_buffer::{CircularBufferRef, FixedCircularBuffer};
+/// use circular_buffer::{CircularBuffer, FixedCircularBuffer};
 ///
-/// fn push_some_elements(buf: &mut CircularBufferRef<u32>) {
+/// fn push_some_elements(buf: &mut CircularBuffer<u32>) {
 ///     buf.push_back(1);
 ///     buf.push_back(2);
 ///     buf.push_back(3);
@@ -306,11 +305,11 @@ struct Inner<T: ?Sized> {
 /// assert_eq!(fixed_buf, [1, 2, 3]);
 /// ```
 #[repr(transparent)]
-pub struct CircularBufferRef<T> {
+pub struct CircularBuffer<T> {
     inner: Inner<[MaybeUninit<T>]>,
 }
 
-impl<T> CircularBufferRef<T> {
+impl<T> CircularBuffer<T> {
     /// Returns the number of elements in the buffer.
     ///
     /// # Examples
@@ -1864,7 +1863,7 @@ impl<T> CircularBufferRef<T> {
     }
 }
 
-impl<T> CircularBufferRef<T>
+impl<T> CircularBuffer<T>
 where
     T: Clone,
 {
@@ -1953,7 +1952,7 @@ where
     }
 }
 
-impl<T> Index<usize> for CircularBufferRef<T> {
+impl<T> Index<usize> for CircularBuffer<T> {
     type Output = T;
 
     #[inline]
@@ -1962,14 +1961,14 @@ impl<T> Index<usize> for CircularBufferRef<T> {
     }
 }
 
-impl<T> IndexMut<usize> for CircularBufferRef<T> {
+impl<T> IndexMut<usize> for CircularBuffer<T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.get_mut(index).expect("index out-of-bounds")
     }
 }
 
-impl<T> Extend<T> for CircularBufferRef<T> {
+impl<T> Extend<T> for CircularBuffer<T> {
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
@@ -1981,7 +1980,7 @@ impl<T> Extend<T> for CircularBufferRef<T> {
     }
 }
 
-impl<'a, T> Extend<&'a T> for CircularBufferRef<T>
+impl<'a, T> Extend<&'a T> for CircularBuffer<T>
 where
     T: Copy,
 {
@@ -1996,7 +1995,7 @@ where
     }
 }
 
-impl<'a, T> IntoIterator for &'a CircularBufferRef<T> {
+impl<'a, T> IntoIterator for &'a CircularBuffer<T> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -2006,7 +2005,7 @@ impl<'a, T> IntoIterator for &'a CircularBufferRef<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut CircularBufferRef<T> {
+impl<'a, T> IntoIterator for &'a mut CircularBuffer<T> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 

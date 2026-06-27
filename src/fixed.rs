@@ -1,7 +1,7 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::CircularBufferRef;
+use crate::CircularBuffer;
 use crate::Inner;
 use crate::IntoIter;
 use crate::Iter;
@@ -75,25 +75,25 @@ impl<T, const N: usize> FixedCircularBuffer<T, N> {
         unsafe { uninit.assume_init() }
     }
 
-    pub const fn as_ref(&self) -> &CircularBufferRef<T> {
+    pub const fn as_ref(&self) -> &CircularBuffer<T> {
         // Mutate `&self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of type
         // `Inner<[X]>`.
         let inner_unsized: &Inner<[MaybeUninit<T>]> = &self.inner;
-        // Transmute the fat-pointer to a `CircularBufferRef<T>`.
+        // Transmute the fat-pointer to a `CircularBuffer<T>`.
         //
-        // SAFETY: `CircularBufferRef` uses `repr(transparent)`, therefore it has the same layout
-        // and representation as `Inner<[MaybeUninit<T>]>`.
+        // SAFETY: `CircularBuffer` uses `repr(transparent)`, therefore it has the same layout and
+        // representation as `Inner<[MaybeUninit<T>]>`.
         unsafe { mem::transmute(inner_unsized) }
     }
 
-    pub const fn as_mut(&mut self) -> &mut CircularBufferRef<T> {
+    pub const fn as_mut(&mut self) -> &mut CircularBuffer<T> {
         // Mutate `&mut self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of
         // type `Inner<[X]>`.
         let inner_unsized: &mut Inner<[MaybeUninit<T>]> = &mut self.inner;
-        // Transmute the fat-pointer to a `CircularBufferRef<T>`.
+        // Transmute the fat-pointer to a `CircularBuffer<T>`.
         //
-        // SAFETY: `CircularBufferRef` uses `repr(transparent)`, therefore it has the same layout
-        // and representation as `Inner<[MaybeUninit<T>]>`.
+        // SAFETY: `CircularBuffer` uses `repr(transparent)`, therefore it has the same layout and
+        // representation as `Inner<[MaybeUninit<T>]>`.
         unsafe { mem::transmute(inner_unsized) }
     }
 }
@@ -156,7 +156,7 @@ impl<T, const N: usize> FromIterator<T> for FixedCircularBuffer<T, N> {
 }
 
 impl<T, const N: usize> Deref for FixedCircularBuffer<T, N> {
-    type Target = CircularBufferRef<T>;
+    type Target = CircularBuffer<T>;
 
     fn deref(&self) -> &Self::Target {
         self.as_ref()
