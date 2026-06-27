@@ -1860,6 +1860,22 @@ impl<T> CircularBufferRef<T> {
     }
 }
 
+impl<T> Index<usize> for CircularBufferRef<T> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).expect("index out-of-bounds")
+    }
+}
+
+impl<T> IndexMut<usize> for CircularBufferRef<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index).expect("index out-of-bounds")
+    }
+}
+
 impl<T> Extend<T> for CircularBufferRef<T> {
     fn extend<I>(&mut self, iter: I)
     where
@@ -2176,14 +2192,14 @@ impl<T, const N: usize> Index<usize> for CircularBuffer<T, N> {
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        self.get(index).expect("index out-of-bounds")
+        self.as_ref().index(index)
     }
 }
 
 impl<T, const N: usize> IndexMut<usize> for CircularBuffer<T, N> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.get_mut(index).expect("index out-of-bounds")
+        self.as_mut().index_mut(index)
     }
 }
 
