@@ -327,3 +327,11 @@ where
         self.extend(other.iter().cloned());
     }
 }
+
+impl<T> Drop for HeapCircularBuffer<T> {
+    #[inline]
+    fn drop(&mut self) {
+        // `clear()` will make sure that every element is dropped in a safe way
+        self.clear();
+    }
+}
