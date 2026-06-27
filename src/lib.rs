@@ -1188,8 +1188,16 @@ impl<T> CircularBuffer<T> {
     /// assert_eq!(buf.nth_back(1), Some(&'c'));
     /// ```
     #[inline]
-    pub fn nth_back(&self, index: usize) -> Option<&T> {
-        let index = self.inner.size.checked_sub(index)?.checked_sub(1)?;
+    pub const fn nth_back(&self, index: usize) -> Option<&T> {
+        // TODO: Switch back to using `?` once it's stabilized in `const` contexts
+        let index = match self.inner.size.checked_sub(index) {
+            Some(index) => index,
+            None => return None,
+        };
+        let index = match index.checked_sub(1) {
+            Some(index) => index,
+            None => return None,
+        };
         self.get(index)
     }
 
@@ -1219,8 +1227,16 @@ impl<T> CircularBuffer<T> {
     /// assert_eq!(buf, ['a', 'b', 'z', 'd']);
     /// ```
     #[inline]
-    pub fn nth_back_mut(&mut self, index: usize) -> Option<&mut T> {
-        let index = self.inner.size.checked_sub(index)?.checked_sub(1)?;
+    pub const fn nth_back_mut(&mut self, index: usize) -> Option<&mut T> {
+        // TODO: Switch back to using `?` once it's stabilized in `const` contexts
+        let index = match self.inner.size.checked_sub(index) {
+            Some(index) => index,
+            None => return None,
+        };
+        let index = match index.checked_sub(1) {
+            Some(index) => index,
+            None => return None,
+        };
         self.get_mut(index)
     }
 
