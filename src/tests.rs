@@ -1,6 +1,8 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
+#![cfg(test)]
+
 macro_rules! assert_add_mod_eq {
     ( $expected:expr , crate :: add_mod ( $x:expr , $y:expr , $m:expr ) ) => {
         let x = $x;

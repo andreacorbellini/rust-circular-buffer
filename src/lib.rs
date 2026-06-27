@@ -247,12 +247,10 @@ mod drain;
 mod hash;
 mod io;
 mod iter;
+mod tests;
 
 #[cfg(any(feature = "embedded-io", feature = "embedded-io-async"))]
 mod embedded_io;
-
-#[cfg(test)]
-mod tests;
 
 pub mod fixed;
 
