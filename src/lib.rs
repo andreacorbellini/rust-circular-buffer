@@ -1881,6 +1881,141 @@ impl<'a, T> IntoIterator for &'a mut CircularBufferRef<T> {
     }
 }
 
+impl<T, U> PartialEq<CircularBufferRef<U>> for CircularBufferRef<T>
+where
+    T: PartialEq<U>,
+{
+    fn eq(&self, other: &CircularBufferRef<U>) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        let (a_left, a_right) = self.as_slices();
+        let (b_left, b_right) = other.as_slices();
+
+        match a_left.len().cmp(&b_left.len()) {
+            Ordering::Less => {
+                let x = a_left.len();
+                let y = b_left.len() - x;
+                a_left[..] == b_left[..x]
+                    && a_right[..y] == b_left[x..]
+                    && a_right[y..] == b_right[..]
+            }
+            Ordering::Greater => {
+                let x = b_left.len();
+                let y = a_left.len() - x;
+                a_left[..x] == b_left[..]
+                    && a_left[x..] == b_right[..y]
+                    && a_right[..] == b_right[y..]
+            }
+            Ordering::Equal => {
+                debug_assert_eq!(a_left.len(), b_left.len());
+                debug_assert_eq!(a_right.len(), b_right.len());
+                a_left == b_left && a_right == b_right
+            }
+        }
+    }
+}
+
+impl<T> Eq for CircularBufferRef<T> where T: Eq {}
+
+impl<T, U> PartialEq<[U]> for CircularBufferRef<T>
+where
+    T: PartialEq<U>,
+{
+    fn eq(&self, other: &[U]) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        let (a_left, a_right) = self.as_slices();
+        let (b_left, b_right) = other.split_at(a_left.len());
+
+        debug_assert_eq!(a_left.len(), b_left.len());
+        debug_assert_eq!(a_right.len(), b_right.len());
+        a_left == b_left && a_right == b_right
+    }
+}
+
+impl<T, U, const N: usize> PartialEq<[U; N]> for CircularBufferRef<T>
+where
+    T: PartialEq<U>,
+{
+    #[inline]
+    fn eq(&self, other: &[U; N]) -> bool {
+        self == &other[..]
+    }
+}
+
+impl<'a, T, U> PartialEq<&'a [U]> for CircularBufferRef<T>
+where
+    T: PartialEq<U>,
+{
+    #[inline]
+    fn eq(&self, other: &&'a [U]) -> bool {
+        self == *other
+    }
+}
+
+impl<'a, T, U> PartialEq<&'a mut [U]> for CircularBufferRef<T>
+where
+    T: PartialEq<U>,
+{
+    #[inline]
+    fn eq(&self, other: &&'a mut [U]) -> bool {
+        self == *other
+    }
+}
+
+impl<'a, T, U, const N: usize> PartialEq<&'a [U; N]> for CircularBufferRef<T>
+where
+    T: PartialEq<U>,
+{
+    #[inline]
+    fn eq(&self, other: &&'a [U; N]) -> bool {
+        self == *other
+    }
+}
+
+impl<'a, T, U, const N: usize> PartialEq<&'a mut [U; N]> for CircularBufferRef<T>
+where
+    T: PartialEq<U>,
+{
+    #[inline]
+    fn eq(&self, other: &&'a mut [U; N]) -> bool {
+        self == *other
+    }
+}
+
+impl<T, U> PartialOrd<CircularBufferRef<U>> for CircularBufferRef<T>
+where
+    T: PartialOrd<U>,
+{
+    fn partial_cmp(&self, other: &CircularBufferRef<U>) -> Option<Ordering> {
+        self.iter().partial_cmp(other.iter())
+    }
+}
+
+impl<T> Ord for CircularBufferRef<T>
+where
+    T: Ord,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.iter().cmp(other.iter())
+    }
+}
+
+impl<T> Hash for CircularBufferRef<T>
+where
+    T: Hash,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // TODO: Use `Hasher::write_length_prefix()` once it's stabilized
+        self.inner.size.hash(state);
+        self.iter().for_each(|item| item.hash(state));
+    }
+}
+
 /// A fixed-size circular buffer.
 ///
 /// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
@@ -2202,34 +2337,7 @@ where
     T: PartialEq<U>,
 {
     fn eq(&self, other: &CircularBuffer<U, M>) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        let (a_left, a_right) = self.as_slices();
-        let (b_left, b_right) = other.as_slices();
-
-        match a_left.len().cmp(&b_left.len()) {
-            Ordering::Less => {
-                let x = a_left.len();
-                let y = b_left.len() - x;
-                a_left[..] == b_left[..x]
-                    && a_right[..y] == b_left[x..]
-                    && a_right[y..] == b_right[..]
-            }
-            Ordering::Greater => {
-                let x = b_left.len();
-                let y = a_left.len() - x;
-                a_left[..x] == b_left[..]
-                    && a_left[x..] == b_right[..y]
-                    && a_right[..] == b_right[y..]
-            }
-            Ordering::Equal => {
-                debug_assert_eq!(a_left.len(), b_left.len());
-                debug_assert_eq!(a_right.len(), b_right.len());
-                a_left == b_left && a_right == b_right
-            }
-        }
+        self.as_ref().eq(other.as_ref())
     }
 }
 
@@ -2240,16 +2348,7 @@ where
     T: PartialEq<U>,
 {
     fn eq(&self, other: &[U]) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        let (a_left, a_right) = self.as_slices();
-        let (b_left, b_right) = other.split_at(a_left.len());
-
-        debug_assert_eq!(a_left.len(), b_left.len());
-        debug_assert_eq!(a_right.len(), b_right.len());
-        a_left == b_left && a_right == b_right
+        self.as_ref().eq(other)
     }
 }
 
@@ -2259,7 +2358,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &[U; M]) -> bool {
-        self == &other[..]
+        self.as_ref().eq(other)
     }
 }
 
@@ -2269,7 +2368,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &&'a [U]) -> bool {
-        self == *other
+        self.as_ref().eq(other)
     }
 }
 
@@ -2279,7 +2378,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &&'a mut [U]) -> bool {
-        self == *other
+        self.as_ref().eq(other)
     }
 }
 
@@ -2289,7 +2388,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &&'a [U; M]) -> bool {
-        self == *other
+        self.as_ref().eq(other)
     }
 }
 
@@ -2299,7 +2398,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &&'a mut [U; M]) -> bool {
-        self == *other
+        self.as_ref().eq(other)
     }
 }
 
@@ -2307,8 +2406,9 @@ impl<T, U, const N: usize, const M: usize> PartialOrd<CircularBuffer<U, M>> for 
 where
     T: PartialOrd<U>,
 {
+    #[inline]
     fn partial_cmp(&self, other: &CircularBuffer<U, M>) -> Option<Ordering> {
-        self.iter().partial_cmp(other.iter())
+        self.as_ref().partial_cmp(other.as_ref())
     }
 }
 
@@ -2316,8 +2416,9 @@ impl<T, const N: usize> Ord for CircularBuffer<T, N>
 where
     T: Ord,
 {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        self.iter().cmp(other.iter())
+        self.as_ref().cmp(other.as_ref())
     }
 }
 
@@ -2325,9 +2426,9 @@ impl<T, const N: usize> Hash for CircularBuffer<T, N>
 where
     T: Hash,
 {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.inner.size.hash(state);
-        self.iter().for_each(|item| item.hash(state));
+        self.as_ref().hash(state);
     }
 }
 
