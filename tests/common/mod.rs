@@ -1819,6 +1819,123 @@ macro_rules! define_tests {
                 assert!(!tracker.is_tracked("clone of d"));
             });
         }
+
+        #[test]
+        fn fill_efficiency() {
+            #[derive(Default, Debug)]
+            struct Cloneable {
+                num_clones: RefCell<usize>,
+                is_clone: bool,
+            }
+
+            impl Clone for Cloneable {
+                fn clone(&self) -> Self {
+                    if self.is_clone {
+                        panic!("cannot create clone of another clone");
+                    }
+                    *self.num_clones.borrow_mut() += 1;
+                    Self {
+                        num_clones: RefCell::default(),
+                        is_clone: true,
+                    }
+                }
+            }
+
+            let mut buf = $new_buffer::<Cloneable, 6>();
+
+            buf.fill(Cloneable::default());
+            assert_eq!(buf.len(), buf.capacity());
+
+            // The last element should be the original `value` that we passed. As such, the number of
+            // clones created should be `len - 1`
+            assert_eq!(*buf.back().unwrap().num_clones.borrow(), buf.len() - 1);
+
+            // Only the last element should have been cloned; the other elements should have not been
+            // cloned
+            for elem in buf.iter().take(buf.len() - 1) {
+                assert_eq!(*elem.num_clones.borrow(), 0);
+            }
+        }
+
+        #[test]
+        fn fill_unwind_safety() {
+            thread_local! {
+                static TRACKER: RefCell<DropTracker<String>> = RefCell::new(DropTracker::new());
+            }
+
+            #[derive(Debug)]
+            struct FaultyClonable {
+                drop_item: DropItem<String>,
+                num_clones: RefCell<usize>,
+                panic_at: usize,
+            }
+
+            impl Clone for FaultyClonable {
+                fn clone(&self) -> Self {
+                    *self.num_clones.borrow_mut() += 1;
+                    let num_clones = *self.num_clones.borrow();
+                    if num_clones >= self.panic_at {
+                        panic!("clone failed :(");
+                    }
+                    Self {
+                        drop_item: TRACKER.with_borrow_mut(|tracker| {
+                            tracker.track(format!("clone #{} of {}", num_clones, self.drop_item))
+                        }),
+                        num_clones: RefCell::default(),
+                        panic_at: self.panic_at,
+                    }
+                }
+            }
+
+            let mut buf = $new_buffer::<FaultyClonable, 6>();
+
+            let value = FaultyClonable {
+                drop_item: TRACKER.with_borrow_mut(|tracker| tracker.track("value".to_string())),
+                num_clones: RefCell::default(),
+                panic_at: 4,
+            };
+            let res = std::panic::catch_unwind(move || buf.fill(value));
+            assert!(res.is_err());
+
+            TRACKER.with_borrow(|tracker| {
+                tracker.assert_dropped("value");
+                tracker.assert_dropped("clone #1 of value");
+                tracker.assert_dropped("clone #2 of value");
+                tracker.assert_dropped("clone #3 of value");
+                assert!(!tracker.is_tracked("clone #4 of value"));
+                assert!(!tracker.is_tracked("clone #5 of value"));
+            });
+        }
+
+        #[test]
+        fn fill_with_unwind_safety() {
+            thread_local! {
+                static TRACKER: RefCell<DropTracker<u32>> = RefCell::new(DropTracker::new());
+            }
+
+            let mut buf = $new_buffer::<DropItem<u32>, 6>();
+
+            let res = std::panic::catch_unwind(move || {
+                let mut counter = 0u32;
+                buf.fill_with(|| {
+                    counter += 1;
+                    if counter > 4 {
+                        panic!("closure failed :(");
+                    }
+                    TRACKER.with_borrow_mut(|tracker| tracker.track(counter))
+                })
+            });
+            assert!(res.is_err());
+
+            TRACKER.with_borrow(|tracker| {
+                tracker.assert_dropped(&1);
+                tracker.assert_dropped(&2);
+                tracker.assert_dropped(&3);
+                tracker.assert_dropped(&4);
+                assert!(!tracker.is_tracked(&5));
+                assert!(!tracker.is_tracked(&6));
+            });
+        }
     };
 }
 
