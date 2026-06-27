@@ -1624,6 +1624,82 @@ macro_rules! define_tests {
             assert_eq!(buf.as_mut_circular_buffer(), other_arr.as_slice());
             assert_eq!(buf.as_mut_circular_buffer(), other_arr.as_mut_slice());
         }
+
+        #[test]
+        #[cfg(feature = "std")]
+        fn write() {
+            use std::io::Write;
+
+            let mut buf = $new_buffer::<u8, 4>();
+            assert_buf_eq!(buf, [] as [u8; 0]);
+
+            assert!(write!(&mut buf, "hello").is_ok());
+            assert_buf_eq!(buf, [b'e', b'l', b'l', b'o']);
+            assert!(write!(&mut buf, "world").is_ok());
+            assert_buf_eq!(buf, [b'o', b'r', b'l', b'd']);
+        }
+
+        #[test]
+        #[cfg(feature = "std")]
+        fn read() {
+            use std::io::Read;
+
+            fn read_all<R: Read>(mut buf: R) -> Vec<u8> {
+                let mut vec = Vec::new();
+                buf.read_to_end(&mut vec).expect("read failed");
+                vec
+            }
+
+            let mut buf = $new_buffer::<u8, 4>();
+            assert_buf_eq!(buf, [] as [u8; 0]);
+            assert_eq!(read_all(&mut buf), []);
+            assert_buf_eq!(buf, [] as [u8; 0]);
+
+            buf.push_back(b'a');
+            buf.push_back(b'b');
+            assert_buf_eq!(buf, [b'a', b'b']);
+            assert_eq!(read_all(&mut buf), [b'a', b'b']);
+            assert_buf_eq!(buf, [] as [u8; 0]);
+
+            buf.push_back(b'c');
+            buf.push_back(b'd');
+            buf.push_back(b'e');
+            buf.push_back(b'f');
+            assert_buf_eq!(buf, [b'c', b'd', b'e', b'f']);
+            assert_eq!(read_all(&mut buf), [b'c', b'd', b'e', b'f']);
+            assert_buf_eq!(buf, [] as [u8; 0]);
+        }
+
+        #[test]
+        #[cfg(feature = "std")]
+        fn read_buf() {
+            use std::io::BufRead;
+
+            let mut buf = $new_buffer::<u8, 4>();
+            assert_buf_eq!(buf, [] as [u8; 0]);
+            assert_eq!(buf.fill_buf().unwrap(), b"");
+
+            buf.push_back(b'a');
+            buf.push_back(b'b');
+            assert_buf_eq!(buf, [b'a', b'b']);
+            assert_eq!(buf.fill_buf().unwrap(), b"ab");
+
+            buf.push_back(b'c');
+            buf.push_back(b'd');
+            buf.push_back(b'e');
+            buf.push_back(b'f');
+            assert_buf_eq!(buf, [b'c', b'd', b'e', b'f']);
+            assert_eq!(buf.fill_buf().unwrap(), b"cd");
+
+            buf.consume(2);
+            assert_eq!(buf.fill_buf().unwrap(), b"ef");
+
+            buf.consume(2);
+            assert_eq!(buf.fill_buf().unwrap(), b"");
+
+            buf.consume(2);
+            assert_eq!(buf.fill_buf().unwrap(), b"");
+        }
     };
 }
 

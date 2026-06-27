@@ -11,9 +11,6 @@ use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::io::BufRead;
-use std::io::Read;
-use std::io::Write;
 
 /// Asserts that the specified buffer contains the specified elements.
 macro_rules! assert_buf_eq {
@@ -63,73 +60,6 @@ macro_rules! assert_buf_slices_eq {
         assert_eq!($buf.as_slices(), (&expected_front[..], &expected_back[..]));
         assert_eq!($buf.as_mut_slices(), (&mut expected_front[..], &mut expected_back[..]));
     }
-}
-
-#[test]
-fn write() {
-    let mut buf = FixedCircularBuffer::<u8, 4>::new();
-    assert_buf_eq!(buf, [] as [u8; 0]);
-
-    assert!(write!(&mut buf, "hello").is_ok());
-    assert_buf_eq!(buf, [b'e', b'l', b'l', b'o']);
-    assert!(write!(&mut buf, "world").is_ok());
-    assert_buf_eq!(buf, [b'o', b'r', b'l', b'd']);
-}
-
-#[test]
-fn read() {
-    fn read_all<R: Read>(mut buf: R) -> Vec<u8> {
-        let mut vec = Vec::new();
-        buf.read_to_end(&mut vec).expect("read failed");
-        vec
-    }
-
-    let mut buf = FixedCircularBuffer::<u8, 4>::new();
-    assert_buf_eq!(buf, [] as [u8; 0]);
-    assert_eq!(read_all(&mut buf), []);
-    assert_buf_eq!(buf, [] as [u8; 0]);
-
-    buf.push_back(b'a');
-    buf.push_back(b'b');
-    assert_buf_eq!(buf, [b'a', b'b']);
-    assert_eq!(read_all(&mut buf), [b'a', b'b']);
-    assert_buf_eq!(buf, [] as [u8; 0]);
-
-    buf.push_back(b'c');
-    buf.push_back(b'd');
-    buf.push_back(b'e');
-    buf.push_back(b'f');
-    assert_buf_eq!(buf, [b'c', b'd', b'e', b'f']);
-    assert_eq!(read_all(&mut buf), [b'c', b'd', b'e', b'f']);
-    assert_buf_eq!(buf, [] as [u8; 0]);
-}
-
-#[test]
-fn read_buf() {
-    let mut buf = FixedCircularBuffer::<u8, 4>::new();
-    assert_buf_eq!(buf, [] as [u8; 0]);
-    assert_eq!(buf.fill_buf().unwrap(), b"");
-
-    buf.push_back(b'a');
-    buf.push_back(b'b');
-    assert_buf_eq!(buf, [b'a', b'b']);
-    assert_eq!(buf.fill_buf().unwrap(), b"ab");
-
-    buf.push_back(b'c');
-    buf.push_back(b'd');
-    buf.push_back(b'e');
-    buf.push_back(b'f');
-    assert_buf_eq!(buf, [b'c', b'd', b'e', b'f']);
-    assert_eq!(buf.fill_buf().unwrap(), b"cd");
-
-    buf.consume(2);
-    assert_eq!(buf.fill_buf().unwrap(), b"ef");
-
-    buf.consume(2);
-    assert_eq!(buf.fill_buf().unwrap(), b"");
-
-    buf.consume(2);
-    assert_eq!(buf.fill_buf().unwrap(), b"");
 }
 
 #[test]
