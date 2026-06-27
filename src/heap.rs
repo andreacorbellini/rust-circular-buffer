@@ -262,6 +262,25 @@ impl<T> HeapCircularBuffer<T> {
         // and representation as `Inner<[MaybeUninit<T>]>`.
         unsafe { mem::transmute::<&mut Inner<[MaybeUninit<T>]>, &'a mut CircularBuffer<T>>(inner) }
     }
+
+    /// Converts the `HeapCircularBuffer<T>` into a `Box<CircularBuffer<T>>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::HeapCircularBuffer;
+    ///
+    /// let mut buf = HeapCircularBuffer::<u32>::with_capacity(5);
+    /// buf.extend([1, 2, 3]);
+    ///
+    /// let boxed_buf = buf.into_boxed_circular_buffer();
+    /// assert_eq!(&*boxed_buf, [1, 2, 3]);
+    /// ```
+    pub fn into_boxed_circular_buffer(self) -> Box<CircularBuffer<T>> {
+        // SAFETY: The pointer is valid because it comes from a reference, and we have exclusive
+        // ownership of the memory that is pointed to.
+        unsafe { Box::from_raw(self.leak()) }
+    }
 }
 
 impl<T> Deref for HeapCircularBuffer<T> {
