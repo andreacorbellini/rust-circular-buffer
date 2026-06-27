@@ -26,10 +26,24 @@ where
     FixedCircularBuffer::<T, N>::from_iter(input)
 }
 
+#[must_use]
+#[cfg(feature = "std")]
+fn fixed_circular_buffer_boxed<T, const N: usize>() -> Box<FixedCircularBuffer<T, N>> {
+    FixedCircularBuffer::<T, N>::boxed()
+}
+
+#[cfg(not(feature = "std"))]
+#[allow(dead_code)]
+#[allow(clippy::extra_unused_type_parameters)]
+fn fixed_circular_buffer_boxed<T, const N: usize>() -> ! {
+    unimplemented!()
+}
+
 common::define_tests!(
     fixed_circular_buffer,
     fixed_circular_buffer_from,
     fixed_circular_buffer_from_iter,
+    fixed_circular_buffer_boxed,
 );
 
 #[test]

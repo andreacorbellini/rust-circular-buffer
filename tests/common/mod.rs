@@ -1,6 +1,8 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
+pub(crate) mod randomized;
+
 use circular_buffer::CircularBuffer;
 
 /// Returns `true` if the elements of the given buffer are all contained in a contiguous slice.
@@ -61,7 +63,7 @@ macro_rules! assert_buf_slices_eq {
 }
 
 macro_rules! define_tests {
-    ( $new_buffer:ident , $buffer_from:ident , $buffer_from_iter:ident $(,)? ) => {
+    ( $new_buffer:ident , $buffer_from:ident , $buffer_from_iter:ident , $new_buffer_boxed:ident $(,)? ) => {
         use core::cell::RefCell;
         use core::ops::Bound;
         use drop_tracker::DropItem;
@@ -2264,6 +2266,88 @@ macro_rules! define_tests {
                     buf.consume(2);
                     assert_eq!(buf.fill_buf().await.unwrap(), b"");
                 });
+            }
+        }
+
+        #[cfg(feature = "std")]
+        mod randomized {
+            use super::$new_buffer;
+            use super::$new_buffer_boxed;
+            use drop_tracker::DropItem;
+            use drop_tracker::DropTracker;
+            use rand::Rng;
+            use rand::RngExt;
+            use rand::distr::Distribution;
+            use rand::distr::StandardUniform;
+            use std::mem;
+            use std::rc::Rc;
+            use $crate::common::randomized;
+
+            #[test]
+            fn zero() {
+                let mut buf = $new_buffer::<u64, 0>();
+                randomized::test(&mut *buf);
+            }
+
+            #[test]
+            fn small() {
+                let mut buf = $new_buffer::<u64, 10>();
+                randomized::test(&mut *buf);
+            }
+
+            #[test]
+            fn medium() {
+                let mut buf = $new_buffer::<u64, 1_000>();
+                randomized::test(&mut *buf);
+            }
+
+            #[test]
+            fn large() {
+                let mut buf = $new_buffer_boxed::<u64, 1_000_000>();
+                randomized::test(&mut *buf);
+            }
+
+            #[test]
+            fn largest_with_zero_sized_struct() {
+                type Zst = ();
+                assert_eq!(mem::size_of::<Zst>(), 0);
+                let mut buf = $new_buffer::<Zst, { usize::MAX }>();
+                randomized::test(&mut *buf);
+            }
+
+            #[test]
+            #[allow(static_mut_refs)]
+            fn drop() {
+                static mut TRACKER: Option<DropTracker<u64>> = None;
+
+                // SAFETY: the assumption is that this test function will be called only once
+                unsafe {
+                    TRACKER.replace(DropTracker::new());
+                }
+
+                fn tracker() -> &'static DropTracker<u64> {
+                    unsafe { TRACKER.as_ref().unwrap() }
+                }
+
+                fn tracker_mut() -> &'static mut DropTracker<u64> {
+                    unsafe { TRACKER.as_mut().unwrap() }
+                }
+
+                #[derive(Clone, PartialEq, Eq, Debug)]
+                struct Item(Rc<DropItem<u64>>);
+
+                impl Distribution<Item> for StandardUniform {
+                    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Item {
+                        let n = rng.random();
+                        Item(Rc::new(tracker_mut().track(n)))
+                    }
+                }
+
+                let mut buf = $new_buffer_boxed::<Item, 100>();
+                randomized::test(&mut *buf);
+                mem::drop(buf);
+
+                tracker().assert_fully_dropped();
             }
         }
     };

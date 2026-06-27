@@ -1,19 +1,16 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-#![allow(static_mut_refs)]
 #![cfg(feature = "std")]
 
-//! Compare the correctness of `FixedCircularBuffer` against a reference implementation (that is
-//! assumed to be fully correct).
+//! Compare the correctness of `CircularBuffer` against a reference implementation (that is assumed
+//! to be fully correct).
 //!
-//! This module applies random actions (like `push_back`, `pop_front`, ...) to a
-//! `FixedCircularBuffer` and to a reference implementation at the same time, and compares their
-//! result after each action. The reference implementation currently is based on top of `VecDeque`.
+//! This module applies random actions (like `push_back`, `pop_front`, ...) to a `CircularBuffer`
+//! and to a reference implementation at the same time, and compares their result after each action.
+//! The reference implementation currently is based on top of `VecDeque`.
 
-use circular_buffer::FixedCircularBuffer;
-use drop_tracker::DropItem;
-use drop_tracker::DropTracker;
+use circular_buffer::CircularBuffer;
 use rand::Rng;
 use rand::RngExt;
 use rand::distr::Distribution;
@@ -21,11 +18,9 @@ use rand::distr::StandardUniform;
 use rand::distr::Uniform;
 use std::collections::VecDeque;
 use std::fmt;
-use std::mem;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::ops::RangeInclusive;
-use std::rc::Rc;
 
 #[cfg(not(miri))]
 const ROUNDS: usize = 200_000;
@@ -229,7 +224,7 @@ trait Perform<T> {
     fn perform(&mut self, action: Action<T>) -> Result<T>;
 }
 
-impl<T, const N: usize> Perform<T> for FixedCircularBuffer<T, N>
+impl<T> Perform<T> for CircularBuffer<T>
 where
     T: Clone,
 {
@@ -420,13 +415,13 @@ where
     }
 }
 
-fn test<T, const N: usize>()
+pub(crate) fn test<T>(buffer: &mut CircularBuffer<T>)
 where
     T: Clone + PartialEq + fmt::Debug,
     StandardUniform: Distribution<T>,
 {
-    let mut reference = Reference::<T>::new(N);
-    let mut buffer = FixedCircularBuffer::<T, N>::boxed();
+    let capacity = buffer.capacity();
+    let mut reference = Reference::<T>::new(capacity);
     let mut rng = rand::rng();
 
     for _ in 0..ROUNDS {
@@ -441,7 +436,7 @@ where
 
         println!("{action:?}");
 
-        // Perform the action on both the reference implementation and the FixedCircularBuffer
+        // Perform the action on both the reference implementation and the CircularBuffer
         let expected = reference.perform(action.clone());
         let actual = buffer.perform(action);
 
@@ -478,63 +473,4 @@ where
             buffer.iter_mut().rev().collect::<Vec<&mut T>>()
         );
     }
-}
-
-#[test]
-fn zero() {
-    test::<u64, 0>();
-}
-
-#[test]
-fn small() {
-    test::<u64, 10>();
-}
-
-#[test]
-fn medium() {
-    test::<u64, 1_000>();
-}
-
-#[test]
-fn large() {
-    test::<u64, 1_000_000>();
-}
-
-#[test]
-fn largest_with_zero_sized_struct() {
-    type Zst = ();
-    assert_eq!(mem::size_of::<Zst>(), 0);
-    test::<Zst, { usize::MAX }>();
-}
-
-#[test]
-fn drop() {
-    static mut TRACKER: Option<DropTracker<u64>> = None;
-
-    // SAFETY: the assumption is that this test function will be called only once
-    unsafe {
-        TRACKER.replace(DropTracker::new());
-    }
-
-    fn tracker() -> &'static DropTracker<u64> {
-        unsafe { TRACKER.as_ref().unwrap() }
-    }
-
-    fn tracker_mut() -> &'static mut DropTracker<u64> {
-        unsafe { TRACKER.as_mut().unwrap() }
-    }
-
-    #[derive(Clone, PartialEq, Eq, Debug)]
-    struct Item(Rc<DropItem<u64>>);
-
-    impl Distribution<Item> for StandardUniform {
-        fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Item {
-            let n = rng.random();
-            Item(Rc::new(tracker_mut().track(n)))
-        }
-    }
-
-    test::<Item, 100>();
-
-    tracker().assert_fully_dropped();
 }
