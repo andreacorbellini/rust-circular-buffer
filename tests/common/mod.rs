@@ -2052,6 +2052,51 @@ macro_rules! define_tests {
             assert_eq!(hash_4, hash(&$buffer_from::<u32, 4, _>([1, 2, 3, 4])));
             assert_eq!(hash_4, hash(&$buffer_from::<u32, 8, _>([1, 2, 3, 4])));
         }
+
+        #[test]
+        fn debug() {
+            let mut buf = $new_buffer::<u32, 4>();
+            assert_buf_eq!(buf, [] as [u32; 0]);
+            assert_eq!(format!("{:?}", buf), "[_, _, _, _]");
+            assert_eq!(format!("{:x?}", buf), "[_, _, _, _]");
+            assert_eq!(format!("{:X?}", buf), "[_, _, _, _]");
+
+            buf.push_back(10);
+            assert_buf_eq!(buf, [10]);
+            assert_eq!(format!("{:?}", buf), "[10, _, _, _]");
+            assert_eq!(format!("{:x?}", buf), "[a, _, _, _]");
+            assert_eq!(format!("{:X?}", buf), "[A, _, _, _]");
+
+            buf.push_back(20);
+            assert_buf_eq!(buf, [10, 20]);
+            assert_eq!(format!("{:?}", buf), "[10, 20, _, _]");
+            assert_eq!(format!("{:x?}", buf), "[a, 14, _, _]");
+            assert_eq!(format!("{:X?}", buf), "[A, 14, _, _]");
+
+            buf.push_back(30);
+            assert_buf_eq!(buf, [10, 20, 30]);
+            assert_eq!(format!("{:?}", buf), "[10, 20, 30, _]");
+            assert_eq!(format!("{:x?}", buf), "[a, 14, 1e, _]");
+            assert_eq!(format!("{:X?}", buf), "[A, 14, 1E, _]");
+
+            buf.push_back(40);
+            assert_buf_eq!(buf, [10, 20, 30, 40]);
+            assert_eq!(format!("{:?}", buf), "[10, 20, 30, 40]");
+            assert_eq!(format!("{:x?}", buf), "[a, 14, 1e, 28]");
+            assert_eq!(format!("{:X?}", buf), "[A, 14, 1E, 28]");
+
+            buf.push_back(50);
+            assert_buf_eq!(buf, [20, 30, 40, 50]);
+            assert_eq!(format!("{:?}", buf), "[20, 30, 40, 50]");
+            assert_eq!(format!("{:x?}", buf), "[14, 1e, 28, 32]");
+            assert_eq!(format!("{:X?}", buf), "[14, 1E, 28, 32]");
+
+            buf.push_back(60);
+            assert_buf_eq!(buf, [30, 40, 50, 60]);
+            assert_eq!(format!("{:?}", buf), "[30, 40, 50, 60]");
+            assert_eq!(format!("{:x?}", buf), "[1e, 28, 32, 3c]");
+            assert_eq!(format!("{:X?}", buf), "[1E, 28, 32, 3C]");
+        }
     };
 }
 
