@@ -1600,6 +1600,36 @@ fn eq_disjoint() {
 }
 
 #[test]
+fn eq_mixed_types() {
+    let mut buf = CircularBuffer::<u32, 5>::from_iter([1, 2, 3]);
+    let mut other_buf = CircularBuffer::<u32, 20>::from_iter([1, 2, 3]);
+    let mut other_arr = [1, 2, 3];
+
+    assert_eq!(buf, buf);
+    assert_eq!(buf, other_buf);
+    assert_eq!(buf, other_buf.as_ref());
+    assert_eq!(buf, other_buf.as_mut());
+    assert_eq!(buf, other_arr);
+    assert_eq!(buf, other_arr.as_slice());
+    assert_eq!(buf, other_arr.as_mut_slice());
+
+    assert_eq!(buf.as_ref(), buf);
+    assert_eq!(buf.as_ref(), other_buf);
+    assert_eq!(buf.as_ref(), other_buf.as_ref());
+    assert_eq!(buf.as_ref(), other_buf.as_mut());
+    assert_eq!(buf.as_ref(), other_arr);
+    assert_eq!(buf.as_ref(), other_arr.as_slice());
+    assert_eq!(buf.as_ref(), other_arr.as_mut_slice());
+
+    assert_eq!(buf.as_mut(), other_buf);
+    assert_eq!(buf.as_mut(), other_buf.as_ref());
+    assert_eq!(buf.as_mut(), other_buf.as_mut());
+    assert_eq!(buf.as_mut(), other_arr);
+    assert_eq!(buf.as_mut(), other_arr.as_slice());
+    assert_eq!(buf.as_mut(), other_arr.as_mut_slice());
+}
+
+#[test]
 fn write() {
     let mut buf = CircularBuffer::<u8, 4>::new();
     assert_buf_eq!(buf, [] as [u8; 0]);
