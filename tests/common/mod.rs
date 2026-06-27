@@ -1303,6 +1303,234 @@ macro_rules! define_tests {
             tracker.assert_fully_dropped();
             tracker.assert_all_dropped([1, 2, 3, 4, 5, 6]);
         }
+
+        #[test]
+        fn drain_front() {
+            // Fully consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            let mut drain = buf.drain(..4);
+            assert_eq!(drain.next().unwrap(), 1);
+            assert_eq!(drain.next().unwrap(), 2);
+            assert_eq!(drain.next().unwrap(), 3);
+            assert_eq!(drain.next().unwrap(), 4);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            drop(drain);
+            assert_buf_eq!(buf, [5, 6, 7]);
+            tracker.assert_all_alive([5, 6, 7]);
+            tracker.assert_all_dropped([1, 2, 3, 4]);
+
+            // Partially consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            let mut drain = buf.drain(..4);
+            assert_eq!(drain.next().unwrap(), 1);
+            assert_eq!(drain.next().unwrap(), 2);
+            drop(drain);
+            assert_buf_eq!(buf, [5, 6, 7]);
+            tracker.assert_all_alive([5, 6, 7]);
+            tracker.assert_all_dropped([1, 2, 3, 4]);
+
+            // Do not consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            let _ = buf.drain(..4);
+            assert_buf_eq!(buf, [5, 6, 7]);
+            tracker.assert_all_alive([5, 6, 7]);
+            tracker.assert_all_dropped([1, 2, 3, 4]);
+        }
+
+        #[test]
+        fn drain_back() {
+            // Fully consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            let mut drain = buf.drain(3..);
+            assert_eq!(drain.next().unwrap(), 4);
+            assert_eq!(drain.next().unwrap(), 5);
+            assert_eq!(drain.next().unwrap(), 6);
+            assert_eq!(drain.next().unwrap(), 7);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            drop(drain);
+            assert_buf_eq!(buf, [1, 2, 3]);
+            tracker.assert_all_alive([1, 2, 3]);
+            tracker.assert_all_dropped([4, 5, 6, 7]);
+
+            // Partially consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            let mut drain = buf.drain(3..);
+            assert_eq!(drain.next().unwrap(), 4);
+            assert_eq!(drain.next().unwrap(), 5);
+            drop(drain);
+            assert_buf_eq!(buf, [1, 2, 3]);
+            tracker.assert_all_alive([1, 2, 3]);
+            tracker.assert_all_dropped([4, 5, 6, 7]);
+
+            // Do not consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            let _ = buf.drain(3..);
+            assert_buf_eq!(buf, [1, 2, 3]);
+            tracker.assert_all_alive([1, 2, 3]);
+            tracker.assert_all_dropped([4, 5, 6, 7]);
+        }
+
+        #[test]
+        fn drain_middle_contiguous() {
+            // Fully consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            assert!(is_contiguous(&buf));
+            let mut drain = buf.drain(2..5);
+            assert_eq!(drain.next().unwrap(), 3);
+            assert_eq!(drain.next().unwrap(), 4);
+            assert_eq!(drain.next().unwrap(), 5);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            drop(drain);
+            assert_buf_eq!(buf, [1, 2, 6, 7]);
+            tracker.assert_all_alive([1, 2, 6, 7]);
+            tracker.assert_all_dropped([3, 4, 5]);
+
+            // Partially consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            assert!(is_contiguous(&buf));
+            let mut drain = buf.drain(2..5);
+            assert_eq!(drain.next().unwrap(), 3);
+            assert_eq!(drain.next().unwrap(), 4);
+            drop(drain);
+            assert_buf_eq!(buf, [1, 2, 6, 7]);
+            tracker.assert_all_alive([1, 2, 6, 7]);
+            tracker.assert_all_dropped([3, 4, 5]);
+
+            // Do not consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+            assert!(is_contiguous(&buf));
+            let _ = buf.drain(2..5);
+            assert_buf_eq!(buf, [1, 2, 6, 7]);
+            tracker.assert_all_alive([1, 2, 6, 7]);
+            tracker.assert_all_dropped([3, 4, 5]);
+        }
+
+        #[test]
+        fn drain_middle_disjoint() {
+            // Fully consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(
+                tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            );
+            assert!(!is_contiguous(&buf));
+            let mut drain = buf.drain(3..7);
+            assert_eq!(drain.next().unwrap(), 9);
+            assert_eq!(drain.next().unwrap(), 10);
+            assert_eq!(drain.next().unwrap(), 11);
+            assert_eq!(drain.next().unwrap(), 12);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            drop(drain);
+            assert_buf_eq!(buf, [6, 7, 8, 13, 14, 15]);
+            tracker.assert_all_alive([6, 7, 8, 13, 14, 15]);
+            tracker.assert_all_dropped([9, 10, 11, 12]);
+
+            // Partially consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(
+                tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            );
+            assert!(!is_contiguous(&buf));
+            let mut drain = buf.drain(3..7);
+            assert_eq!(drain.next().unwrap(), 9);
+            assert_eq!(drain.next().unwrap(), 10);
+            drop(drain);
+            assert_buf_eq!(buf, [6, 7, 8, 13, 14, 15]);
+            tracker.assert_all_alive([6, 7, 8, 13, 14, 15]);
+            tracker.assert_all_dropped([9, 10, 11, 12]);
+
+            // Do not consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(
+                tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            );
+            assert!(!is_contiguous(&buf));
+            let _ = buf.drain(3..7);
+            assert_buf_eq!(buf, [6, 7, 8, 13, 14, 15]);
+            tracker.assert_all_alive([6, 7, 8, 13, 14, 15]);
+            tracker.assert_all_dropped([9, 10, 11, 12]);
+        }
+
+        #[test]
+        fn drain_full() {
+            // Fully consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4]));
+            let mut drain = buf.drain(..);
+            assert_eq!(drain.next().unwrap(), 1);
+            assert_eq!(drain.next().unwrap(), 2);
+            assert_eq!(drain.next().unwrap(), 3);
+            assert_eq!(drain.next().unwrap(), 4);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            drop(drain);
+            assert_buf_eq!(buf, [] as [i32; 0]);
+            tracker.assert_fully_dropped();
+
+            // Partially consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4]));
+            let mut drain = buf.drain(..);
+            assert_eq!(drain.next().unwrap(), 1);
+            assert_eq!(drain.next().unwrap(), 2);
+            drop(drain);
+            assert_buf_eq!(buf, [] as [i32; 0]);
+            tracker.assert_fully_dropped();
+
+            // Do not consume the drain
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4]));
+            let _ = buf.drain(..);
+            assert_buf_eq!(buf, [] as [i32; 0]);
+            tracker.assert_fully_dropped();
+        }
+
+        #[test]
+        fn drain_full_no_items() {
+            // Fully consume the drain
+            let mut buf = $new_buffer::<i32, 10>();
+            let mut drain = buf.drain(..);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            drop(drain);
+            assert_buf_eq!(buf, [] as [i32; 0]);
+
+            // Do not consume the drain
+            let mut buf = $new_buffer::<i32, 10>();
+            let _ = buf.drain(..);
+            assert_buf_eq!(buf, [] as [i32; 0]);
+        }
+
+        #[test]
+        fn drain_empty() {
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4]));
+            let mut drain = buf.drain(0..0);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            assert_eq!(drain.next(), None);
+            drop(drain);
+            assert_buf_eq!(buf, [1, 2, 3, 4]);
+            tracker.assert_fully_alive();
+        }
     };
 }
 
