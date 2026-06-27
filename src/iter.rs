@@ -364,3 +364,64 @@ pub(crate) mod fixed {
         }
     }
 }
+
+#[cfg(feature = "alloc")]
+pub(crate) mod heap {
+    use crate::HeapCircularBuffer;
+    use core::fmt;
+    use core::iter::FusedIterator;
+
+    /// An owning [iterator](core::iter::Iterator) over the elements of a [`HeapCircularBuffer`].
+    ///
+    /// This yields the elements of a `HeapCircularBuffer` from front to back.
+    ///
+    /// This struct is created when iterating over a `HeapCircularBuffer`. See the documentation for
+    /// [`IntoIterator`] for more details.
+    pub struct IntoIter<T> {
+        inner: HeapCircularBuffer<T>,
+    }
+
+    impl<T> IntoIter<T> {
+        pub(crate) const fn new(inner: HeapCircularBuffer<T>) -> Self {
+            Self { inner }
+        }
+    }
+
+    impl<T> Iterator for IntoIter<T> {
+        type Item = T;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.inner.pop_front()
+        }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let len = self.inner.len();
+            (len, Some(len))
+        }
+    }
+
+    impl<T> ExactSizeIterator for IntoIter<T> {
+        #[inline]
+        fn len(&self) -> usize {
+            self.inner.len()
+        }
+    }
+
+    impl<T> FusedIterator for IntoIter<T> {}
+
+    impl<T> DoubleEndedIterator for IntoIter<T> {
+        fn next_back(&mut self) -> Option<Self::Item> {
+            self.inner.pop_back()
+        }
+    }
+
+    impl<T> fmt::Debug for IntoIter<T>
+    where
+        T: fmt::Debug,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.inner.fmt(f)
+        }
+    }
+}

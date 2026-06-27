@@ -1,8 +1,12 @@
 // Copyright © 2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
+//! Heap-allocated, variable-size circular buffer.
+
 use crate::CircularBuffer;
 use crate::Inner;
+use crate::Iter;
+use crate::IterMut;
 use ::alloc::alloc;
 use ::alloc::alloc::Layout;
 use ::alloc::alloc::LayoutError;
@@ -18,6 +22,8 @@ use core::ptr;
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
 use ::alloc::boxed::Box;
+
+pub use crate::iter::heap::IntoIter;
 
 /// A heap-allocated, variable-size circular buffer.
 ///
@@ -271,5 +277,35 @@ impl<T> IndexMut<usize> for HeapCircularBuffer<T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.deref_mut().index_mut(index)
+    }
+}
+
+impl<T> IntoIterator for HeapCircularBuffer<T> {
+    type Item = T;
+    type IntoIter = IntoIter<T>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter::new(self)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a HeapCircularBuffer<T> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        Iter::new(self)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut HeapCircularBuffer<T> {
+    type Item = &'a mut T;
+    type IntoIter = IterMut<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        IterMut::new(self)
     }
 }

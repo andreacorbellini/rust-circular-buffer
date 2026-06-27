@@ -244,9 +244,6 @@ mod drain;
 mod hash;
 mod iter;
 
-#[cfg(feature = "alloc")]
-mod heap;
-
 #[cfg(feature = "std")]
 mod io;
 
@@ -257,6 +254,9 @@ mod embedded_io;
 mod tests;
 
 pub mod fixed;
+
+#[cfg(feature = "alloc")]
+pub mod heap;
 
 use core::mem;
 use core::mem::MaybeUninit;
