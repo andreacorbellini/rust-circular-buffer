@@ -6,6 +6,8 @@ use crate::Inner;
 use crate::IntoIter;
 use crate::Iter;
 use crate::IterMut;
+use core::borrow::Borrow;
+use core::borrow::BorrowMut;
 use core::mem;
 use core::mem::MaybeUninit;
 use core::ops::Deref;
@@ -163,13 +165,43 @@ impl<T, const N: usize> FromIterator<T> for FixedCircularBuffer<T, N> {
 impl<T, const N: usize> Deref for FixedCircularBuffer<T, N> {
     type Target = CircularBuffer<T>;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.as_circular_buffer()
     }
 }
 
 impl<T, const N: usize> DerefMut for FixedCircularBuffer<T, N> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_circular_buffer()
+    }
+}
+
+impl<T, const N: usize> Borrow<CircularBuffer<T>> for FixedCircularBuffer<T, N> {
+    #[inline]
+    fn borrow(&self) -> &CircularBuffer<T> {
+        self.as_circular_buffer()
+    }
+}
+
+impl<T, const N: usize> BorrowMut<CircularBuffer<T>> for FixedCircularBuffer<T, N> {
+    #[inline]
+    fn borrow_mut(&mut self) -> &mut CircularBuffer<T> {
+        self.as_mut_circular_buffer()
+    }
+}
+
+impl<T, const N: usize> AsRef<CircularBuffer<T>> for FixedCircularBuffer<T, N> {
+    #[inline]
+    fn as_ref(&self) -> &CircularBuffer<T> {
+        self.as_circular_buffer()
+    }
+}
+
+impl<T, const N: usize> AsMut<CircularBuffer<T>> for FixedCircularBuffer<T, N> {
+    #[inline]
+    fn as_mut(&mut self) -> &mut CircularBuffer<T> {
         self.as_mut_circular_buffer()
     }
 }
