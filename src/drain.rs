@@ -14,7 +14,7 @@ use core::ptr;
 use core::ptr::NonNull;
 
 /// A draining [iterator](core::iter::Iterator) that removes and returns elements from a
-/// `CircularBuffer`.
+/// [`CircularBuffer`].
 ///
 /// This struct is created by [`CircularBuffer::drain()`]. See its documentation for more details.
 pub struct Drain<'a, T> {

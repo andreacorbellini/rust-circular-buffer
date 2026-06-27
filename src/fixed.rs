@@ -16,11 +16,14 @@ use core::ptr;
 
 /// A fixed-size circular buffer.
 ///
-/// A `FixedCircularBuffer` may live on the stack. Wrap the `FixedCircularBuffer` in a
-/// [`Box`](std::boxed) using [`FixedCircularBuffer::boxed()`] if you need the struct to be
-/// heap-allocated.
+/// A `FixedCircularBuffer` has a fixed capacity that is specified at compile-time, similar to an
+/// [`array`]. It may live on the stack or be initialized in `const` contexts.
 ///
-/// See the [module-level documentation](self) for more details and examples.
+/// Wrap the `FixedCircularBuffer` in a [`Box`](std::boxed) using [`FixedCircularBuffer::boxed()`]
+/// if you need the struct to be heap-allocated. Consider using [`HeapCircularBuffer`] if the
+/// capacity cannot be specified at compile-time.
+///
+/// See the [module-level documentation](crate) for more details and examples.
 #[repr(transparent)]
 pub struct FixedCircularBuffer<T, const N: usize> {
     inner: Inner<[MaybeUninit<T>; N]>,

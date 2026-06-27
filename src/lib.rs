@@ -3,20 +3,31 @@
 
 //! This crate implements a [circular buffer], also known as cyclic buffer, circular queue or ring.
 //!
-//! The main struct is [`CircularBuffer`]. It can live on the stack and does not require any heap
-//! memory allocation. A `CircularBuffer` is sequence of elements with a maximum capacity: elements
-//! can be added to the buffer, and once the maximum capacity is reached, the elements at the start
-//! of the buffer are discarded and overwritten.
+//! A **circular buffer** is a sequence of elements with a maximum capacity: elements can be added
+//! to the buffer, and once the maximum capacity is reached, the elements at the start of the buffer
+//! are discarded and overwritten.
 //!
-//! [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
+//! The main structs are [`CircularBuffer`], [`FixedCircularBuffer`], and [`HeapCircularBuffer`].
+//! You can think of them as semantically equivalent to [`slice`], [`array`], and [`Vec`]
+//! respectively:
+//!
+//! * A [`CircularBuffer`] provides a _reference_ to either a `FixedCircularBuffer` or a
+//!   `HeapCircularBuffer`. It can be used to get/add/remove elements.
+//! * A [`FixedCircularBuffer`] is an _owned_ fixed-capacity buffer that can live on the stack or
+//!   can be constructed in `const` contexts.
+//! * A [`HeapCircularBuffer`] is an _owned_ buffer that is heap-allocated and can its capacity can
+//!   be adjusted at runtime.
+//!
+//! `CircularBuffer` and `FixedCircularBuffer` can be used in a [`no_std` environment].
+//! `HeapCircularBuffer` requires either the [`std` library] or the [`alloc` crate].
 //!
 //! # Examples
 //!
 //! ```
-//! use circular_buffer::CircularBuffer;
+//! use circular_buffer::FixedCircularBuffer;
 //!
 //! // Initialize a new, empty circular buffer with a capacity of 5 elements
-//! let mut buf = CircularBuffer::<u32, 5>::new();
+//! let mut buf = FixedCircularBuffer::<u32, 5>::new();
 //!
 //! // Add a few elements
 //! buf.push_back(1);
@@ -66,7 +77,7 @@
 //!
 //! ## Iterators
 //!
-//! * [`into_iter()`](CircularBuffer::into_iter)
+//! * [`into_iter()`](FixedCircularBuffer::into_iter)
 //! * [`iter()`](CircularBuffer::iter), [`iter_mut()`](CircularBuffer::iter_mut)
 //! * [`range()`](CircularBuffer::range), [`range_mut()`](CircularBuffer::range_mut)
 //! * [`drain()`](CircularBuffer::drain)
@@ -82,11 +93,11 @@
 //! # #[allow(unused_must_use)]
 //! # #[cfg(feature = "std")]
 //! # {
-//! use circular_buffer::CircularBuffer;
+//! use circular_buffer::FixedCircularBuffer;
 //! use std::io::Read;
 //! use std::io::Write;
 //!
-//! let mut buf = CircularBuffer::<u8, 5>::new();
+//! let mut buf = FixedCircularBuffer::<u8, 5>::new();
 //! assert_eq!(buf, b"");
 //!
 //! write!(buf, "hello");
@@ -102,6 +113,9 @@
 //! assert_eq!(buf, b"");
 //! # }
 //! ```
+//!
+//! For `no_std` environments, this crate provides optional integration with the [`embedded_io`] and
+//! [`embedded_io_async`] crates.
 //!
 //! # Time complexity
 //!
@@ -129,8 +143,9 @@
 //!
 //! # Stack vs heap
 //!
-//! The [`CircularBuffer`] struct is compact and has a fixed size, so it may live on the stack.
-//! This can provide optimal performance for small buffers as memory allocation can be avoided.
+//! The [`FixedCircularBuffer`] struct is compact and has a fixed size specified at compile time, so
+//! it may live on the stack. This can provide optimal performance for small buffers as memory
+//! allocation can be avoided.
 //!
 //! For large buffers, or for buffers that need to be passed around often, it can be useful to
 //! allocate the buffer on the heap. Use a [`Box`](std::boxed) for that:
@@ -150,6 +165,28 @@
 //!
 //! buf.truncate_back(128);
 //! assert_eq!(buf.len(), 128);
+//! # }
+//! ```
+//!
+//! For buffers whose capacity is not known at compile time, [`HeapCircularBuffer`] is the solution:
+//!
+//! ```
+//! # #[cfg(feature = "std")]
+//! # {
+//! use circular_buffer::HeapCircularBuffer;
+//!
+//! let mut buf = HeapCircularBuffer::<char>::with_capacity(3);
+//! buf.push_back('a');
+//! buf.push_back('b');
+//! buf.push_back('c');
+//! buf.push_back('d');
+//! assert_eq!(buf, ['b', 'c', 'd']);
+//!
+//! buf.resize(5);
+//! buf.push_back('e');
+//! buf.push_back('f');
+//! buf.push_back('g');
+//! assert_eq!(buf, ['c', 'd', 'e', 'f', 'g']);
 //! # }
 //! ```
 //!
@@ -173,18 +210,19 @@
 //! circular-buffer = { version = "0.1", default-features = false, features = ["alloc"] }
 //! ```
 //!
-//! [`no_std` environment]: https://docs.rust-embedded.org/book/intro/no-std.html
-//!
 //! # Cargo feature flags
 //!
-//! * `std`: enables support for the [`std` library](https://doc.rust-lang.org/std/) (enabled by
-//!   default).
-//! * `alloc`: enables support for the [`alloc` crate](https://doc.rust-lang.org/alloc/) (enabled
-//!   by default).
-//! * `embedded-io`: enables implementation for the
-//!   [`embedded_io`](https://docs.rs/embedded-io/) traits.
-//! * `embedded-io-async`: enables implementation for the
-//!   [`embedded_io_async`](https://docs.rs/embedded-io-async) traits.
+//! * `std`: enables support for the [`std` library] (enabled by default).
+//! * `alloc`: enables support for the [`alloc` crate] (enabled by default).
+//! * `embedded-io`: enables implementation for the [`embedded_io`]
+//! * `embedded-io-async`: enables implementation for the [`embedded_io_async`] traits.
+//!
+//! [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
+//! [`std` library]: https://doc.rust-lang.org/std/
+//! [`alloc` crate]: https://doc.rust-lang.org/alloc/
+//! [`no_std` environment]: https://docs.rust-embedded.org/book/intro/no-std.html
+//! [`embedded_io`]: https://docs.rs/embedded-io/
+//! [`embedded_io_async`]: https://docs.rs/embedded-io-async/
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(clippy::dbg_macro)]
@@ -273,8 +311,8 @@ struct Inner<T: ?Sized> {
 
 /// A reference to a circular buffer.
 ///
-/// This type can be thought as the equivalent of a Rust [slice](primitive:slice), in the sense that
-/// it _points_ to the data held by a circular buffer (either a [`FixedCircularBuffer`] or a
+/// This type can be thought as the equivalent of a Rust [slice], in the sense that it _points_ to
+/// the data held by a circular buffer (either a [`FixedCircularBuffer`] or a
 /// [`HeapCircularBuffer`]) but does not actually own the data. The relationship between the types
 /// `CircularBuffer<T>`, `FixedCircularBuffer<T, N>`, and `HeapCircularBuffer<T>` is akin to the
 /// relationship between types `[T]` (slice), `[T; N]` (array), `Vec<T>`. In particular:
@@ -588,10 +626,10 @@ impl<T> CircularBuffer<T> {
     /// Because it returns a mutable slice, any [slice methods](slice) may be called on the
     /// elements of the buffer, such as sorting methods.
     ///
-    /// Once the internal storage is contiguous, the [`as_slices()`](FixedCircularBuffer::as_slices)
-    /// and [`as_mut_slices()`](FixedCircularBuffer::as_mut_slices) methods will return the entire
-    /// contents of the deque in a single slice. Adding new elements to the buffer may make the
-    /// buffer disjoint (not contiguous).
+    /// Once the internal storage is contiguous, the [`as_slices()`](Self::as_slices) and
+    /// [`as_mut_slices()`](Self::as_mut_slices) methods will return the entire contents of the
+    /// deque in a single slice. Adding new elements to the buffer may make the buffer disjoint (not
+    /// contiguous).
     ///
     /// # Complexity
     ///
@@ -1009,7 +1047,7 @@ impl<T> CircularBuffer<T> {
     ///
     /// Element at index 0 is the front of the queue.
     ///
-    /// This is the same as [`nth_front()`](FixedCircularBuffer::nth_front).
+    /// This is the same as [`nth_front()`](Self::nth_front).
     ///
     /// # Examples
     ///
@@ -1040,7 +1078,7 @@ impl<T> CircularBuffer<T> {
     ///
     /// Element at index 0 is the front of the queue.
     ///
-    /// This is the same as [`nth_front_mut()`](FixedCircularBuffer::nth_front_mut).
+    /// This is the same as [`nth_front_mut()`](Self::nth_front_mut).
     ///
     /// # Examples
     ///
@@ -1077,7 +1115,7 @@ impl<T> CircularBuffer<T> {
     /// first value, `nth_front(1)` the second, and so on. Element at index 0 is the front of the
     /// queue.
     ///
-    /// This is the same as [`get()`](FixedCircularBuffer::get).
+    /// This is the same as [`get()`](Self::get).
     ///
     /// # Examples
     ///
@@ -1105,7 +1143,7 @@ impl<T> CircularBuffer<T> {
     /// the first value, `nth_front_mut(1)` the second, and so on. Element at index 0 is the front
     /// of the queue.
     ///
-    /// This is the same as [`get_mut()`](FixedCircularBuffer::get_mut).
+    /// This is the same as [`get_mut()`](Self::get_mut).
     ///
     /// # Examples
     ///
@@ -1192,8 +1230,8 @@ impl<T> CircularBuffer<T> {
     ///
     /// If the buffer is full, the element at the front of the buffer is overwritten and returned.
     ///
-    /// See also [`try_push_back()`](FixedCircularBuffer::try_push_back) for a non-overwriting
-    /// version of this method.
+    /// See also [`try_push_back()`](Self::try_push_back) for a non-overwriting version of this
+    /// method.
     ///
     /// # Examples
     ///
@@ -1251,8 +1289,8 @@ impl<T> CircularBuffer<T> {
     /// If the buffer is full, the buffer is not modified and the given element is returned as an
     /// error.
     ///
-    /// See also [`push_back()`](FixedCircularBuffer::push_back) for a version of this method that
-    /// overwrites the front of the buffer when full.
+    /// See also [`push_back()`](Self::push_back) for a version of this method that overwrites the
+    /// front of the buffer when full.
     ///
     /// # Examples
     ///
@@ -1293,8 +1331,8 @@ impl<T> CircularBuffer<T> {
     ///
     /// If the buffer is full, the element at the back of the buffer is overwritten and returned.
     ///
-    /// See also [`try_push_front()`](FixedCircularBuffer::try_push_front) for a non-overwriting
-    /// version of this method.
+    /// See also [`try_push_front()`](Self::try_push_front) for a non-overwriting version of this
+    /// method.
     ///
     /// # Examples
     ///
@@ -1352,8 +1390,8 @@ impl<T> CircularBuffer<T> {
     /// If the buffer is full, the buffer is not modified and the given element is returned as an
     /// error.
     ///
-    /// See also [`push_front()`](FixedCircularBuffer::push_front) for a version of this method that
-    /// overwrites the back of the buffer when full.
+    /// See also [`push_front()`](Self::push_front) for a version of this method that overwrites the
+    /// back of the buffer when full.
     ///
     /// # Examples
     ///
@@ -1599,12 +1637,11 @@ impl<T> CircularBuffer<T> {
     /// maximum capacity.
     ///
     /// If you want to replace only the existing elements of the buffer, without affecting the spare
-    /// capacity, use [`as_mut_slices()`](FixedCircularBuffer::as_mut_slices) and call
-    /// [`slice::fill()`]([]::fill) on the resulting slices.
+    /// capacity, use [`as_mut_slices()`](Self::as_mut_slices) and call [`slice::fill()`] on the
+    /// resulting slices.
     ///
-    /// See also: [`fill_with()`](FixedCircularBuffer::fill_with),
-    /// [`fill_spare()`](FixedCircularBuffer::fill_spare),
-    /// [`fill_spare_with()`](FixedCircularBuffer::fill_spare_with).
+    /// See also: [`fill_with()`](Self::fill_with), [`fill_spare()`](Self::fill_spare),
+    /// [`fill_spare_with()`](Self::fill_spare_with).
     ///
     /// # Examples
     ///
@@ -1649,12 +1686,11 @@ impl<T> CircularBuffer<T> {
     /// reaching the maximum capacity.
     ///
     /// If you want to replace only the existing elements of the buffer, without affecting the spare
-    /// capacity, use [`as_mut_slices()`](FixedCircularBuffer::as_mut_slices) and call
-    /// [`slice::fill_with()`]([]::fill_with) on the resulting slices.
+    /// capacity, use [`as_mut_slices()`](Self::as_mut_slices) and call [`slice::fill_with()`] on
+    /// the resulting slices.
     ///
-    /// See also: [`fill()`](FixedCircularBuffer::fill),
-    /// [`fill_spare()`](FixedCircularBuffer::fill_spare),
-    /// [`fill_spare_with()`](FixedCircularBuffer::fill_spare_with).
+    /// See also: [`fill()`](Self::fill), [`fill_spare()`](Self::fill_spare),
+    /// [`fill_spare_with()`](Self::fill_spare_with).
     ///
     /// # Examples
     ///
@@ -1707,9 +1743,8 @@ impl<T> CircularBuffer<T> {
     /// This is equivalent to adding clones of `value` to the buffer until reaching the maximum
     /// capacity.
     ///
-    /// See also: [`fill()`](FixedCircularBuffer::fill),
-    /// [`fill_with()`](FixedCircularBuffer::fill_with),
-    /// [`fill_spare_with()`](FixedCircularBuffer::fill_spare_with).
+    /// See also: [`fill()`](Self::fill), [`fill_with()`](Self::fill_with),
+    /// [`fill_spare_with()`](Self::fill_spare_with).
     ///
     /// # Examples
     ///
@@ -1743,9 +1778,8 @@ impl<T> CircularBuffer<T> {
     /// This is equivalent adding the result of the closure to the buffer until reaching the
     /// maximum capacity.
     ///
-    /// See also: [`fill()`](FixedCircularBuffer::fill),
-    /// [`fill_with()`](FixedCircularBuffer::fill_with),
-    /// [`fill_spare()`](FixedCircularBuffer::fill_spare).
+    /// See also: [`fill()`](Self::fill), [`fill_with()`](Self::fill_with),
+    /// [`fill_spare()`](Self::fill_spare).
     ///
     /// # Examples
     ///
@@ -1869,7 +1903,7 @@ where
 {
     /// Clones and appends all the elements from the slice to the back of the buffer.
     ///
-    /// This is an optimized version of [`extend()`](FixedCircularBuffer::extend) for slices.
+    /// This is an optimized version of [`extend()`](Self::extend) for slices.
     ///
     /// If slice contains more values than the available capacity, the elements at the front of the
     /// buffer are dropped.

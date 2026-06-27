@@ -97,10 +97,10 @@ where
     (start, end)
 }
 
-/// An [iterator](core::iter::Iterator) over the elements of a `FixedCircularBuffer`.
+/// An [iterator](core::iter::Iterator) over the elements of a [`CircularBuffer`].
 ///
-/// This struct is created by [`FixedCircularBuffer::iter()`] and [`FixedCircularBuffer::range()`].
-/// See their documentation for more details.
+/// This struct is created by [`CircularBuffer::iter()`] and [`CircularBuffer::range()`]. See their
+/// documentation for more details.
 pub struct Iter<'a, T> {
     pub(crate) right: &'a [T],
     pub(crate) left: &'a [T],
@@ -231,10 +231,10 @@ where
     }
 }
 
-/// A mutable [iterator](core::iter::Iterator) over the elements of a `FixedCircularBuffer`.
+/// A mutable [iterator](core::iter::Iterator) over the elements of a [`CircularBuffer`].
 ///
-/// This struct is created by [`FixedCircularBuffer::iter_mut()`] and
-/// [`FixedCircularBuffer::range_mut()`]. See their documentation for more details.
+/// This struct is created by [`CircularBuffer::iter_mut()`] and [`CircularBuffer::range_mut()`].
+/// See their documentation for more details.
 pub struct IterMut<'a, T> {
     right: &'a mut [T],
     left: &'a mut [T],
