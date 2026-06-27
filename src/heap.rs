@@ -172,7 +172,9 @@ impl<T> HeapCircularBuffer<T> {
         debug_assert!(new_layout.size() > 0);
 
         // SAFETY: `read()` is called on a valid memory location that comes from a valid reference.
-        let old_ptr = Box::into_raw(unsafe { ptr::addr_of_mut!(self.inner).read() }) as *mut u8;
+        // The `Box` is copied, but its copy in `self` is not accessed again, and is later
+        // overwritten.
+        let old_ptr = Box::into_raw(unsafe { ptr::addr_of!(self.inner).read() }) as *mut u8;
 
         // SAFETY:
         // - `old_ptr` was allocated via the global allocator;
@@ -211,6 +213,54 @@ impl<T> HeapCircularBuffer<T> {
         // SAFETY: `CircularBuffer` uses `repr(transparent)`, therefore it has the same layout and
         // representation as `Inner<[MaybeUninit<T>]>`.
         unsafe { mem::transmute(&mut *self.inner) }
+    }
+
+    /// Consumes and leaks the buffer, returniong a mutable reference to the contents as a
+    /// [`CircularBuffer`].
+    ///
+    /// Note that the type `T` must outlive the chosen lifetime `'a`. If the type has only static
+    /// references, or none at all, then this may be chosen to be `'static`.
+    ///
+    /// This function is mainly useful for data that lives for the remainder of the program’s life.
+    /// Dropping the returned reference will cause a memory leak.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::HeapCircularBuffer;
+    ///
+    /// let mut buf = HeapCircularBuffer::<u32>::with_capacity(5);
+    /// buf.extend([1, 2, 3]);
+    ///
+    /// let static_ref: &'static mut CircularBuffer<u32> = buf.leak();
+    /// assert_eq!(static_ref, [1, 2, 3]);
+    ///
+    /// # // Miri will flag this test as having a memory leak (which is correct: a memory leak is
+    /// # // precisely what this test intends to trigger). The following code ensures that
+    /// # // destructors are run, so that Miri does not complain.
+    /// # let _ = unsafe { Box::from_raw(static_ref) };
+    /// ```
+    pub fn leak<'a>(self) -> &'a mut CircularBuffer<T>
+    where
+        T: 'a,
+    {
+        // Wrap `self` into a `MaybeUninit` to ensure that destructors are not run.
+        let buf = MaybeUninit::new(self);
+        let buf = buf.as_ptr();
+
+        // SAFETY: `read()` is called on a valid memory location that comes from a valid reference.
+        // The `Box` is copied, which is not generally supported, but the call to `mem::forget()`
+        // ensures that the `Box` does not exist in two places.
+        let ptr = Box::into_raw(unsafe { ptr::addr_of!((*buf).inner).read() });
+
+        // SAFETY: This is a valid pointer (because it comes from a `Box`), and we have exclusive
+        // ownership of it (because we have erased all traces of the `Box`).
+        let inner: &'a mut Inner<[MaybeUninit<T>]> = unsafe { &mut *ptr };
+
+        // SAFETY: `CircularBuffer<T>` uses `repr(transparent)`, therefore it has the same layout
+        // and representation as `Inner<[MaybeUninit<T>]>`.
+        unsafe { mem::transmute::<&mut Inner<[MaybeUninit<T>]>, &'a mut CircularBuffer<T>>(inner) }
     }
 }
 
