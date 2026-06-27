@@ -2,66 +2,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 use crate::CircularBuffer;
-use crate::FixedCircularBuffer;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::ops::Bound;
 use core::ops::RangeBounds;
-
-/// An owning [iterator](core::iter::Iterator) over the elements of a [`FixedCircularBuffer`].
-///
-/// This yields the elements of a `FixedCircularBuffer` from front to back.
-///
-/// This struct is created when iterating over a `FixedCircularBuffer`. See the documentation for
-/// [`IntoIterator`] for more details.
-#[derive(Clone)]
-pub struct IntoIter<T, const N: usize> {
-    inner: FixedCircularBuffer<T, N>,
-}
-
-impl<T, const N: usize> IntoIter<T, N> {
-    pub(crate) const fn new(inner: FixedCircularBuffer<T, N>) -> Self {
-        Self { inner }
-    }
-}
-
-impl<T, const N: usize> Iterator for IntoIter<T, N> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.pop_front()
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.inner.len();
-        (len, Some(len))
-    }
-}
-
-impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.inner.len()
-    }
-}
-
-impl<T, const N: usize> FusedIterator for IntoIter<T, N> {}
-
-impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.inner.pop_back()
-    }
-}
-
-impl<T, const N: usize> fmt::Debug for IntoIter<T, N>
-where
-    T: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.inner.fmt(f)
-    }
-}
 
 pub(crate) fn translate_range_bounds<T, R>(buf: &CircularBuffer<T>, range: R) -> (usize, usize)
 where
@@ -357,5 +301,66 @@ where
             left: self.left,
         };
         it.fmt(f)
+    }
+}
+
+pub(crate) mod fixed {
+    use crate::FixedCircularBuffer;
+    use core::fmt;
+    use core::iter::FusedIterator;
+
+    /// An owning [iterator](core::iter::Iterator) over the elements of a [`FixedCircularBuffer`].
+    ///
+    /// This yields the elements of a `FixedCircularBuffer` from front to back.
+    ///
+    /// This struct is created when iterating over a `FixedCircularBuffer`. See the documentation for
+    /// [`IntoIterator`] for more details.
+    #[derive(Clone)]
+    pub struct IntoIter<T, const N: usize> {
+        inner: FixedCircularBuffer<T, N>,
+    }
+
+    impl<T, const N: usize> IntoIter<T, N> {
+        pub(crate) const fn new(inner: FixedCircularBuffer<T, N>) -> Self {
+            Self { inner }
+        }
+    }
+
+    impl<T, const N: usize> Iterator for IntoIter<T, N> {
+        type Item = T;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.inner.pop_front()
+        }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let len = self.inner.len();
+            (len, Some(len))
+        }
+    }
+
+    impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {
+        #[inline]
+        fn len(&self) -> usize {
+            self.inner.len()
+        }
+    }
+
+    impl<T, const N: usize> FusedIterator for IntoIter<T, N> {}
+
+    impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
+        fn next_back(&mut self) -> Option<Self::Item> {
+            self.inner.pop_back()
+        }
+    }
+
+    impl<T, const N: usize> fmt::Debug for IntoIter<T, N>
+    where
+        T: fmt::Debug,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.inner.fmt(f)
+        }
     }
 }

@@ -241,7 +241,6 @@
 mod cmp;
 mod debug;
 mod drain;
-mod fixed;
 mod hash;
 mod iter;
 
@@ -257,6 +256,8 @@ mod embedded_io;
 #[cfg(test)]
 mod tests;
 
+pub mod fixed;
+
 use core::mem;
 use core::mem::MaybeUninit;
 use core::ops::Index;
@@ -267,7 +268,6 @@ use core::ptr;
 
 pub use crate::drain::Drain;
 pub use crate::fixed::FixedCircularBuffer;
-pub use crate::iter::IntoIter;
 pub use crate::iter::Iter;
 pub use crate::iter::IterMut;
 

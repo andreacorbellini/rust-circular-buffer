@@ -1,9 +1,10 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
+//! Fixed-size circular buffer.
+
 use crate::CircularBuffer;
 use crate::Inner;
-use crate::IntoIter;
 use crate::Iter;
 use crate::IterMut;
 use core::borrow::Borrow;
@@ -18,6 +19,8 @@ use core::ptr;
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::boxed::Box;
+
+pub use crate::iter::fixed::IntoIter;
 
 /// A fixed-size circular buffer.
 ///
