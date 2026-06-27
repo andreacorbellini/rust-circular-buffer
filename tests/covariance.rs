@@ -7,21 +7,21 @@
 //!
 //! [covariant]: https://doc.rust-lang.org/nomicon/subtyping.html
 
-use circular_buffer::CircularBuffer;
 use circular_buffer::Drain;
+use circular_buffer::FixedCircularBuffer;
 use circular_buffer::Iter;
 
-/// Verify that `CircularBuffer<T, N>` is covariant over `T`
+/// Verify that `FixedCircularBuffer<T, N>` is covariant over `T`
 #[test]
 fn circular_buffer<'a>() {
-    let buf = CircularBuffer::<&'static str, 1>::new();
-    let _: CircularBuffer<&'a str, 1> = buf;
+    let buf = FixedCircularBuffer::<&'static str, 1>::new();
+    let _: FixedCircularBuffer<&'a str, 1> = buf;
 }
 
 /// Verify that `Iter<'_, T>` is covariant over `T`
 #[test]
 fn iter<'a>() {
-    let buf = CircularBuffer::<&'static str, 1>::new();
+    let buf = FixedCircularBuffer::<&'static str, 1>::new();
     let iter: Iter<'_, &'static str> = buf.iter();
     let _: Iter<'_, &'a str> = iter;
 }
@@ -33,7 +33,7 @@ fn iter<'a>() {
 //
 //#[test]
 //fn iter_mut<'a>() {
-//    let mut buf = CircularBuffer::<&'static str, 1>::new();
+//    let mut buf = FixedCircularBuffer::<&'static str, 1>::new();
 //    let iter: IterMut<'_, &'static str> = buf.iter_mut();
 //    let _: IterMut<'_, &'a str> = iter;
 //}
@@ -41,7 +41,7 @@ fn iter<'a>() {
 /// Verify that `Drain<'_, T>` is covariant over `T`
 #[test]
 fn drain<'a>() {
-    let mut buf = CircularBuffer::<&'static str, 1>::new();
+    let mut buf = FixedCircularBuffer::<&'static str, 1>::new();
     let drain: Drain<'_, &'static str> = buf.drain(..);
     let _: Drain<'_, &'a str> = drain;
 }

@@ -138,9 +138,9 @@
 //! ```
 //! # #[cfg(feature = "std")]
 //! # {
-//! use circular_buffer::CircularBuffer;
+//! use circular_buffer::FixedCircularBuffer;
 //!
-//! let mut buf = CircularBuffer::<u32, 4096>::boxed();
+//! let mut buf = FixedCircularBuffer::<u32, 4096>::boxed();
 //! assert_eq!(buf.len(), 0);
 //!
 //! for i in 0..1024 {
@@ -203,9 +203,9 @@
 mod cmp;
 mod debug;
 mod drain;
+mod fixed;
 mod hash;
 mod iter;
-mod fixed;
 
 #[cfg(feature = "std")]
 mod io;
@@ -225,10 +225,10 @@ use core::ops::RangeBounds;
 use core::ptr;
 
 pub use crate::drain::Drain;
+pub use crate::fixed::FixedCircularBuffer;
 pub use crate::iter::IntoIter;
 pub use crate::iter::Iter;
 pub use crate::iter::IterMut;
-pub use crate::fixed::CircularBuffer;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -261,7 +261,8 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
     add_mod(x, m - y, m)
 }
 
-/// Internal structure shared by `CircularBufferRef`, `CircularBuffer`, and `HeapCircularBuffer`.
+/// Internal structure shared by `CircularBufferRef`, `FixedCircularBuffer`, and
+/// `HeapCircularBuffer`.
 ///
 /// The main purpose of this structure is to allow safe coercion to `CircularBufferRef`. It may go
 /// away once `core::ptr::from_raw_parts()` is stabilized.
@@ -274,12 +275,12 @@ struct Inner<T: ?Sized> {
 /// A reference to a circular buffer.
 ///
 /// This type can be thought as the equivalent of a Rust [slice](primitive:slice), in the sense that
-/// it _points_ to the data held by a circular buffer (either a [`CircularBuffer`] or a
+/// it _points_ to the data held by a circular buffer (either a [`FixedCircularBuffer`] or a
 /// [`HeapCircularBuffer`]) but does not actually own the data. The relationship between the types
-/// `CircularBufferRef<T>`, `CircularBuffer<T, N>`, and `HeapCircularBuffer<T>` is akin to the
+/// `CircularBufferRef<T>`, `FixedCircularBuffer<T, N>`, and `HeapCircularBuffer<T>` is akin to the
 /// relationship between types `[T]` (slice), `[T; N]` (array), `Vec<T>`. In particular:
 ///
-/// - Both [`CircularBuffer`] and [`HeapCircularBuffer`] can be [dereferenced] to a
+/// - Both [`FixedCircularBuffer`] and [`HeapCircularBuffer`] can be [dereferenced] to a
 ///   `CircularBufferRef`.
 /// - Most of the circular buffer logic (such as adding/removing/getting elements) is implemented in
 ///   `CircularBufferRef`.
@@ -292,7 +293,7 @@ struct Inner<T: ?Sized> {
 /// # Examples
 ///
 /// ```
-/// use circular_buffer::{CircularBuffer, CircularBufferRef};
+/// use circular_buffer::{CircularBufferRef, FixedCircularBuffer};
 ///
 /// fn push_some_elements(buf: &mut CircularBufferRef<u32>) {
 ///     buf.push_back(1);
@@ -300,7 +301,7 @@ struct Inner<T: ?Sized> {
 ///     buf.push_back(3);
 /// }
 ///
-/// let mut fixed_buf = CircularBuffer::<u32, 5>::new();
+/// let mut fixed_buf = FixedCircularBuffer::<u32, 5>::new();
 /// push_some_elements(&mut fixed_buf);
 /// assert_eq!(fixed_buf, [1, 2, 3]);
 /// ```
@@ -315,9 +316,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 16>::new();
+    /// let mut buf = FixedCircularBuffer::<u32, 16>::new();
     /// assert_eq!(buf.len(), 0);
     ///
     /// buf.push_back(1);
@@ -339,8 +340,8 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<u32, 16>::new();
+    /// use circular_buffer::FixedCircularBuffer;
+    /// let buf = FixedCircularBuffer::<u32, 16>::new();
     /// assert_eq!(buf.capacity(), 16);
     /// ```
     #[inline]
@@ -353,9 +354,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 16>::new();
+    /// let mut buf = FixedCircularBuffer::<u32, 16>::new();
     /// assert!(buf.is_empty());
     ///
     /// buf.push_back(1);
@@ -371,9 +372,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 5>::new();
+    /// let mut buf = FixedCircularBuffer::<u32, 5>::new();
     /// assert!(!buf.is_full());
     ///
     /// buf.push_back(1);
@@ -400,9 +401,9 @@ impl<T> CircularBufferRef<T> {
     /// Iterate from front to back:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let buf = CircularBuffer::<char, 5>::from_iter("abc".chars());
+    /// let buf = FixedCircularBuffer::<char, 5>::from_iter("abc".chars());
     /// let mut it = buf.iter();
     ///
     /// assert_eq!(it.next(), Some(&'a'));
@@ -414,9 +415,9 @@ impl<T> CircularBufferRef<T> {
     /// Iterate from back to front:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let buf = CircularBuffer::<char, 5>::from_iter("abc".chars());
+    /// let buf = FixedCircularBuffer::<char, 5>::from_iter("abc".chars());
     /// let mut it = buf.iter().rev();
     ///
     /// assert_eq!(it.next(), Some(&'c'));
@@ -438,9 +439,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 5>::from([1, 2, 3]);
+    /// let mut buf = FixedCircularBuffer::<u32, 5>::from([1, 2, 3]);
     /// for elem in buf.iter_mut() {
     ///     *elem += 5;
     /// }
@@ -467,9 +468,9 @@ impl<T> CircularBufferRef<T> {
     /// Iterate from front to back:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let buf = CircularBuffer::<char, 16>::from_iter("abcdefghi".chars());
+    /// let buf = FixedCircularBuffer::<char, 16>::from_iter("abcdefghi".chars());
     /// let mut it = buf.range(3..6);
     ///
     /// assert_eq!(it.next(), Some(&'d'));
@@ -481,9 +482,9 @@ impl<T> CircularBufferRef<T> {
     /// Iterate from back to front:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let buf = CircularBuffer::<char, 16>::from_iter("abcdefghi".chars());
+    /// let buf = FixedCircularBuffer::<char, 16>::from_iter("abcdefghi".chars());
     /// let mut it = buf.range(3..6).rev();
     ///
     /// assert_eq!(it.next(), Some(&'f'));
@@ -516,9 +517,9 @@ impl<T> CircularBufferRef<T> {
     /// Iterate from front to back:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<i32, 16>::from_iter([1, 2, 3, 4, 5, 6]);
+    /// let mut buf = FixedCircularBuffer::<i32, 16>::from_iter([1, 2, 3, 4, 5, 6]);
     /// for elem in buf.range_mut(..3) {
     ///     *elem *= -1;
     /// }
@@ -554,9 +555,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 6>::from_iter("abcdef".chars());
+    /// let mut buf = FixedCircularBuffer::<char, 6>::from_iter("abcdef".chars());
     /// let drained = buf.drain(3..).collect::<Vec<char>>();
     ///
     /// assert_eq!(drained, ['d', 'e', 'f']);
@@ -566,9 +567,9 @@ impl<T> CircularBufferRef<T> {
     /// Not consuming the draining iterator still removes the range of elements:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 6>::from_iter("abcdef".chars());
+    /// let mut buf = FixedCircularBuffer::<char, 6>::from_iter("abcdef".chars());
     /// buf.drain(3..);
     ///
     /// assert_eq!(buf, ['a', 'b', 'c']);
@@ -588,10 +589,10 @@ impl<T> CircularBufferRef<T> {
     /// Because it returns a mutable slice, any [slice methods](slice) may be called on the
     /// elements of the buffer, such as sorting methods.
     ///
-    /// Once the internal storage is contiguous, the [`as_slices()`](CircularBuffer::as_slices) and
-    /// [`as_mut_slices()`](CircularBuffer::as_mut_slices) methods will return the entire contents
-    /// of the deque in a single slice. Adding new elements to the buffer may make the buffer
-    /// disjoint (not contiguous).
+    /// Once the internal storage is contiguous, the [`as_slices()`](FixedCircularBuffer::as_slices)
+    /// and [`as_mut_slices()`](FixedCircularBuffer::as_mut_slices) methods will return the entire
+    /// contents of the deque in a single slice. Adding new elements to the buffer may make the
+    /// buffer disjoint (not contiguous).
     ///
     /// # Complexity
     ///
@@ -607,10 +608,10 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
     /// // Create a new buffer, adding more elements than its capacity
-    /// let mut buf = CircularBuffer::<u32, 4>::from_iter([1, 4, 3, 0, 2, 5]);
+    /// let mut buf = FixedCircularBuffer::<u32, 4>::from_iter([1, 4, 3, 0, 2, 5]);
     /// assert_eq!(buf, [3, 0, 2, 5]);
     ///
     /// // The buffer is disjoint: as_slices() returns two non-empty slices
@@ -659,9 +660,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 4>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 4>::new();
     /// buf.push_back('a');
     /// buf.push_back('b');
     /// buf.push_back('c');
@@ -708,9 +709,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 4>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 4>::new();
     /// buf.push_back('a');
     /// buf.push_back('b');
     /// buf.push_back('c');
@@ -901,9 +902,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 4>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.back(), None);
     ///
     /// buf.push_back('a');
@@ -926,9 +927,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 4>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.back_mut(), None);
     ///
     /// buf.push_back('a');
@@ -955,9 +956,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 4>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.front(), None);
     ///
     /// buf.push_back('a');
@@ -980,9 +981,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 4>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 4>::new();
     /// assert_eq!(buf.front_mut(), None);
     ///
     /// buf.push_back('a');
@@ -1009,14 +1010,14 @@ impl<T> CircularBufferRef<T> {
     ///
     /// Element at index 0 is the front of the queue.
     ///
-    /// This is the same as [`nth_front()`](CircularBuffer::nth_front).
+    /// This is the same as [`nth_front()`](FixedCircularBuffer::nth_front).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.get(1), None);
     ///
     /// buf.push_back('a');
@@ -1040,14 +1041,14 @@ impl<T> CircularBufferRef<T> {
     ///
     /// Element at index 0 is the front of the queue.
     ///
-    /// This is the same as [`nth_front_mut()`](CircularBuffer::nth_front_mut).
+    /// This is the same as [`nth_front_mut()`](FixedCircularBuffer::nth_front_mut).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.get_mut(1), None);
     ///
     /// buf.push_back('a');
@@ -1077,14 +1078,14 @@ impl<T> CircularBufferRef<T> {
     /// first value, `nth_front(1)` the second, and so on. Element at index 0 is the front of the
     /// queue.
     ///
-    /// This is the same as [`get()`](CircularBuffer::get).
+    /// This is the same as [`get()`](FixedCircularBuffer::get).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_front(1), None);
     ///
     /// buf.push_back('a');
@@ -1105,14 +1106,14 @@ impl<T> CircularBufferRef<T> {
     /// the first value, `nth_front_mut(1)` the second, and so on. Element at index 0 is the front
     /// of the queue.
     ///
-    /// This is the same as [`get_mut()`](CircularBuffer::get_mut).
+    /// This is the same as [`get_mut()`](FixedCircularBuffer::get_mut).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_front_mut(1), None);
     ///
     /// buf.push_back('a');
@@ -1140,9 +1141,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_back(1), None);
     ///
     /// buf.push_back('a');
@@ -1167,9 +1168,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 5>::new();
     /// assert_eq!(buf.nth_back_mut(1), None);
     ///
     /// buf.push_back('a');
@@ -1192,15 +1193,15 @@ impl<T> CircularBufferRef<T> {
     ///
     /// If the buffer is full, the element at the front of the buffer is overwritten and returned.
     ///
-    /// See also [`try_push_back()`](CircularBuffer::try_push_back) for a non-overwriting version
-    /// of this method.
+    /// See also [`try_push_back()`](FixedCircularBuffer::try_push_back) for a non-overwriting
+    /// version of this method.
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 3>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.push_back('a'), None);
     /// assert_eq!(buf, ['a']);
@@ -1251,15 +1252,15 @@ impl<T> CircularBufferRef<T> {
     /// If the buffer is full, the buffer is not modified and the given element is returned as an
     /// error.
     ///
-    /// See also [`push_back()`](CircularBuffer::push_back) for a version of this method that
+    /// See also [`push_back()`](FixedCircularBuffer::push_back) for a version of this method that
     /// overwrites the front of the buffer when full.
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 3>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.try_push_back('a'), Ok(()));
     /// assert_eq!(buf, ['a']);
@@ -1293,15 +1294,15 @@ impl<T> CircularBufferRef<T> {
     ///
     /// If the buffer is full, the element at the back of the buffer is overwritten and returned.
     ///
-    /// See also [`try_push_front()`](CircularBuffer::try_push_front) for a non-overwriting version
-    /// of this method.
+    /// See also [`try_push_front()`](FixedCircularBuffer::try_push_front) for a non-overwriting
+    /// version of this method.
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 3>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.push_front('a'), None);
     /// assert_eq!(buf, ['a']);
@@ -1352,15 +1353,15 @@ impl<T> CircularBufferRef<T> {
     /// If the buffer is full, the buffer is not modified and the given element is returned as an
     /// error.
     ///
-    /// See also [`push_front()`](CircularBuffer::push_front) for a version of this method that
+    /// See also [`push_front()`](FixedCircularBuffer::push_front) for a version of this method that
     /// overwrites the back of the buffer when full.
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 3>::new();
+    /// let mut buf = FixedCircularBuffer::<char, 3>::new();
     ///
     /// assert_eq!(buf.try_push_front('a'), Ok(()));
     /// assert_eq!(buf, ['a']);
@@ -1398,9 +1399,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 3>::from(['a', 'b', 'c']);
+    /// let mut buf = FixedCircularBuffer::<char, 3>::from(['a', 'b', 'c']);
     ///
     /// assert_eq!(buf.pop_back(), Some('c'));
     /// assert_eq!(buf.pop_back(), Some('b'));
@@ -1426,9 +1427,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 3>::from(['a', 'b', 'c']);
+    /// let mut buf = FixedCircularBuffer::<char, 3>::from(['a', 'b', 'c']);
     ///
     /// assert_eq!(buf.pop_front(), Some('a'));
     /// assert_eq!(buf.pop_front(), Some('b'));
@@ -1455,9 +1456,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 3>::from(['a', 'b', 'c']);
+    /// let mut buf = FixedCircularBuffer::<char, 3>::from(['a', 'b', 'c']);
     ///
     /// assert_eq!(buf.remove(1), Some('b'));
     /// assert_eq!(buf, ['a', 'c']);
@@ -1511,9 +1512,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
+    /// let mut buf = FixedCircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
     ///
     /// buf.swap(0, 3);
@@ -1523,8 +1524,8 @@ impl<T> CircularBufferRef<T> {
     /// Trying to swap an invalid index panics:
     ///
     /// ```should_panic
-    /// use circular_buffer::CircularBuffer;
-    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
+    /// use circular_buffer::FixedCircularBuffer;
+    /// let mut buf = FixedCircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// buf.swap(0, 7);
     /// ```
     pub const fn swap(&mut self, i: usize, j: usize) {
@@ -1547,9 +1548,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
+    /// let mut buf = FixedCircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
     ///
     /// assert_eq!(buf.swap_remove_back(2), Some('c'));
@@ -1572,9 +1573,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
+    /// let mut buf = FixedCircularBuffer::<char, 5>::from(['a', 'b', 'c', 'd']);
     /// assert_eq!(buf, ['a', 'b', 'c', 'd']);
     ///
     /// assert_eq!(buf.swap_remove_front(2), Some('c'));
@@ -1598,20 +1599,20 @@ impl<T> CircularBufferRef<T> {
     /// This is equivalent to clearing the buffer and adding clones of `value` until reaching the
     /// maximum capacity.
     ///
-    /// If you want to replace only the existing elements of the buffer, without affecting the
-    /// spare capacity, use [`as_mut_slices()`](CircularBuffer::as_mut_slices) and call
+    /// If you want to replace only the existing elements of the buffer, without affecting the spare
+    /// capacity, use [`as_mut_slices()`](FixedCircularBuffer::as_mut_slices) and call
     /// [`slice::fill()`]([]::fill) on the resulting slices.
     ///
-    /// See also: [`fill_with()`](CircularBuffer::fill_with),
-    /// [`fill_spare()`](CircularBuffer::fill_spare),
-    /// [`fill_spare_with()`](CircularBuffer::fill_spare_with).
+    /// See also: [`fill_with()`](FixedCircularBuffer::fill_with),
+    /// [`fill_spare()`](FixedCircularBuffer::fill_spare),
+    /// [`fill_spare_with()`](FixedCircularBuffer::fill_spare_with).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
+    /// let mut buf = FixedCircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// buf.fill(9);
@@ -1621,9 +1622,9 @@ impl<T> CircularBufferRef<T> {
     /// If you want to replace existing elements only:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
+    /// let mut buf = FixedCircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let (front, back) = buf.as_mut_slices();
@@ -1648,19 +1649,20 @@ impl<T> CircularBufferRef<T> {
     /// This is equivalent to clearing the buffer and adding the result of the closure until
     /// reaching the maximum capacity.
     ///
-    /// If you want to replace only the existing elements of the buffer, without affecting the
-    /// spare capacity, use [`as_mut_slices()`](CircularBuffer::as_mut_slices) and call
+    /// If you want to replace only the existing elements of the buffer, without affecting the spare
+    /// capacity, use [`as_mut_slices()`](FixedCircularBuffer::as_mut_slices) and call
     /// [`slice::fill_with()`]([]::fill_with) on the resulting slices.
     ///
-    /// See also: [`fill()`](CircularBuffer::fill), [`fill_spare()`](CircularBuffer::fill_spare),
-    /// [`fill_spare_with()`](CircularBuffer::fill_spare_with).
+    /// See also: [`fill()`](FixedCircularBuffer::fill),
+    /// [`fill_spare()`](FixedCircularBuffer::fill_spare),
+    /// [`fill_spare_with()`](FixedCircularBuffer::fill_spare_with).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
+    /// let mut buf = FixedCircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let mut x = 2;
@@ -1674,9 +1676,9 @@ impl<T> CircularBufferRef<T> {
     /// If you want to replace existing elements only:
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
+    /// let mut buf = FixedCircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let mut x = 2;
@@ -1706,15 +1708,16 @@ impl<T> CircularBufferRef<T> {
     /// This is equivalent to adding clones of `value` to the buffer until reaching the maximum
     /// capacity.
     ///
-    /// See also: [`fill()`](CircularBuffer::fill), [`fill_with()`](CircularBuffer::fill_with),
-    /// [`fill_spare_with()`](CircularBuffer::fill_spare_with).
+    /// See also: [`fill()`](FixedCircularBuffer::fill),
+    /// [`fill_with()`](FixedCircularBuffer::fill_with),
+    /// [`fill_spare_with()`](FixedCircularBuffer::fill_spare_with).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
+    /// let mut buf = FixedCircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// buf.fill_spare(9);
@@ -1741,15 +1744,16 @@ impl<T> CircularBufferRef<T> {
     /// This is equivalent adding the result of the closure to the buffer until reaching the
     /// maximum capacity.
     ///
-    /// See also: [`fill()`](CircularBuffer::fill), [`fill_with()`](CircularBuffer::fill_with),
-    /// [`fill_spare()`](CircularBuffer::fill_spare).
+    /// See also: [`fill()`](FixedCircularBuffer::fill),
+    /// [`fill_with()`](FixedCircularBuffer::fill_with),
+    /// [`fill_spare()`](FixedCircularBuffer::fill_spare).
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 10>::from([1, 2, 3]);
+    /// let mut buf = FixedCircularBuffer::<u32, 10>::from([1, 2, 3]);
     /// assert_eq!(buf, [1, 2, 3]);
     ///
     /// let mut x = 2;
@@ -1781,9 +1785,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 4>::from([10, 20, 30]);
+    /// let mut buf = FixedCircularBuffer::<u32, 4>::from([10, 20, 30]);
     ///
     /// buf.truncate_back(1);
     /// assert_eq!(buf, [10]);
@@ -1815,9 +1819,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 4>::from([10, 20, 30]);
+    /// let mut buf = FixedCircularBuffer::<u32, 4>::from([10, 20, 30]);
     ///
     /// buf.truncate_front(1);
     /// assert_eq!(buf, [30]);
@@ -1847,9 +1851,9 @@ impl<T> CircularBufferRef<T> {
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf = CircularBuffer::<u32, 4>::from([10, 20, 30]);
+    /// let mut buf = FixedCircularBuffer::<u32, 4>::from([10, 20, 30]);
     /// assert_eq!(buf, [10, 20, 30]);
     /// buf.clear();
     /// assert_eq!(buf, []);
@@ -1866,7 +1870,7 @@ where
 {
     /// Clones and appends all the elements from the slice to the back of the buffer.
     ///
-    /// This is an optimized version of [`extend()`](CircularBuffer::extend) for slices.
+    /// This is an optimized version of [`extend()`](FixedCircularBuffer::extend) for slices.
     ///
     /// If slice contains more values than the available capacity, the elements at the front of the
     /// buffer are dropped.
@@ -1874,9 +1878,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let mut buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
+    /// let mut buf: FixedCircularBuffer<u32, 5> = FixedCircularBuffer::from([1, 2, 3]);
     /// buf.extend_from_slice(&[4, 5, 6, 7]);
     /// assert_eq!(buf, [3, 4, 5, 6, 7]);
     /// ```
@@ -1931,9 +1935,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
+    /// use circular_buffer::FixedCircularBuffer;
     ///
-    /// let buf: CircularBuffer<u32, 5> = CircularBuffer::from([1, 2, 3]);
+    /// let buf: FixedCircularBuffer<u32, 5> = FixedCircularBuffer::from([1, 2, 3]);
     /// let vec: Vec<u32> = buf.to_vec();
     ///
     /// assert_eq!(buf, [1, 2, 3]);
@@ -2011,4 +2015,3 @@ impl<'a, T> IntoIterator for &'a mut CircularBufferRef<T> {
         IterMut::new(self)
     }
 }
-

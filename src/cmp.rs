@@ -3,15 +3,15 @@
 
 //! Implementations of [`PartialEq`], [`Eq`], [`PartialOrd`], [`Ord`].
 
-use crate::CircularBuffer;
 use crate::CircularBufferRef;
+use crate::FixedCircularBuffer;
 use core::cmp::Ordering;
 use core::convert::identity;
 use core::ops::Deref;
 
 impl<T> Eq for CircularBufferRef<T> where T: Eq {}
 
-impl<T, const N: usize> Eq for CircularBuffer<T, N> where T: Eq {}
+impl<T, const N: usize> Eq for FixedCircularBuffer<T, N> where T: Eq {}
 
 impl<T, U> PartialEq<CircularBufferRef<U>> for CircularBufferRef<T>
 where
@@ -125,14 +125,14 @@ impl_partial_eq!([] &'_ mut CircularBufferRef<T> [Deref::deref], [U] [identity])
 // CircularBufferRef <=> array
 impl_partial_eq_with_refs!([const M: usize] CircularBufferRef<T> [identity], [U; M] [AsRef::as_ref]);
 
-// CircularBufferRef <=> CircularBuffer
-impl_partial_eq_with_refs!([const M: usize] CircularBufferRef<T> [identity], CircularBuffer<U, M> [Deref::deref]);
-impl_partial_eq_with_refs!([const N: usize] CircularBuffer<T, N> [Deref::deref], CircularBufferRef<U> [identity]);
+// CircularBufferRef <=> FixedCircularBuffer
+impl_partial_eq_with_refs!([const M: usize] CircularBufferRef<T> [identity], FixedCircularBuffer<U, M> [Deref::deref]);
+impl_partial_eq_with_refs!([const N: usize] FixedCircularBuffer<T, N> [Deref::deref], CircularBufferRef<U> [identity]);
 
-// CircularBuffer <=> CircularBuffer, slice, array
-impl_partial_eq_with_refs!([const N: usize, const M: usize] CircularBuffer<T, N> [Deref::deref], CircularBuffer<U, M> [Deref::deref]);
-impl_partial_eq_with_refs!([const N: usize] CircularBuffer<T, N> [Deref::deref], [U] [identity]);
-impl_partial_eq_with_refs!([const N: usize, const M: usize] CircularBuffer<T, N> [Deref::deref], [U; M] [AsRef::as_ref]);
+// FixedCircularBuffer <=> FixedCircularBuffer, slice, array
+impl_partial_eq_with_refs!([const N: usize, const M: usize] FixedCircularBuffer<T, N> [Deref::deref], FixedCircularBuffer<U, M> [Deref::deref]);
+impl_partial_eq_with_refs!([const N: usize] FixedCircularBuffer<T, N> [Deref::deref], [U] [identity]);
+impl_partial_eq_with_refs!([const N: usize, const M: usize] FixedCircularBuffer<T, N> [Deref::deref], [U; M] [AsRef::as_ref]);
 
 impl<T, U> PartialOrd<CircularBufferRef<U>> for CircularBufferRef<T>
 where
@@ -152,17 +152,18 @@ where
     }
 }
 
-impl<T, const N: usize, U, const M: usize> PartialOrd<CircularBuffer<U, M>> for CircularBuffer<T, N>
+impl<T, const N: usize, U, const M: usize> PartialOrd<FixedCircularBuffer<U, M>>
+    for FixedCircularBuffer<T, N>
 where
     T: PartialOrd<U>,
 {
     #[inline]
-    fn partial_cmp(&self, other: &CircularBuffer<U, M>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &FixedCircularBuffer<U, M>) -> Option<Ordering> {
         self.deref().partial_cmp(other.deref())
     }
 }
 
-impl<T, const N: usize> Ord for CircularBuffer<T, N>
+impl<T, const N: usize> Ord for FixedCircularBuffer<T, N>
 where
     T: Ord,
 {

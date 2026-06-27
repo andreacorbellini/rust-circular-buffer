@@ -3,8 +3,8 @@
 
 //! Implementations of [`Hash`].
 
-use crate::CircularBuffer;
 use crate::CircularBufferRef;
+use crate::FixedCircularBuffer;
 use core::hash::Hash;
 use core::hash::Hasher;
 use core::ops::Deref;
@@ -20,7 +20,7 @@ where
     }
 }
 
-impl<T, const N: usize> Hash for CircularBuffer<T, N>
+impl<T, const N: usize> Hash for FixedCircularBuffer<T, N>
 where
     T: Hash,
 {

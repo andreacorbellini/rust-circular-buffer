@@ -1,10 +1,10 @@
-// Copyright © 2023-2025 Andrea Corbellini and contributors
+// Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 #![cfg(feature = "std")]
 
-use crate::CircularBuffer;
 use crate::CircularBufferRef;
+use crate::FixedCircularBuffer;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
 use std::cell::RefCell;
@@ -70,7 +70,7 @@ macro_rules! assert_buf_slices_eq {
 
 #[test]
 fn attrs() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_eq!(buf.len(), 0);
     assert!(buf.is_empty());
     assert!(!buf.is_full());
@@ -114,7 +114,7 @@ fn attrs() {
 #[test]
 fn push_back() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     assert_eq!(buf.push_back(tracker.track(1)), None);
@@ -161,7 +161,7 @@ fn push_back() {
 #[test]
 fn push_front() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     assert_eq!(buf.push_front(tracker.track(1)), None);
@@ -207,7 +207,7 @@ fn push_front() {
 
 #[test]
 fn pop_back() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     assert_eq!(buf.pop_back(), None);
@@ -255,7 +255,7 @@ fn pop_back() {
 
 #[test]
 fn pop_front() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     assert_eq!(buf.pop_front(), None);
@@ -303,7 +303,7 @@ fn pop_front() {
 
 #[test]
 fn remove() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     assert_eq!(buf.remove(0), None);
@@ -349,7 +349,7 @@ fn remove() {
 #[test]
 fn truncate_back() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     buf.push_back(tracker.track(1));
@@ -377,7 +377,7 @@ fn truncate_back() {
 #[test]
 fn truncate_front() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     buf.push_back(tracker.track(1));
@@ -404,7 +404,7 @@ fn truncate_front() {
 
 #[test]
 fn get() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     assert_eq!(buf.get(0), None);
@@ -475,7 +475,7 @@ fn get() {
 
 #[test]
 fn nth_front() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     assert_eq!(buf.nth_front(0), None);
@@ -546,7 +546,7 @@ fn nth_front() {
 
 #[test]
 fn nth_back() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     assert_eq!(buf.nth_back(0), None);
@@ -617,7 +617,7 @@ fn nth_back() {
 
 #[test]
 fn index() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     assert!(std::panic::catch_unwind(|| buf[0]).is_err());
@@ -688,13 +688,13 @@ fn index() {
 
 #[test]
 fn iter() {
-    let buf = CircularBuffer::<u32, 8>::new();
+    let buf = FixedCircularBuffer::<u32, 8>::new();
     let mut iter = buf.iter();
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
     let mut iter = buf.iter();
     assert_eq!(iter.next(), Some(&1));
     assert_eq!(iter.next(), Some(&2));
@@ -704,7 +704,7 @@ fn iter() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
     let mut iter = buf.iter();
     assert_eq!(iter.next(), Some(&1));
     assert_eq!(iter.next(), Some(&2));
@@ -721,13 +721,13 @@ fn iter() {
 
 #[test]
 fn iter_rev() {
-    let buf = CircularBuffer::<u32, 8>::new();
+    let buf = FixedCircularBuffer::<u32, 8>::new();
     let mut iter = buf.iter().rev();
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
     let mut iter = buf.iter().rev();
     assert_eq!(iter.next(), Some(&4));
     assert_eq!(iter.next(), Some(&3));
@@ -737,7 +737,7 @@ fn iter_rev() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
     let mut iter = buf.iter().rev();
     assert_eq!(iter.next(), Some(&8));
     assert_eq!(iter.next(), Some(&7));
@@ -754,13 +754,13 @@ fn iter_rev() {
 
 #[test]
 fn into_iter() {
-    let buf = CircularBuffer::<u32, 8>::new();
+    let buf = FixedCircularBuffer::<u32, 8>::new();
     let mut iter = buf.into_iter();
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
     let mut iter = buf.into_iter();
     assert_eq!(iter.next(), Some(1));
     assert_eq!(iter.next(), Some(2));
@@ -770,7 +770,7 @@ fn into_iter() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
     let mut iter = buf.into_iter();
     assert_eq!(iter.next(), Some(1));
     assert_eq!(iter.next(), Some(2));
@@ -787,13 +787,13 @@ fn into_iter() {
 
 #[test]
 fn into_iter_rev() {
-    let buf = CircularBuffer::<u32, 8>::new();
+    let buf = FixedCircularBuffer::<u32, 8>::new();
     let mut iter = buf.into_iter().rev();
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
     let mut iter = buf.into_iter().rev();
     assert_eq!(iter.next(), Some(4));
     assert_eq!(iter.next(), Some(3));
@@ -803,7 +803,7 @@ fn into_iter_rev() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
+    let buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
     let mut iter = buf.into_iter().rev();
     assert_eq!(iter.next(), Some(8));
     assert_eq!(iter.next(), Some(7));
@@ -820,13 +820,13 @@ fn into_iter_rev() {
 
 #[test]
 fn iter_mut() {
-    let mut buf = CircularBuffer::<u32, 8>::new();
+    let mut buf = FixedCircularBuffer::<u32, 8>::new();
     let mut iter = buf.iter_mut();
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
+    let mut buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
     let mut iter = buf.iter_mut();
     assert_eq!(iter.next(), Some(&mut 1));
     assert_eq!(iter.next(), Some(&mut 2));
@@ -836,7 +836,7 @@ fn iter_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
     let mut iter = buf.iter_mut();
     assert_eq!(iter.next(), Some(&mut 1));
     assert_eq!(iter.next(), Some(&mut 2));
@@ -853,13 +853,13 @@ fn iter_mut() {
 
 #[test]
 fn iter_mut_rev() {
-    let mut buf = CircularBuffer::<u32, 8>::new();
+    let mut buf = FixedCircularBuffer::<u32, 8>::new();
     let mut iter = buf.iter_mut().rev();
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
+    let mut buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]);
     let mut iter = buf.iter_mut().rev();
     assert_eq!(iter.next(), Some(&mut 4));
     assert_eq!(iter.next(), Some(&mut 3));
@@ -869,7 +869,7 @@ fn iter_mut_rev() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut buf = FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4, 5, 6, 7, 8]);
     let mut iter = buf.iter_mut().rev();
     assert_eq!(iter.next(), Some(&mut 8));
     assert_eq!(iter.next(), Some(&mut 7));
@@ -886,13 +886,13 @@ fn iter_mut_rev() {
 
 #[test]
 fn range() {
-    let buf = CircularBuffer::<char, 8>::new();
+    let buf = FixedCircularBuffer::<char, 8>::new();
     let mut iter = buf.range(..);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range(..);
     assert_eq!(iter.next(), Some(&'a'));
     assert_eq!(iter.next(), Some(&'b'));
@@ -906,7 +906,7 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range(5..);
     assert_eq!(iter.next(), Some(&'f'));
     assert_eq!(iter.next(), Some(&'g'));
@@ -915,7 +915,7 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range(..3);
     assert_eq!(iter.next(), Some(&'a'));
     assert_eq!(iter.next(), Some(&'b'));
@@ -924,7 +924,7 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range(..=2);
     assert_eq!(iter.next(), Some(&'a'));
     assert_eq!(iter.next(), Some(&'b'));
@@ -933,7 +933,7 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range(3..6);
     assert_eq!(iter.next(), Some(&'d'));
     assert_eq!(iter.next(), Some(&'e'));
@@ -942,7 +942,7 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range(3..=5);
     assert_eq!(iter.next(), Some(&'d'));
     assert_eq!(iter.next(), Some(&'e'));
@@ -951,13 +951,13 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range(0..0);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range((Bound::Excluded(4), Bound::Unbounded));
     assert_eq!(iter.next(), Some(&'f'));
     assert_eq!(iter.next(), Some(&'g'));
@@ -966,7 +966,7 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range((Bound::Excluded(2), Bound::Excluded(6)));
     assert_eq!(iter.next(), Some(&'d'));
     assert_eq!(iter.next(), Some(&'e'));
@@ -975,7 +975,7 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range((Bound::Excluded(2), Bound::Included(5)));
     assert_eq!(iter.next(), Some(&'d'));
     assert_eq!(iter.next(), Some(&'e'));
@@ -984,19 +984,19 @@ fn range() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range((Bound::Excluded(2), Bound::Excluded(3)));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range((Bound::Excluded(2), Bound::Included(2)));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let buf = CircularBuffer::<char, 8>::from_iter("abcdefghijkl".chars());
+    let buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefghijkl".chars());
     let mut iter = buf.range(2..6);
     assert_eq!(iter.next(), Some(&'g'));
     assert_eq!(iter.next(), Some(&'h'));
@@ -1009,13 +1009,13 @@ fn range() {
 
 #[test]
 fn range_mut() {
-    let mut buf = CircularBuffer::<char, 8>::new();
+    let mut buf = FixedCircularBuffer::<char, 8>::new();
     let mut iter = buf.range_mut(..);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut(..);
     assert_eq!(iter.next(), Some(&mut 'a'));
     assert_eq!(iter.next(), Some(&mut 'b'));
@@ -1029,7 +1029,7 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut(5..);
     assert_eq!(iter.next(), Some(&mut 'f'));
     assert_eq!(iter.next(), Some(&mut 'g'));
@@ -1038,7 +1038,7 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut(..3);
     assert_eq!(iter.next(), Some(&mut 'a'));
     assert_eq!(iter.next(), Some(&mut 'b'));
@@ -1047,7 +1047,7 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut(..=2);
     assert_eq!(iter.next(), Some(&mut 'a'));
     assert_eq!(iter.next(), Some(&mut 'b'));
@@ -1056,7 +1056,7 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut(3..6);
     assert_eq!(iter.next(), Some(&mut 'd'));
     assert_eq!(iter.next(), Some(&mut 'e'));
@@ -1065,7 +1065,7 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut(3..=5);
     assert_eq!(iter.next(), Some(&mut 'd'));
     assert_eq!(iter.next(), Some(&mut 'e'));
@@ -1074,13 +1074,13 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut(0..0);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut((Bound::Excluded(4), Bound::Unbounded));
     assert_eq!(iter.next(), Some(&mut 'f'));
     assert_eq!(iter.next(), Some(&mut 'g'));
@@ -1089,7 +1089,7 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Excluded(6)));
     assert_eq!(iter.next(), Some(&mut 'd'));
     assert_eq!(iter.next(), Some(&mut 'e'));
@@ -1098,7 +1098,7 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Included(5)));
     assert_eq!(iter.next(), Some(&mut 'd'));
     assert_eq!(iter.next(), Some(&mut 'e'));
@@ -1107,19 +1107,19 @@ fn range_mut() {
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Excluded(3)));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefgh".chars());
     let mut iter = buf.range_mut((Bound::Excluded(2), Bound::Included(2)));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
-    let mut buf = CircularBuffer::<char, 8>::from_iter("abcdefghijkl".chars());
+    let mut buf = FixedCircularBuffer::<char, 8>::from_iter("abcdefghijkl".chars());
     let mut iter = buf.range_mut(2..6);
     assert_eq!(iter.next(), Some(&mut 'g'));
     assert_eq!(iter.next(), Some(&mut 'h'));
@@ -1141,7 +1141,7 @@ fn zero_capacity() {
         assert!(buf.is_full());
     }
 
-    let mut buf = CircularBuffer::<u32, 0>::new();
+    let mut buf = FixedCircularBuffer::<u32, 0>::new();
     run_assertions(&buf);
 
     buf.push_back(1);
@@ -1181,7 +1181,7 @@ fn remove_on_empty() {
         assert!(buf.is_empty());
     }
 
-    let mut buf = CircularBuffer::<u32, 10>::new();
+    let mut buf = FixedCircularBuffer::<u32, 10>::new();
     run_assertions(&buf);
 
     assert_eq!(buf.pop_back(), None);
@@ -1204,7 +1204,7 @@ fn remove_on_empty() {
 
 #[test]
 fn swap() {
-    let mut buf: CircularBuffer<u32, 4> = [1, 2, 3, 4].into_iter().collect();
+    let mut buf: FixedCircularBuffer<u32, 4> = [1, 2, 3, 4].into_iter().collect();
 
     buf.swap(0, 3);
     assert_buf_eq!(buf, [4, 2, 3, 1]);
@@ -1228,7 +1228,7 @@ fn swap() {
 #[test]
 fn drop_contiguous() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     buf.push_back(tracker.track(1));
@@ -1247,7 +1247,7 @@ fn drop_contiguous() {
 #[test]
 fn drop_full_contiguous() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     buf.push_back(tracker.track(1));
@@ -1268,7 +1268,7 @@ fn drop_full_contiguous() {
 #[test]
 fn drop_full_disjoint() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     buf.push_back(tracker.track(1));
@@ -1291,7 +1291,7 @@ fn drop_full_disjoint() {
 #[test]
 fn drop_disjoint() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<DropItem<i32>, 4>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<i32>, 4>::new();
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     buf.push_back(tracker.track(1));
@@ -1316,7 +1316,8 @@ fn drop_disjoint() {
 fn drain_front() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(..4);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1332,7 +1333,8 @@ fn drain_front() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(..4);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1343,7 +1345,8 @@ fn drain_front() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let _ = buf.drain(..4);
     assert_buf_eq!(buf, [5, 6, 7]);
     tracker.assert_all_alive([5, 6, 7]);
@@ -1354,7 +1357,8 @@ fn drain_front() {
 fn drain_back() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(3..);
     assert_eq!(drain.next().unwrap(), 4);
     assert_eq!(drain.next().unwrap(), 5);
@@ -1370,7 +1374,8 @@ fn drain_back() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let mut drain = buf.drain(3..);
     assert_eq!(drain.next().unwrap(), 4);
     assert_eq!(drain.next().unwrap(), 5);
@@ -1381,7 +1386,8 @@ fn drain_back() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     let _ = buf.drain(3..);
     assert_buf_eq!(buf, [1, 2, 3]);
     tracker.assert_all_alive([1, 2, 3]);
@@ -1392,7 +1398,8 @@ fn drain_back() {
 fn drain_middle_contiguous() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     assert!(is_contiguous(&buf));
     let mut drain = buf.drain(2..5);
     assert_eq!(drain.next().unwrap(), 3);
@@ -1408,7 +1415,8 @@ fn drain_middle_contiguous() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     assert!(is_contiguous(&buf));
     let mut drain = buf.drain(2..5);
     assert_eq!(drain.next().unwrap(), 3);
@@ -1420,7 +1428,8 @@ fn drain_middle_contiguous() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
+    let mut buf =
+        FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4, 5, 6, 7]));
     assert!(is_contiguous(&buf));
     let _ = buf.drain(2..5);
     assert_buf_eq!(buf, [1, 2, 6, 7]);
@@ -1432,7 +1441,7 @@ fn drain_middle_contiguous() {
 fn drain_middle_disjoint() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(
+    let mut buf = FixedCircularBuffer::<_, 10>::from_iter(
         tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
     );
     assert!(!is_contiguous(&buf));
@@ -1451,7 +1460,7 @@ fn drain_middle_disjoint() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(
+    let mut buf = FixedCircularBuffer::<_, 10>::from_iter(
         tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
     );
     assert!(!is_contiguous(&buf));
@@ -1465,7 +1474,7 @@ fn drain_middle_disjoint() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(
+    let mut buf = FixedCircularBuffer::<_, 10>::from_iter(
         tracker.track_many([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
     );
     assert!(!is_contiguous(&buf));
@@ -1479,7 +1488,7 @@ fn drain_middle_disjoint() {
 fn drain_full() {
     // Fully consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
+    let mut buf = FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let mut drain = buf.drain(..);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1494,7 +1503,7 @@ fn drain_full() {
 
     // Partially consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
+    let mut buf = FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let mut drain = buf.drain(..);
     assert_eq!(drain.next().unwrap(), 1);
     assert_eq!(drain.next().unwrap(), 2);
@@ -1504,7 +1513,7 @@ fn drain_full() {
 
     // Do not consume the drain
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
+    let mut buf = FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let _ = buf.drain(..);
     assert_buf_eq!(buf, [] as [i32; 0]);
     tracker.assert_fully_dropped();
@@ -1513,7 +1522,7 @@ fn drain_full() {
 #[test]
 fn drain_full_no_items() {
     // Fully consume the drain
-    let mut buf = CircularBuffer::<i32, 10>::new();
+    let mut buf = FixedCircularBuffer::<i32, 10>::new();
     let mut drain = buf.drain(..);
     assert_eq!(drain.next(), None);
     assert_eq!(drain.next(), None);
@@ -1522,7 +1531,7 @@ fn drain_full_no_items() {
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     // Do not consume the drain
-    let mut buf = CircularBuffer::<i32, 10>::new();
+    let mut buf = FixedCircularBuffer::<i32, 10>::new();
     let _ = buf.drain(..);
     assert_buf_eq!(buf, [] as [i32; 0]);
 }
@@ -1530,7 +1539,7 @@ fn drain_full_no_items() {
 #[test]
 fn drain_empty() {
     let mut tracker = DropTracker::new();
-    let mut buf = CircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
+    let mut buf = FixedCircularBuffer::<_, 10>::from_iter(tracker.track_many([1, 2, 3, 4]));
     let mut drain = buf.drain(0..0);
     assert_eq!(drain.next(), None);
     assert_eq!(drain.next(), None);
@@ -1542,8 +1551,8 @@ fn drain_empty() {
 
 #[test]
 fn eq_contiguous() {
-    let mut buf1 = CircularBuffer::<_, 5>::from_iter([1, 2, 3]);
-    let mut buf2 = CircularBuffer::<_, 5>::from_iter([1, 2, 3]);
+    let mut buf1 = FixedCircularBuffer::<_, 5>::from_iter([1, 2, 3]);
+    let mut buf2 = FixedCircularBuffer::<_, 5>::from_iter([1, 2, 3]);
     assert!(is_contiguous(&buf1));
     assert!(is_contiguous(&buf2));
     assert_eq!(buf1, buf2);
@@ -1561,8 +1570,8 @@ fn eq_contiguous() {
 
 #[test]
 fn eq_disjoint() {
-    let mut buf1 = CircularBuffer::<_, 5>::from_iter([1, 2, 3, 4, 5]);
-    let mut buf2 = CircularBuffer::<_, 5>::from_iter([0, 1, 2, 3, 4]);
+    let mut buf1 = FixedCircularBuffer::<_, 5>::from_iter([1, 2, 3, 4, 5]);
+    let mut buf2 = FixedCircularBuffer::<_, 5>::from_iter([0, 1, 2, 3, 4]);
 
     buf1.push_back(6);
     buf2.push_back(5);
@@ -1602,8 +1611,8 @@ fn eq_disjoint() {
 
 #[test]
 fn eq_mixed_types() {
-    let mut buf = CircularBuffer::<u32, 5>::from_iter([1, 2, 3]);
-    let mut other_buf = CircularBuffer::<u32, 20>::from_iter([1, 2, 3]);
+    let mut buf = FixedCircularBuffer::<u32, 5>::from_iter([1, 2, 3]);
+    let mut other_buf = FixedCircularBuffer::<u32, 20>::from_iter([1, 2, 3]);
     let mut other_arr = [1, 2, 3];
 
     assert_eq!(buf, buf);
@@ -1632,7 +1641,7 @@ fn eq_mixed_types() {
 
 #[test]
 fn write() {
-    let mut buf = CircularBuffer::<u8, 4>::new();
+    let mut buf = FixedCircularBuffer::<u8, 4>::new();
     assert_buf_eq!(buf, [] as [u8; 0]);
 
     assert!(write!(&mut buf, "hello").is_ok());
@@ -1649,7 +1658,7 @@ fn read() {
         vec
     }
 
-    let mut buf = CircularBuffer::<u8, 4>::new();
+    let mut buf = FixedCircularBuffer::<u8, 4>::new();
     assert_buf_eq!(buf, [] as [u8; 0]);
     assert_eq!(read_all(&mut buf), []);
     assert_buf_eq!(buf, [] as [u8; 0]);
@@ -1671,7 +1680,7 @@ fn read() {
 
 #[test]
 fn read_buf() {
-    let mut buf = CircularBuffer::<u8, 4>::new();
+    let mut buf = FixedCircularBuffer::<u8, 4>::new();
     assert_buf_eq!(buf, [] as [u8; 0]);
     assert_eq!(buf.fill_buf().unwrap(), b"");
 
@@ -1700,12 +1709,12 @@ fn read_buf() {
 #[test]
 fn from_array() {
     let arr = [];
-    let buf = CircularBuffer::<i32, 4>::from(arr);
+    let buf = FixedCircularBuffer::<i32, 4>::from(arr);
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     let mut tracker = DropTracker::new();
     let arr = [tracker.track(1), tracker.track(2)];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from(arr);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from(arr);
     assert_buf_eq!(buf, [1, 2]);
     tracker.assert_all_alive([1, 2]);
     tracker.assert_fully_alive();
@@ -1717,7 +1726,7 @@ fn from_array() {
         tracker.track(3),
         tracker.track(4),
     ];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from(arr);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from(arr);
     assert_buf_eq!(buf, [1, 2, 3, 4]);
     tracker.assert_all_alive([1, 2, 3, 4]);
     tracker.assert_fully_alive();
@@ -1731,7 +1740,7 @@ fn from_array() {
         tracker.track(5),
         tracker.track(6),
     ];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from(arr);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from(arr);
     assert_buf_eq!(buf, [3, 4, 5, 6]);
     tracker.assert_all_alive([3, 4, 5, 6]);
     tracker.assert_all_dropped([1, 2]);
@@ -1747,7 +1756,7 @@ fn from_array() {
         tracker.track(7),
         tracker.track(8),
     ];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from(arr);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from(arr);
     assert_buf_eq!(buf, [5, 6, 7, 8]);
     tracker.assert_all_alive([5, 6, 7, 8]);
     tracker.assert_all_dropped([1, 2, 3, 4]);
@@ -1756,12 +1765,12 @@ fn from_array() {
 #[test]
 fn from_iter() {
     let vec = vec![];
-    let buf = CircularBuffer::<i32, 4>::from_iter(vec);
+    let buf = FixedCircularBuffer::<i32, 4>::from_iter(vec);
     assert_buf_eq!(buf, [] as [i32; 0]);
 
     let mut tracker = DropTracker::new();
     let vec = vec![tracker.track(1), tracker.track(2)];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
     assert_buf_eq!(buf, [1, 2]);
     tracker.assert_all_alive([1, 2]);
     tracker.assert_fully_alive();
@@ -1773,7 +1782,7 @@ fn from_iter() {
         tracker.track(3),
         tracker.track(4),
     ];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
     assert_buf_eq!(buf, [1, 2, 3, 4]);
     tracker.assert_all_alive([1, 2, 3, 4]);
     tracker.assert_fully_alive();
@@ -1787,7 +1796,7 @@ fn from_iter() {
         tracker.track(5),
         tracker.track(6),
     ];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
     assert_buf_eq!(buf, [3, 4, 5, 6]);
     tracker.assert_all_alive([3, 4, 5, 6]);
     tracker.assert_all_dropped([1, 2]);
@@ -1803,7 +1812,7 @@ fn from_iter() {
         tracker.track(7),
         tracker.track(8),
     ];
-    let buf = CircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
+    let buf = FixedCircularBuffer::<DropItem<i32>, 4>::from_iter(vec);
     assert_buf_eq!(buf, [5, 6, 7, 8]);
     tracker.assert_all_alive([5, 6, 7, 8]);
     tracker.assert_all_dropped([1, 2, 3, 4]);
@@ -1811,7 +1820,7 @@ fn from_iter() {
 
 #[test]
 fn extend() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     buf.extend([] as [u32; 0]);
@@ -1830,7 +1839,7 @@ fn extend() {
 
 #[test]
 fn extend_ref() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     buf.extend([].iter());
@@ -1849,7 +1858,7 @@ fn extend_ref() {
 
 #[test]
 fn extend_from_slice() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
 
     buf.extend_from_slice(&[][..]);
@@ -1914,7 +1923,7 @@ fn extend_from_slice_unwind_safety() {
         ]
     });
 
-    let mut buf = CircularBuffer::<FaultyClonable, 4>::new();
+    let mut buf = FixedCircularBuffer::<FaultyClonable, 4>::new();
 
     let res = std::panic::catch_unwind(move || buf.extend_from_slice(&array));
     assert!(res.is_err());
@@ -1948,7 +1957,7 @@ fn fill_efficiency() {
         }
     }
 
-    let mut buf = CircularBuffer::<Cloneable, 6>::new();
+    let mut buf = FixedCircularBuffer::<Cloneable, 6>::new();
 
     buf.fill(Cloneable::default());
     assert_eq!(buf.len(), buf.capacity());
@@ -1994,7 +2003,7 @@ fn fill_unwind_safety() {
         }
     }
 
-    let mut buf = CircularBuffer::<FaultyClonable, 6>::new();
+    let mut buf = FixedCircularBuffer::<FaultyClonable, 6>::new();
 
     let value = FaultyClonable {
         drop_item: TRACKER.with_borrow_mut(|tracker| tracker.track("value".to_string())),
@@ -2020,7 +2029,7 @@ fn fill_with_unwind_safety() {
         static TRACKER: RefCell<DropTracker<u32>> = RefCell::new(DropTracker::new());
     }
 
-    let mut buf = CircularBuffer::<DropItem<u32>, 6>::new();
+    let mut buf = FixedCircularBuffer::<DropItem<u32>, 6>::new();
 
     let res = std::panic::catch_unwind(move || {
         let mut counter = 0u32;
@@ -2046,7 +2055,7 @@ fn fill_with_unwind_safety() {
 
 #[test]
 fn make_contiguous_full() {
-    let mut buf: CircularBuffer<u32, 4> = [1, 2, 3, 4].into_iter().collect();
+    let mut buf: FixedCircularBuffer<u32, 4> = [1, 2, 3, 4].into_iter().collect();
     assert_buf_slices_eq!(buf, [1, 2, 3, 4], []);
 
     assert_eq!(buf.make_contiguous(), &mut [1, 2, 3, 4]);
@@ -2074,7 +2083,7 @@ fn make_contiguous_full() {
 
 #[test]
 fn make_contiguous_not_full() {
-    let mut buf: CircularBuffer<u32, 4> = [1, 2].into_iter().collect();
+    let mut buf: FixedCircularBuffer<u32, 4> = [1, 2].into_iter().collect();
     assert_buf_slices_eq!(buf, [1, 2], []);
 
     assert_eq!(buf.make_contiguous(), &mut [1, 2]);
@@ -2091,7 +2100,7 @@ fn make_contiguous_not_full() {
 
 #[test]
 fn clone() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_eq!(buf, buf.clone());
 
     buf.extend_from_slice(&[][..]);
@@ -2116,35 +2125,41 @@ fn hash() {
         hasher.finish()
     }
 
-    let hash_empty = hash(&CircularBuffer::<u32, 0>::new());
-    assert_eq!(hash_empty, hash(&CircularBuffer::<u32, 0>::new()));
-    assert_eq!(hash_empty, hash(&CircularBuffer::<u32, 2>::new()));
-    assert_eq!(hash_empty, hash(&CircularBuffer::<u32, 4>::new()));
-    assert_eq!(hash_empty, hash(&CircularBuffer::<u32, 8>::new()));
+    let hash_empty = hash(&FixedCircularBuffer::<u32, 0>::new());
+    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 0>::new()));
+    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 2>::new()));
+    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 4>::new()));
+    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 8>::new()));
 
-    let hash_1 = hash(&CircularBuffer::<u32, 1>::from([1]));
+    let hash_1 = hash(&FixedCircularBuffer::<u32, 1>::from([1]));
     assert_ne!(hash_1, hash_empty);
-    assert_eq!(hash_1, hash(&CircularBuffer::<u32, 2>::from([1])));
-    assert_eq!(hash_1, hash(&CircularBuffer::<u32, 4>::from([1])));
-    assert_eq!(hash_1, hash(&CircularBuffer::<u32, 8>::from([1])));
+    assert_eq!(hash_1, hash(&FixedCircularBuffer::<u32, 2>::from([1])));
+    assert_eq!(hash_1, hash(&FixedCircularBuffer::<u32, 4>::from([1])));
+    assert_eq!(hash_1, hash(&FixedCircularBuffer::<u32, 8>::from([1])));
 
-    let hash_2 = hash(&CircularBuffer::<u32, 2>::from([1, 2]));
+    let hash_2 = hash(&FixedCircularBuffer::<u32, 2>::from([1, 2]));
     assert_ne!(hash_2, hash_empty);
     assert_ne!(hash_2, hash_1);
-    assert_eq!(hash_2, hash(&CircularBuffer::<u32, 4>::from([1, 2])));
-    assert_eq!(hash_2, hash(&CircularBuffer::<u32, 8>::from([1, 2])));
+    assert_eq!(hash_2, hash(&FixedCircularBuffer::<u32, 4>::from([1, 2])));
+    assert_eq!(hash_2, hash(&FixedCircularBuffer::<u32, 8>::from([1, 2])));
 
-    let hash_4 = hash(&CircularBuffer::<u32, 4>::from([1, 2, 3, 4]));
+    let hash_4 = hash(&FixedCircularBuffer::<u32, 4>::from([1, 2, 3, 4]));
     assert_ne!(hash_4, hash_empty);
     assert_ne!(hash_4, hash_1);
     assert_ne!(hash_4, hash_2);
-    assert_eq!(hash_4, hash(&CircularBuffer::<u32, 4>::from([1, 2, 3, 4])));
-    assert_eq!(hash_4, hash(&CircularBuffer::<u32, 8>::from([1, 2, 3, 4])));
+    assert_eq!(
+        hash_4,
+        hash(&FixedCircularBuffer::<u32, 4>::from([1, 2, 3, 4]))
+    );
+    assert_eq!(
+        hash_4,
+        hash(&FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]))
+    );
 }
 
 #[test]
 fn debug() {
-    let mut buf = CircularBuffer::<u32, 4>::new();
+    let mut buf = FixedCircularBuffer::<u32, 4>::new();
     assert_buf_eq!(buf, [] as [u32; 0]);
     assert_eq!(format!("{:?}", buf), "[_, _, _, _]");
     assert_eq!(format!("{:x?}", buf), "[_, _, _, _]");

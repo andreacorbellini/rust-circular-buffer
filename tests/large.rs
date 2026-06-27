@@ -1,9 +1,9 @@
-// Copyright © 2023-2025 Andrea Corbellini and contributors
+// Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 #![cfg(feature = "std")]
 
-use circular_buffer::CircularBuffer;
+use circular_buffer::FixedCircularBuffer;
 
 #[cfg(not(miri))]
 const SIZE: usize = 2 * 1024 * 1024; // 2 MiB
@@ -14,7 +14,7 @@ const SIZE: usize = 2 * 1024; // 2 KiB
 #[test]
 fn large_boxed() {
     let chunk = b"abcdefghijklmnopqrstuvxyz0123456789";
-    let mut buf = CircularBuffer::<u8, SIZE>::boxed();
+    let mut buf = FixedCircularBuffer::<u8, SIZE>::boxed();
     let mut vec = Vec::new();
 
     assert_ne!(SIZE % chunk.len(), 0);

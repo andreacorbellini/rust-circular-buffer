@@ -1,26 +1,26 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::CircularBuffer;
 use crate::CircularBufferRef;
+use crate::FixedCircularBuffer;
 use core::fmt;
 use core::iter::FusedIterator;
 use core::ops::Bound;
 use core::ops::RangeBounds;
 
-/// An owning [iterator](core::iter::Iterator) over the elements of a [`CircularBuffer`].
+/// An owning [iterator](core::iter::Iterator) over the elements of a [`FixedCircularBuffer`].
 ///
-/// This yields the elements of a `CircularBuffer` from front to back.
+/// This yields the elements of a `FixedCircularBuffer` from front to back.
 ///
-/// This struct is created when iterating over a `CircularBuffer`. See the documentation for
+/// This struct is created when iterating over a `FixedCircularBuffer`. See the documentation for
 /// [`IntoIterator`] for more details.
 #[derive(Clone)]
 pub struct IntoIter<T, const N: usize> {
-    inner: CircularBuffer<T, N>,
+    inner: FixedCircularBuffer<T, N>,
 }
 
 impl<T, const N: usize> IntoIter<T, N> {
-    pub(crate) const fn new(inner: CircularBuffer<T, N>) -> Self {
+    pub(crate) const fn new(inner: FixedCircularBuffer<T, N>) -> Self {
         Self { inner }
     }
 }
@@ -97,10 +97,10 @@ where
     (start, end)
 }
 
-/// An [iterator](core::iter::Iterator) over the elements of a `CircularBuffer`.
+/// An [iterator](core::iter::Iterator) over the elements of a `FixedCircularBuffer`.
 ///
-/// This struct is created by [`CircularBuffer::iter()`] and [`CircularBuffer::range()`]. See
-/// their documentation for more details.
+/// This struct is created by [`FixedCircularBuffer::iter()`] and [`FixedCircularBuffer::range()`].
+/// See their documentation for more details.
 pub struct Iter<'a, T> {
     pub(crate) right: &'a [T],
     pub(crate) left: &'a [T],
@@ -231,10 +231,10 @@ where
     }
 }
 
-/// A mutable [iterator](core::iter::Iterator) over the elements of a `CircularBuffer`.
+/// A mutable [iterator](core::iter::Iterator) over the elements of a `FixedCircularBuffer`.
 ///
-/// This struct is created by [`CircularBuffer::iter_mut()`] and [`CircularBuffer::range_mut()`].
-/// See their documentation for more details.
+/// This struct is created by [`FixedCircularBuffer::iter_mut()`] and
+/// [`FixedCircularBuffer::range_mut()`]. See their documentation for more details.
 pub struct IterMut<'a, T> {
     right: &'a mut [T],
     left: &'a mut [T],

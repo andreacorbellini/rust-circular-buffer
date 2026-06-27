@@ -1,38 +1,39 @@
 // Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
-use core::mem::MaybeUninit;
-use crate::Inner;
 use crate::CircularBufferRef;
+use crate::Inner;
+use crate::IntoIter;
+use crate::Iter;
+use crate::IterMut;
 use core::mem;
-use core::ptr;
+use core::mem::MaybeUninit;
 use core::ops::Deref;
 use core::ops::DerefMut;
 use core::ops::Index;
 use core::ops::IndexMut;
-use crate::IntoIter;
-use crate::Iter;
-use crate::IterMut;
+use core::ptr;
 
 /// A fixed-size circular buffer.
 ///
-/// A `CircularBuffer` may live on the stack. Wrap the `CircularBuffer` in a [`Box`](std::boxed)
-/// using [`CircularBuffer::boxed()`] if you need the struct to be heap-allocated.
+/// A `FixedCircularBuffer` may live on the stack. Wrap the `FixedCircularBuffer` in a
+/// [`Box`](std::boxed) using [`FixedCircularBuffer::boxed()`] if you need the struct to be
+/// heap-allocated.
 ///
 /// See the [module-level documentation](self) for more details and examples.
 #[repr(transparent)]
-pub struct CircularBuffer<T, const N: usize> {
+pub struct FixedCircularBuffer<T, const N: usize> {
     inner: Inner<[MaybeUninit<T>; N]>,
 }
 
-impl<T, const N: usize> CircularBuffer<T, N> {
-    /// Returns an empty `CircularBuffer`.
+impl<T, const N: usize> FixedCircularBuffer<T, N> {
+    /// Returns an empty `FixedCircularBuffer`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<u32, 16>::new();
+    /// use circular_buffer::FixedCircularBuffer;
+    /// let buf = FixedCircularBuffer::<u32, 16>::new();
     /// assert_eq!(buf, []);
     /// ```
     #[inline]
@@ -47,13 +48,13 @@ impl<T, const N: usize> CircularBuffer<T, N> {
         }
     }
 
-    /// Returns an empty heap-allocated `CircularBuffer`.
+    /// Returns an empty heap-allocated `FixedCircularBuffer`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use circular_buffer::CircularBuffer;
-    /// let buf = CircularBuffer::<f64, 1024>::boxed();
+    /// use circular_buffer::FixedCircularBuffer;
+    /// let buf = FixedCircularBuffer::<f64, 1024>::boxed();
     /// assert_eq!(buf.len(), 0);
     /// ```
     #[must_use]
@@ -97,14 +98,14 @@ impl<T, const N: usize> CircularBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> Default for CircularBuffer<T, N> {
+impl<T, const N: usize> Default for FixedCircularBuffer<T, N> {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<T, N> {
+impl<const N: usize, const M: usize, T> From<[T; M]> for FixedCircularBuffer<T, N> {
     fn from(mut arr: [T; M]) -> Self {
         let mut elems = [const { MaybeUninit::uninit() }; N];
         let arr_ptr = &arr as *const T as *const MaybeUninit<T>;
@@ -140,7 +141,7 @@ impl<const N: usize, const M: usize, T> From<[T; M]> for CircularBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> FromIterator<T> for CircularBuffer<T, N> {
+impl<T, const N: usize> FromIterator<T> for FixedCircularBuffer<T, N> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -154,7 +155,7 @@ impl<T, const N: usize> FromIterator<T> for CircularBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> Deref for CircularBuffer<T, N> {
+impl<T, const N: usize> Deref for FixedCircularBuffer<T, N> {
     type Target = CircularBufferRef<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -162,13 +163,13 @@ impl<T, const N: usize> Deref for CircularBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> DerefMut for CircularBuffer<T, N> {
+impl<T, const N: usize> DerefMut for FixedCircularBuffer<T, N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut()
     }
 }
 
-impl<T, const N: usize> Extend<T> for CircularBuffer<T, N> {
+impl<T, const N: usize> Extend<T> for FixedCircularBuffer<T, N> {
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
@@ -177,7 +178,7 @@ impl<T, const N: usize> Extend<T> for CircularBuffer<T, N> {
     }
 }
 
-impl<'a, T, const N: usize> Extend<&'a T> for CircularBuffer<T, N>
+impl<'a, T, const N: usize> Extend<&'a T> for FixedCircularBuffer<T, N>
 where
     T: Copy,
 {
@@ -189,7 +190,7 @@ where
     }
 }
 
-impl<T, const N: usize> Index<usize> for CircularBuffer<T, N> {
+impl<T, const N: usize> Index<usize> for FixedCircularBuffer<T, N> {
     type Output = T;
 
     #[inline]
@@ -198,14 +199,14 @@ impl<T, const N: usize> Index<usize> for CircularBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> IndexMut<usize> for CircularBuffer<T, N> {
+impl<T, const N: usize> IndexMut<usize> for FixedCircularBuffer<T, N> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.as_mut().index_mut(index)
     }
 }
 
-impl<T, const N: usize> IntoIterator for CircularBuffer<T, N> {
+impl<T, const N: usize> IntoIterator for FixedCircularBuffer<T, N> {
     type Item = T;
     type IntoIter = IntoIter<T, N>;
 
@@ -215,7 +216,7 @@ impl<T, const N: usize> IntoIterator for CircularBuffer<T, N> {
     }
 }
 
-impl<'a, T, const N: usize> IntoIterator for &'a CircularBuffer<T, N> {
+impl<'a, T, const N: usize> IntoIterator for &'a FixedCircularBuffer<T, N> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -225,7 +226,7 @@ impl<'a, T, const N: usize> IntoIterator for &'a CircularBuffer<T, N> {
     }
 }
 
-impl<'a, T, const N: usize> IntoIterator for &'a mut CircularBuffer<T, N> {
+impl<'a, T, const N: usize> IntoIterator for &'a mut FixedCircularBuffer<T, N> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -235,7 +236,7 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut CircularBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> Clone for CircularBuffer<T, N>
+impl<T, const N: usize> Clone for FixedCircularBuffer<T, N>
 where
     T: Clone,
 {
@@ -251,7 +252,7 @@ where
     }
 }
 
-impl<T, const N: usize> Drop for CircularBuffer<T, N> {
+impl<T, const N: usize> Drop for FixedCircularBuffer<T, N> {
     #[inline]
     fn drop(&mut self) {
         // `clear()` will make sure that every element is dropped in a safe way

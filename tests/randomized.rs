@@ -1,17 +1,17 @@
-// Copyright © 2023-2025 Andrea Corbellini and contributors
+// Copyright © 2023-2026 Andrea Corbellini and contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 #![allow(static_mut_refs)]
 #![cfg(feature = "std")]
 
-//! Compare the correctness of `CircularBuffer` against a reference implementation (that is assumed
-//! to be fully correct).
+//! Compare the correctness of `FixedCircularBuffer` against a reference implementation (that is
+//! assumed to be fully correct).
 //!
-//! This module applies random actions (like `push_back`, `pop_front`, ...) to a `CircularBuffer`
-//! and to a reference implementation at the same time, and compares their result after each
-//! action. The reference implementation currently is based on top of `VecDeque`.
+//! This module applies random actions (like `push_back`, `pop_front`, ...) to a
+//! `FixedCircularBuffer` and to a reference implementation at the same time, and compares their
+//! result after each action. The reference implementation currently is based on top of `VecDeque`.
 
-use circular_buffer::CircularBuffer;
+use circular_buffer::FixedCircularBuffer;
 use drop_tracker::DropItem;
 use drop_tracker::DropTracker;
 use rand::Rng;
@@ -229,7 +229,7 @@ trait Perform<T> {
     fn perform(&mut self, action: Action<T>) -> Result<T>;
 }
 
-impl<T, const N: usize> Perform<T> for CircularBuffer<T, N>
+impl<T, const N: usize> Perform<T> for FixedCircularBuffer<T, N>
 where
     T: Clone,
 {
@@ -426,7 +426,7 @@ where
     StandardUniform: Distribution<T>,
 {
     let mut reference = Reference::<T>::new(N);
-    let mut buffer = CircularBuffer::<T, N>::boxed();
+    let mut buffer = FixedCircularBuffer::<T, N>::boxed();
     let mut rng = rand::rng();
 
     for _ in 0..ROUNDS {
@@ -441,7 +441,7 @@ where
 
         println!("{action:?}");
 
-        // Perform the action on both the reference implementation and the CircularBuffer
+        // Perform the action on both the reference implementation and the FixedCircularBuffer
         let expected = reference.perform(action.clone());
         let actual = buffer.perform(action);
 
