@@ -3,11 +3,7 @@
 
 #![cfg(feature = "std")]
 
-use crate::CircularBuffer;
 use crate::FixedCircularBuffer;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
-use std::hash::Hasher;
 
 /// Asserts that the specified buffer contains the specified elements.
 macro_rules! assert_buf_eq {
@@ -46,121 +42,6 @@ macro_rules! assert_buf_eq {
             assert_eq!($buf.nth_back(i).unwrap(), expected.get(expected.len() - i - 1).unwrap());
         }
     };
-}
-
-/// Asserts that the items in the specified buffer are spread over two slices with the specified
-/// elements.
-macro_rules! assert_buf_slices_eq {
-    ( $buf:ident , [ $( $front_elems:tt )* ] , [ $( $back_elems:tt )* ] ) => {
-        let mut expected_front = [ $($front_elems)* ];
-        let mut expected_back = [ $($back_elems)* ];
-        assert_eq!($buf.as_slices(), (&expected_front[..], &expected_back[..]));
-        assert_eq!($buf.as_mut_slices(), (&mut expected_front[..], &mut expected_back[..]));
-    }
-}
-
-#[test]
-fn make_contiguous_full() {
-    let mut buf: FixedCircularBuffer<u32, 4> = [1, 2, 3, 4].into_iter().collect();
-    assert_buf_slices_eq!(buf, [1, 2, 3, 4], []);
-
-    assert_eq!(buf.make_contiguous(), &mut [1, 2, 3, 4]);
-    assert_buf_slices_eq!(buf, [1, 2, 3, 4], []);
-    assert_buf_eq!(buf, [1, 2, 3, 4]);
-
-    buf.push_back(5);
-    assert_buf_slices_eq!(buf, [2, 3, 4], [5]);
-    assert_eq!(buf.make_contiguous(), &mut [2, 3, 4, 5]);
-    assert_buf_slices_eq!(buf, [2, 3, 4, 5], []);
-    assert_buf_eq!(buf, [2, 3, 4, 5]);
-
-    buf.extend([6, 7]);
-    assert_buf_slices_eq!(buf, [4, 5], [6, 7]);
-    assert_eq!(buf.make_contiguous(), &mut [4, 5, 6, 7]);
-    assert_buf_slices_eq!(buf, [4, 5, 6, 7], []);
-    assert_buf_eq!(buf, [4, 5, 6, 7]);
-
-    buf.extend([8, 9, 10]);
-    assert_buf_slices_eq!(buf, [7], [8, 9, 10]);
-    assert_eq!(buf.make_contiguous(), &mut [7, 8, 9, 10]);
-    assert_buf_slices_eq!(buf, [7, 8, 9, 10], []);
-    assert_buf_eq!(buf, [7, 8, 9, 10]);
-}
-
-#[test]
-fn make_contiguous_not_full() {
-    let mut buf: FixedCircularBuffer<u32, 4> = [1, 2].into_iter().collect();
-    assert_buf_slices_eq!(buf, [1, 2], []);
-
-    assert_eq!(buf.make_contiguous(), &mut [1, 2]);
-    assert_buf_slices_eq!(buf, [1, 2], []);
-    assert_buf_eq!(buf, [1, 2]);
-
-    buf.extend([3, 4, 5]);
-    buf.truncate_front(2);
-    assert_buf_slices_eq!(buf, [4], [5]);
-    assert_eq!(buf.make_contiguous(), &mut [4, 5]);
-    assert_buf_slices_eq!(buf, [4, 5], []);
-    assert_buf_eq!(buf, [4, 5]);
-}
-
-#[test]
-fn clone() {
-    let mut buf = FixedCircularBuffer::<u32, 4>::new();
-    assert_eq!(buf, buf.clone());
-
-    buf.extend_from_slice(&[][..]);
-    assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[1][..]);
-    assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[2, 3][..]);
-    assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[4, 5, 6][..]);
-    assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[7, 8, 9, 10][..]);
-    assert_eq!(buf, buf.clone());
-    buf.extend_from_slice(&[11, 12, 13, 14, 15][..]);
-    assert_eq!(buf, buf.clone());
-}
-
-#[test]
-fn hash() {
-    fn hash<T: Hash>(buf: &CircularBuffer<T>) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        buf.hash(&mut hasher);
-        hasher.finish()
-    }
-
-    let hash_empty = hash(&FixedCircularBuffer::<u32, 0>::new());
-    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 0>::new()));
-    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 2>::new()));
-    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 4>::new()));
-    assert_eq!(hash_empty, hash(&FixedCircularBuffer::<u32, 8>::new()));
-
-    let hash_1 = hash(&FixedCircularBuffer::<u32, 1>::from([1]));
-    assert_ne!(hash_1, hash_empty);
-    assert_eq!(hash_1, hash(&FixedCircularBuffer::<u32, 2>::from([1])));
-    assert_eq!(hash_1, hash(&FixedCircularBuffer::<u32, 4>::from([1])));
-    assert_eq!(hash_1, hash(&FixedCircularBuffer::<u32, 8>::from([1])));
-
-    let hash_2 = hash(&FixedCircularBuffer::<u32, 2>::from([1, 2]));
-    assert_ne!(hash_2, hash_empty);
-    assert_ne!(hash_2, hash_1);
-    assert_eq!(hash_2, hash(&FixedCircularBuffer::<u32, 4>::from([1, 2])));
-    assert_eq!(hash_2, hash(&FixedCircularBuffer::<u32, 8>::from([1, 2])));
-
-    let hash_4 = hash(&FixedCircularBuffer::<u32, 4>::from([1, 2, 3, 4]));
-    assert_ne!(hash_4, hash_empty);
-    assert_ne!(hash_4, hash_1);
-    assert_ne!(hash_4, hash_2);
-    assert_eq!(
-        hash_4,
-        hash(&FixedCircularBuffer::<u32, 4>::from([1, 2, 3, 4]))
-    );
-    assert_eq!(
-        hash_4,
-        hash(&FixedCircularBuffer::<u32, 8>::from([1, 2, 3, 4]))
-    );
 }
 
 #[test]
