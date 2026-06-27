@@ -7,6 +7,9 @@ use core::fmt;
 use core::iter;
 use core::ops::Deref;
 
+#[cfg(feature = "alloc")]
+use crate::HeapCircularBuffer;
+
 #[derive(Default, Copy, Clone)]
 struct Placeholder;
 
@@ -29,6 +32,16 @@ where
 }
 
 impl<T, const N: usize> fmt::Debug for FixedCircularBuffer<T, N>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.deref().fmt(f)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T> fmt::Debug for HeapCircularBuffer<T>
 where
     T: fmt::Debug,
 {

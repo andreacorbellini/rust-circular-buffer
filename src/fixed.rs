@@ -16,6 +16,9 @@ use core::ops::Index;
 use core::ops::IndexMut;
 use core::ptr;
 
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::boxed::Box;
+
 /// A fixed-size circular buffer.
 ///
 /// A `FixedCircularBuffer` has a fixed capacity that is specified at compile-time, similar to an
@@ -39,6 +42,8 @@ impl<T, const N: usize> FixedCircularBuffer<T, N> {
     /// ```
     /// use circular_buffer::FixedCircularBuffer;
     /// let buf = FixedCircularBuffer::<u32, 16>::new();
+    /// assert_eq!(buf.capacity(), 16);
+    /// assert_eq!(buf.len(), 0);
     /// assert_eq!(buf, []);
     /// ```
     #[inline]

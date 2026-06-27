@@ -9,6 +9,9 @@ use core::cmp::Ordering;
 use core::convert::identity;
 use core::ops::Deref;
 
+#[cfg(feature = "alloc")]
+use crate::HeapCircularBuffer;
+
 impl<T> Eq for CircularBuffer<T> where T: Eq {}
 
 impl<T, const N: usize> Eq for FixedCircularBuffer<T, N> where T: Eq {}
@@ -129,10 +132,24 @@ impl_partial_eq_with_refs!([const M: usize] CircularBuffer<T> [identity], [U; M]
 impl_partial_eq_with_refs!([const M: usize] CircularBuffer<T> [identity], FixedCircularBuffer<U, M> [Deref::deref]);
 impl_partial_eq_with_refs!([const N: usize] FixedCircularBuffer<T, N> [Deref::deref], CircularBuffer<U> [identity]);
 
+// CircularBuffer <=> HeapCircularBuffer
+#[cfg(feature = "alloc")]
+impl_partial_eq_with_refs!([] CircularBuffer<T> [identity], HeapCircularBuffer<U> [Deref::deref]);
+#[cfg(feature = "alloc")]
+impl_partial_eq_with_refs!([] HeapCircularBuffer<T> [Deref::deref], CircularBuffer<U> [identity]);
+
 // FixedCircularBuffer <=> FixedCircularBuffer, slice, array
 impl_partial_eq_with_refs!([const N: usize, const M: usize] FixedCircularBuffer<T, N> [Deref::deref], FixedCircularBuffer<U, M> [Deref::deref]);
 impl_partial_eq_with_refs!([const N: usize] FixedCircularBuffer<T, N> [Deref::deref], [U] [identity]);
 impl_partial_eq_with_refs!([const N: usize, const M: usize] FixedCircularBuffer<T, N> [Deref::deref], [U; M] [AsRef::as_ref]);
+
+// HeapCircularBuffer <=> HeapCircularBuffer, slice, array
+#[cfg(feature = "alloc")]
+impl_partial_eq_with_refs!([] HeapCircularBuffer<T> [Deref::deref], HeapCircularBuffer<U> [Deref::deref]);
+#[cfg(feature = "alloc")]
+impl_partial_eq_with_refs!([] HeapCircularBuffer<T> [Deref::deref], [U] [identity]);
+#[cfg(feature = "alloc")]
+impl_partial_eq_with_refs!([const M: usize] HeapCircularBuffer<T> [Deref::deref], [U; M] [AsRef::as_ref]);
 
 impl<T, U> PartialOrd<CircularBuffer<U>> for CircularBuffer<T>
 where

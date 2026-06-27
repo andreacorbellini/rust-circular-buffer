@@ -171,7 +171,7 @@
 //! For buffers whose capacity is not known at compile time, [`HeapCircularBuffer`] is the solution:
 //!
 //! ```
-//! # #[cfg(feature = "std")]
+//! # #[cfg(feature = "alloc")]
 //! # {
 //! use circular_buffer::HeapCircularBuffer;
 //!
@@ -245,6 +245,9 @@ mod fixed;
 mod hash;
 mod iter;
 
+#[cfg(feature = "alloc")]
+mod heap;
+
 #[cfg(feature = "std")]
 mod io;
 
@@ -269,10 +272,11 @@ pub use crate::iter::Iter;
 pub use crate::iter::IterMut;
 
 #[cfg(feature = "alloc")]
+pub use crate::heap::HeapCircularBuffer;
+
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(all(not(feature = "std"), feature = "alloc"))]
-use alloc::boxed::Box;
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
 
