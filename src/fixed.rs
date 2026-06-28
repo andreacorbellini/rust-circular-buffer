@@ -123,29 +123,35 @@ impl<T, const N: usize> Default for FixedCircularBuffer<T, N> {
 
 impl<const N: usize, const M: usize, T> From<[T; M]> for FixedCircularBuffer<T, N> {
     fn from(mut arr: [T; M]) -> Self {
-        let mut elems = [const { MaybeUninit::uninit() }; N];
-        let arr_ptr = &arr as *const T as *const MaybeUninit<T>;
-        let elems_ptr = &mut elems as *mut MaybeUninit<T>;
         let size = if N >= M { M } else { N };
+        let mut elems = [const { MaybeUninit::uninit() }; N];
+        let (discard, copy) = arr.split_at_mut(M - size);
+
+        debug_assert_eq!(copy.len(), size);
+
+        let elems_ptr = elems.as_mut_ptr();
+        let discard_ptr = discard as *mut [T];
+        let copy_ptr = copy.as_ptr() as *const MaybeUninit<T>;
 
         // SAFETY:
-        // - `M - size` is non-negative, and `arr_ptr.add(M - size)` points to a memory location
-        //   that contains exactly `size` elements
+        // - `copy_ptr` points to a memory location that contains exactly `size` elements.
         // - `elems_ptr` points to a memory location that contains exactly `N` elements, and `N` is
-        //   greater than or equal to `size`
+        //   greater than or equal to `size`.
         unsafe {
-            ptr::copy_nonoverlapping(arr_ptr.add(M - size), elems_ptr, size);
+            copy_ptr.copy_to_nonoverlapping(elems_ptr, size);
         }
+
+        // Now that some elements have been moved, ensure that no destructors are implicitly run.
+        mem::forget(arr);
 
         // Prevent destructors from running on those elements that we've taken ownership of; only
         // destroy the elements that were discarded.
         //
-        // SAFETY: All elements in `arr` are initialized; `forget` will make sure that destructors
-        // are not run twice
+        // SAFETY: All elements in `arr` are initialized; the call to `forget()` earlier ensures
+        // that destructors are not run twice, even if a panic occurs in a `Drop` implementation.
         unsafe {
-            ptr::drop_in_place(&mut arr[..M - size]);
+            ptr::drop_in_place(discard_ptr);
         }
-        mem::forget(arr);
 
         Self {
             inner: Inner {
