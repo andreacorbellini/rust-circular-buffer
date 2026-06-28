@@ -2054,3 +2054,15 @@ impl<'a, T> IntoIterator for &'a mut CircularBuffer<T> {
         IterMut::new(self)
     }
 }
+
+#[cfg(feature = "alloc")]
+impl<T> Clone for Box<CircularBuffer<T>>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Box<CircularBuffer<T>> {
+        let mut buf = HeapCircularBuffer::<T>::with_capacity(self.capacity());
+        buf.extend(self.iter().cloned());
+        buf.into_boxed_circular_buffer()
+    }
+}
