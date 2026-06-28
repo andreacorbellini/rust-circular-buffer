@@ -1,9 +1,52 @@
 # Changelog
 
+## circular-buffer 2.0.0
+
+### New features
+
+This release restructures the crate around three types that mirror the
+relationship between Rust's `slice`, `array`, and `Vec`:
+
+* `CircularBuffer<T>`: a new *unsized* "reference" type that holds the core
+  logic (analogous to a slice `[T]`).
+* `FixedCircularBuffer<T, N>`: the fixed-capacity, stack-allocatable buffer
+  (analogous to an array `[T; N]`). This is the new name for what used to be
+  `CircularBuffer<N, T>` in version 1 of the crate.
+* `HeapCircularBuffer<T>`: a new heap-allocated buffer whose capacity can be
+  set at runtime (analogous to `Vec<T>`).
+
+### Breaking changes
+
+* Renamed the fixed-capacity buffer from `CircularBuffer<N, T>` to
+  `FixedCircularBuffer<T, N>`. Note that the order of the generic parameters
+  has also changed (to be more consistent with the order of parameters in
+  Rust's array type). For example, `CircularBuffer<16, u32>` becomes
+  `FixedCircularBuffer<u32, 16>`.
+* The struct `CircularBuffer` is now the unsized type described above, no
+  longer the owned fixed-size buffer.
+* Removed the deprecated `use_std` cargo feature; use `std` instead.
+* Removed the `unstable` cargo feature. All the code in this crate now uses
+  fully stable Rust.
+* Increased the minimum supported Rust version from 1.87 to 1.93.
+
+### Bug fixes
+
+* Fixed a panic in `drain()` when called on a zero-capacity buffer.
+* Fixed `try_push_back()` and `try_push_front()` on zero-capacity buffers. The
+  methods used to discard the specified item; now instead they return it as an
+  `Err`.
+* Fixed a potential double-drop in the `From<[T; M]>` implementation for
+  `FixedCircularBuffer` that could occur when an element's `Drop`
+  implementation panicked.
+
+### Other changes
+
+* Performance improvements for `clone()`, `extend()`, and `from_iter()`.
+
 ## circular-buffer 1.2.0
 
 * Updated Rust edition from 2021 to 2024
-* Updated MSRV from 0.82 to 0.87
+* Updated MSRV from 1.82 to 1.87
 * Removed polyfill code for features that have been stabilized in Rust 0.87
 
 ## circular-buffer 1.1.0

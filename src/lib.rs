@@ -8,8 +8,7 @@
 //! are discarded and overwritten.
 //!
 //! The main structs are [`CircularBuffer`], [`FixedCircularBuffer`], and [`HeapCircularBuffer`].
-//! You can think of them as semantically equivalent to [`slice`], [`array`], and [`Vec`]
-//! respectively:
+//! You can think of them as conceptually similar to [`slice`], [`array`], and [`Vec`] respectively:
 //!
 //! * A [`CircularBuffer`] provides a _reference_ to either a `FixedCircularBuffer` or a
 //!   `HeapCircularBuffer`. It can be used to get/add/remove elements.
