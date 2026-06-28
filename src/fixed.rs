@@ -90,6 +90,8 @@ impl<T, const N: usize> FixedCircularBuffer<T, N> {
     }
 
     /// Returns a reference to this buffer.
+    #[inline]
+    #[must_use]
     pub const fn as_circular_buffer(&self) -> &CircularBuffer<T> {
         // Mutate `&self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of type
         // `Inner<[X]>`.
@@ -102,6 +104,8 @@ impl<T, const N: usize> FixedCircularBuffer<T, N> {
     }
 
     /// Returns a mutable reference to this buffer.
+    #[inline]
+    #[must_use]
     pub const fn as_mut_circular_buffer(&mut self) -> &mut CircularBuffer<T> {
         // Mutate `&mut self.inner` from a thin-pointer of type `Inner<[X; N]>` to a fat-pointer of
         // type `Inner<[X]>`.

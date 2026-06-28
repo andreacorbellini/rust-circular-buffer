@@ -51,6 +51,7 @@ pub struct Iter<'a, T> {
 }
 
 impl<'a, T> Iter<'a, T> {
+    #[inline]
     pub(crate) const fn empty() -> Self {
         Self {
             right: &[],
@@ -58,6 +59,7 @@ impl<'a, T> Iter<'a, T> {
         }
     }
 
+    #[inline]
     pub(crate) fn new(buf: &'a CircularBuffer<T>) -> Self {
         let (right, left) = buf.as_slices();
         Self { right, left }
@@ -185,13 +187,15 @@ pub struct IterMut<'a, T> {
 }
 
 impl<'a, T> IterMut<'a, T> {
-    pub(crate) fn empty() -> Self {
+    #[inline]
+    pub(crate) const fn empty() -> Self {
         Self {
             right: &mut [],
             left: &mut [],
         }
     }
 
+    #[inline]
     pub(crate) fn new(buf: &'a mut CircularBuffer<T>) -> Self {
         let (right, left) = buf.as_mut_slices();
         Self { right, left }
@@ -321,6 +325,7 @@ pub(crate) mod fixed {
     }
 
     impl<T, const N: usize> IntoIter<T, N> {
+        #[inline]
         pub(crate) const fn new(inner: FixedCircularBuffer<T, N>) -> Self {
             Self { inner }
         }
@@ -383,6 +388,7 @@ pub(crate) mod heap {
     }
 
     impl<T> IntoIter<T> {
+        #[inline]
         pub(crate) const fn new(inner: HeapCircularBuffer<T>) -> Self {
             Self { inner }
         }

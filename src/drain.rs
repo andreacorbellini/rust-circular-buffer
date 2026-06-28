@@ -326,7 +326,7 @@ struct CircularSlicePtr<'a, T> {
 }
 
 impl<'a, T> CircularSlicePtr<'a, T> {
-    fn new(slice: &'a mut [T]) -> Self {
+    const fn new(slice: &'a mut [T]) -> Self {
         Self {
             slice_start: slice as *mut [T] as *mut T,
             slice_len: slice.len(),

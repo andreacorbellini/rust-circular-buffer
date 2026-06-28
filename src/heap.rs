@@ -52,7 +52,7 @@ impl<T> HeapCircularBuffer<T> {
     }
 
     #[inline]
-    fn wide_inner_ptr(raw_ptr: *mut u8, capacity: usize) -> *mut Inner<[MaybeUninit<T>]> {
+    const fn wide_inner_ptr(raw_ptr: *mut u8, capacity: usize) -> *mut Inner<[MaybeUninit<T>]> {
         // `raw_ptr` is a thin-pointer `*mut u8`. We need to convert it to a wide-pointer. We use
         // `slice_from_raw_parts_mut()` for that, which will return a `*mut [u8]`. Here we rely on
         // the implicit assumption that a wide-pointer for `[u8]` is the same as a wide-pointer for
@@ -236,6 +236,8 @@ impl<T> HeapCircularBuffer<T> {
     }
 
     /// Returns a reference to this buffer.
+    #[inline]
+    #[must_use]
     pub const fn as_circular_buffer(&self) -> &CircularBuffer<T> {
         // Transmute the inner pointer to a `CircularBuffer<T>`.
         //
@@ -245,6 +247,8 @@ impl<T> HeapCircularBuffer<T> {
     }
 
     /// Returns a mutable reference to this buffer.
+    #[inline]
+    #[must_use]
     pub const fn as_mut_circular_buffer(&mut self) -> &mut CircularBuffer<T> {
         // Transmute the inner pointer to a `CircularBuffer<T>`.
         //
@@ -279,6 +283,8 @@ impl<T> HeapCircularBuffer<T> {
     /// # // destructors are run, so that Miri does not complain.
     /// # let _ = unsafe { Box::from_raw(static_ref) };
     /// ```
+    #[inline]
+    #[must_use]
     pub fn leak<'a>(self) -> &'a mut CircularBuffer<T>
     where
         T: 'a,
@@ -314,6 +320,8 @@ impl<T> HeapCircularBuffer<T> {
     /// let boxed_buf = buf.into_boxed_circular_buffer();
     /// assert_eq!(&*boxed_buf, [1, 2, 3]);
     /// ```
+    #[inline]
+    #[must_use]
     pub fn into_boxed_circular_buffer(self) -> Box<CircularBuffer<T>> {
         // SAFETY: The pointer is valid because it comes from a reference, and we have exclusive
         // ownership of the memory that is pointed to.
