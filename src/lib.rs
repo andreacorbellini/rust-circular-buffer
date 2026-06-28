@@ -306,6 +306,7 @@ const fn sub_mod(x: usize, y: usize, m: usize) -> usize {
 ///
 /// The main purpose of this structure is to allow safe coercion to `CircularBuffer`. It may go
 /// away once `core::ptr::from_raw_parts()` is stabilized.
+#[repr(C)]
 struct Inner<T: ?Sized> {
     size: usize,
     start: usize,
