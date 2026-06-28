@@ -38,7 +38,7 @@ For a full list of changes between releases, visit
 use circular_buffer::FixedCircularBuffer;
 
 // Initialize a new, empty circular buffer with a capacity of 5 elements
-let mut buf = FixedCircularBuffer::<5, u32>::new();
+let mut buf = FixedCircularBuffer::<u32, 5>::new();
 
 // Add a few elements
 buf.push_back(1);
