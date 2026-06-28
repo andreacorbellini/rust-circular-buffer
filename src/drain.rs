@@ -51,7 +51,7 @@ impl<'a, T> Drain<'a, T> {
     {
         let (start, end) = translate_range_bounds(buf, range);
 
-        // Iterating over a `Drain` returns items from the buffer, but does actually remove the
+        // Iterating over a `Drain` returns items from the buffer, but does not actually remove the
         // item from the buffer right away. Because of that, forgetting a `Drain` (via
         // `mem::forget`) can potentially leave the `CircularBuffer` in an unsafe state: the same
         // item may have been returned from the `Drain` iterator, and be part of the
@@ -84,9 +84,9 @@ impl<'a, T> Drain<'a, T> {
     /// the element at `index` must be considered as uninitialized memory and therefore the `index`
     /// must not be reused.
     unsafe fn read(&self, index: usize) -> T {
-        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
-        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
-        // shared reference to the buffer.
+        // SAFETY: the pointer is valid for the whole lifetime of `self`. Also, while `self` exists,
+        // it is not possible to mutate the underlying buffer because `Drain` holds a phantom shared
+        // reference to the buffer.
         let buf = unsafe { self.buf.as_ref() };
 
         debug_assert!(
@@ -108,9 +108,9 @@ impl<'a, T> Drain<'a, T> {
     }
 
     fn as_slices(&self) -> (&[T], &[T]) {
-        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
-        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
-        // shared reference to the buffer.
+        // SAFETY: the pointer is valid for the whole lifetime of `self`. Also, while `self` exists,
+        // it is not possible to mutate the underlying buffer because `Drain` holds a phantom shared
+        // reference to the buffer.
         let buf = unsafe { self.buf.as_ref() };
 
         if buf.capacity() == 0 || self.buf_size == 0 || self.iter.is_empty() {
@@ -136,9 +136,9 @@ impl<'a, T> Drain<'a, T> {
     }
 
     fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        // SAFETY: the pointer is valid for the whole lifetime of `self. Also, while `self` exists,
-        // it is not possible to mutate the underlaying buffer because `Drain` holds a phantom
-        // shared reference to the buffer.
+        // SAFETY: the pointer is valid for the whole lifetime of `self`. Also, while `self` exists,
+        // it is not possible to mutate the underlying buffer because `Drain` holds a phantom shared
+        // reference to the buffer.
         let buf = unsafe { self.buf.as_mut() };
 
         if buf.capacity() == 0 || self.buf_size == 0 || self.iter.is_empty() {

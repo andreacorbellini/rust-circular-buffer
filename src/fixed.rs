@@ -138,7 +138,7 @@ impl<const N: usize, const M: usize, T> From<[T; M]> for FixedCircularBuffer<T, 
         }
 
         // Prevent destructors from running on those elements that we've taken ownership of; only
-        // destroy the elements that were discareded
+        // destroy the elements that were discarded.
         //
         // SAFETY: All elements in `arr` are initialized; `forget` will make sure that destructors
         // are not run twice

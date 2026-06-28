@@ -218,7 +218,7 @@ impl<T> HeapCircularBuffer<T> {
         unsafe { mem::transmute(&mut *self.inner) }
     }
 
-    /// Consumes and leaks the buffer, returniong a mutable reference to the contents as a
+    /// Consumes and leaks the buffer, returning a mutable reference to the contents as a
     /// [`CircularBuffer`].
     ///
     /// Note that the type `T` must outlive the chosen lifetime `'a`. If the type has only static

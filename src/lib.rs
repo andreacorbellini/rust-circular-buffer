@@ -15,8 +15,8 @@
 //!   `HeapCircularBuffer`. It can be used to get/add/remove elements.
 //! * A [`FixedCircularBuffer`] is an _owned_ fixed-capacity buffer that can live on the stack or
 //!   can be constructed in `const` contexts.
-//! * A [`HeapCircularBuffer`] is an _owned_ buffer that is heap-allocated and can its capacity can
-//!   be adjusted at runtime.
+//! * A [`HeapCircularBuffer`] is an _owned_ buffer that is heap-allocated and its capacity can be
+//!   adjusted at runtime.
 //!
 //! `CircularBuffer` and `FixedCircularBuffer` can be used in a [`no_std` environment].
 //! `HeapCircularBuffer` requires either the [`std` library] or the [`alloc` crate].
@@ -48,7 +48,7 @@
 //!
 //! # Interface
 //!
-//! [`CircularBuffer`] provides methods akin the ones for the standard
+//! [`CircularBuffer`] provides methods akin to the ones for the standard
 //! [`VecDeque`](std::collections::VecDeque) and [`LinkedList`](std::collections::LinkedList). The
 //! list below includes the most common methods, but see the [`CircularBuffer` struct
 //! documentation](CircularBuffer) to see more.
@@ -73,7 +73,8 @@
 //! * [`extend()`](CircularBuffer::extend),
 //!   [`extend_from_slice()`](CircularBuffer::extend_from_slice)
 //! * [`fill()`](CircularBuffer::fill), [`fill_with()`](CircularBuffer::fill_with)
-//! * [`fill_spare()`](CircularBuffer::fill), [`fill_spare_with()`](CircularBuffer::fill_with)
+//! * [`fill_spare()`](CircularBuffer::fill_spare),
+//!   [`fill_spare_with()`](CircularBuffer::fill_spare_with)
 //!
 //! ## Iterators
 //!
@@ -1781,7 +1782,7 @@ impl<T> CircularBuffer<T> {
     ///
     /// The elements already present in the buffer (if any) are unaffected.
     ///
-    /// This is equivalent adding the result of the closure to the buffer until reaching the
+    /// This is equivalent to adding the result of the closure to the buffer until reaching the
     /// maximum capacity.
     ///
     /// See also: [`fill()`](Self::fill), [`fill_with()`](Self::fill_with),
