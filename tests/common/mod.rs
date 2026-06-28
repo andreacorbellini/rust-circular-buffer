@@ -2306,6 +2306,12 @@ macro_rules! define_tests {
             }
 
             #[test]
+            fn one() {
+                let mut buf = $new_buffer::<u64, 1>();
+                randomized::test(&mut *buf);
+            }
+
+            #[test]
             fn small() {
                 let mut buf = $new_buffer::<u64, 10>();
                 randomized::test(&mut *buf);
