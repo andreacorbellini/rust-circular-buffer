@@ -31,3 +31,6 @@ rand = { version = "0.10.1" }
 [[bench]]
 name = "benchmark"
 harness = false
+
+[package.metadata.docs.rs]
+all-features = true
