@@ -77,7 +77,9 @@ fn resize() {
     assert_buf_eq!(buf, [] as [u32; 0]);
     assert_eq!(buf.capacity(), 0);
 
+    // Grow an empty buffer.
     buf.resize(4);
+
     assert_buf_eq!(buf, [] as [u32; 0]);
     assert_eq!(buf.capacity(), 4);
     assert!(is_contiguous(&buf));
@@ -87,17 +89,22 @@ fn resize() {
     assert_eq!(buf.capacity(), 4);
     assert!(is_contiguous(&buf));
 
+    // Grow a full, contiguous buffer.
     buf.resize(8);
+
     assert_buf_eq!(buf, [1, 2, 3, 4]);
     assert_eq!(buf.capacity(), 8);
     assert!(is_contiguous(&buf));
 
-    buf.drain(0..2);
+    buf.pop_front();
+    buf.pop_front();
     assert_buf_eq!(buf, [3, 4]);
     assert_eq!(buf.capacity(), 8);
     assert!(is_contiguous(&buf));
 
+    // Shrink a partial, contiguous buffer, with elements that are not at the start of the array.
     buf.resize(2);
+
     assert_buf_eq!(buf, [3, 4]);
     assert_eq!(buf.capacity(), 2);
     assert!(is_contiguous(&buf));
@@ -107,18 +114,23 @@ fn resize() {
     assert_eq!(buf.capacity(), 2);
     assert!(!is_contiguous(&buf));
 
+    // Grow a full, non contiguous buffer.
     buf.resize(4);
+
     assert_buf_eq!(buf, [4, 5]);
     assert_eq!(buf.capacity(), 4);
     assert!(is_contiguous(&buf));
 
     buf.extend([6, 7, 8, 9]);
-    assert_buf_eq!(buf, [6, 7, 8, 9]);
+    buf.pop_front();
+    assert_buf_eq!(buf, [7, 8, 9]);
     assert_eq!(buf.capacity(), 4);
     assert!(!is_contiguous(&buf));
 
+    // Grow a partial, non contiguous buffer.
     buf.resize(8);
-    assert_buf_eq!(buf, [6, 7, 8, 9]);
+
+    assert_buf_eq!(buf, [7, 8, 9]);
     assert_eq!(buf.capacity(), 8);
     assert!(is_contiguous(&buf));
 }

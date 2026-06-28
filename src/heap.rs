@@ -7,6 +7,7 @@ use crate::CircularBuffer;
 use crate::Inner;
 use crate::Iter;
 use crate::IterMut;
+use crate::add_mod;
 use ::alloc::alloc;
 use ::alloc::alloc::Layout;
 use ::alloc::alloc::LayoutError;
@@ -166,11 +167,36 @@ impl<T> HeapCircularBuffer<T> {
         }
 
         assert!(
-            new_capacity >= self.len(),
+            new_capacity >= self.inner.size,
             "new capacity is lower than the length of the buffer"
         );
 
-        self.make_contiguous();
+        // Ensure that the elements of the buffer are not "wrapping around" the boundary of the
+        // memory slice, because that boundary is going to change after the capacity is adjusted.
+        let items_start_ptr = self.make_contiguous().as_ptr() as *const MaybeUninit<T>;
+
+        if self.capacity() > 0 {
+            // Now that the buffer is contiguous, the elements may still be over the new boundary.
+            // We need to check for that condition, and, if necessary, shift the elements back so
+            // that they fit within the new boundary.
+            let start = self.inner.start;
+            let end = add_mod(self.inner.start, self.inner.size, self.capacity());
+            debug_assert!(
+                start <= end,
+                "start index should preceed end index after a call to `make_contiguous()`"
+            );
+
+            if end >= new_capacity {
+                // The elements exist outside of the new boundary. We need to shift them back.
+                //
+                // SAFETY: Both the source and destination pointers are valid, properly aligned, and
+                // they belong to the same object (`self.inner.items`). Because we're changing
+                // `start`, the source items will not be accessible, so effectively we're moving
+                // them.
+                unsafe { items_start_ptr.copy_to(self.inner.items.as_mut_ptr(), self.inner.size) };
+                self.inner.start = 0;
+            }
+        }
 
         let old_layout = Layout::for_value(&*self.inner);
         let new_layout = Self::layout_for(new_capacity);
