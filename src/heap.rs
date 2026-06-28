@@ -387,6 +387,7 @@ where
     fn clone_from(&mut self, other: &Self) {
         // TODO Optimize
         self.clear();
+        self.resize(other.capacity());
         self.extend(other.iter().cloned());
     }
 }
