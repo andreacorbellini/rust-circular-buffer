@@ -5,10 +5,22 @@
 This is a Rust crate that implements a [circular buffer], also known as cyclic
 buffer, circular queue or ring.
 
-This circular buffer has a fixed maximum capacity, does not automatically grow,
-and once its maximum capacity is reached, elements at the start of the buffer
-are overwritten. It's useful for implementing fast FIFO (_first in, first out_)
-and LIFO (_last in, first out_) queues with a fixed memory capacity.
+A circular buffer has a maximum capacity, does not automatically grow, and once
+its maximum capacity is reached, elements at the start of the buffer are
+overwritten. It's useful for implementing fast FIFO (_first in, first out_) and
+LIFO (_last in, first out_) queues with a fixed memory capacity.
+
+This crate comes with three main structs:
+
+1. `FixedCircularBuffer`: this has a fixed capacity that is specified at
+   compile-time and may live on the stack. It is conceptually similar to an
+   `array`.
+2. `HeapCircularBuffer`: this has a heap-allocated struct, with dynamic
+   capacity that is specified at runtime. It is conceptually similar to a
+   `Vec`.
+3. `CircularBuffer`: this is a view of the elements of either a
+   `FixedCircularBuffer` or a `HeapCircularBuffer`. It is conceptually similar
+   to a `slice`.
 
 For more information and examples, check out the [documentation]!
 
@@ -23,10 +35,10 @@ For a full list of changes between releases, visit
 # Example
 
 ```rust
-use circular_buffer::CircularBuffer;
+use circular_buffer::FixedCircularBuffer;
 
 // Initialize a new, empty circular buffer with a capacity of 5 elements
-let mut buf = CircularBuffer::<5, u32>::new();
+let mut buf = FixedCircularBuffer::<5, u32>::new();
 
 // Add a few elements
 buf.push_back(1);
