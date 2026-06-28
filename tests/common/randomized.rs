@@ -434,8 +434,6 @@ where
                 .sample(&mut rng)
         };
 
-        println!("{action:?}");
-
         // Perform the action on both the reference implementation and the CircularBuffer
         let expected = reference.perform(action.clone());
         let actual = buffer.perform(action);
