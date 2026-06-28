@@ -1940,6 +1940,22 @@ macro_rules! define_tests {
         }
 
         #[test]
+        #[cfg(feature = "alloc")]
+        fn to_owned() {
+            use circular_buffer::CircularBuffer;
+            use circular_buffer::HeapCircularBuffer;
+
+            let buf = $buffer_from::<u32, 4, _>([1, 2, 3]);
+            assert_buf_eq!(buf, [1, 2, 3]);
+
+            let buf_ref: &CircularBuffer<u32> = &buf;
+            assert_buf_eq!(buf_ref, [1, 2, 3]);
+
+            let buf_owned: HeapCircularBuffer<u32> = buf_ref.to_owned();
+            assert_buf_eq!(buf_owned, [1, 2, 3]);
+        }
+
+        #[test]
         #[cfg(feature = "std")]
         fn hash() {
             use circular_buffer::CircularBuffer;

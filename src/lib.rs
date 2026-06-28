@@ -2066,3 +2066,17 @@ where
         buf.into_boxed_circular_buffer()
     }
 }
+
+#[cfg(feature = "alloc")]
+impl<T> ToOwned for CircularBuffer<T>
+where
+    T: Clone,
+{
+    type Owned = HeapCircularBuffer<T>;
+
+    fn to_owned(&self) -> Self::Owned {
+        let mut buf = HeapCircularBuffer::<T>::with_capacity(self.capacity());
+        buf.extend(self.iter().cloned());
+        buf
+    }
+}
