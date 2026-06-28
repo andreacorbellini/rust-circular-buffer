@@ -16,6 +16,9 @@ impl<T> Eq for CircularBuffer<T> where T: Eq {}
 
 impl<T, const N: usize> Eq for FixedCircularBuffer<T, N> where T: Eq {}
 
+#[cfg(feature = "alloc")]
+impl<T> Eq for HeapCircularBuffer<T> where T: Eq {}
+
 impl<T, U> PartialEq<CircularBuffer<U>> for CircularBuffer<T>
 where
     T: PartialEq<U>,
@@ -187,6 +190,26 @@ where
 }
 
 impl<T, const N: usize> Ord for FixedCircularBuffer<T, N>
+where
+    T: Ord,
+{
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.deref().cmp(other.deref())
+    }
+}
+
+impl<T, U> PartialOrd<HeapCircularBuffer<U>> for HeapCircularBuffer<T>
+where
+    T: PartialOrd<U>,
+{
+    #[inline]
+    fn partial_cmp(&self, other: &HeapCircularBuffer<U>) -> Option<Ordering> {
+        self.deref().partial_cmp(other.deref())
+    }
+}
+
+impl<T> Ord for HeapCircularBuffer<T>
 where
     T: Ord,
 {
