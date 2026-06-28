@@ -151,6 +151,12 @@ impl_partial_eq_with_refs!([] HeapCircularBuffer<T> [Deref::deref], [U] [identit
 #[cfg(feature = "alloc")]
 impl_partial_eq_with_refs!([const M: usize] HeapCircularBuffer<T> [Deref::deref], [U; M] [AsRef::as_ref]);
 
+// Box<CircularBuffer> <=> slice, array
+#[cfg(feature = "alloc")]
+impl_partial_eq_with_refs!([] Box<CircularBuffer<T>> [Deref::deref], [U] [identity]);
+#[cfg(feature = "alloc")]
+impl_partial_eq_with_refs!([const M: usize] Box<CircularBuffer<T>> [Deref::deref], [U; M] [AsRef::as_ref]);
+
 impl<T, U> PartialOrd<CircularBuffer<U>> for CircularBuffer<T>
 where
     T: PartialOrd<U>,
