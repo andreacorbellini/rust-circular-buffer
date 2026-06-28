@@ -375,8 +375,6 @@ impl<T> CircularBuffer<T> {
     ///
     /// This is the maximum number of elements that the buffer can hold.
     ///
-    /// This method always returns the generic const parameter `N`.
-    ///
     /// # Examples
     ///
     /// ```
