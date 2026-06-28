@@ -2063,20 +2063,6 @@ impl<'a, T> IntoIterator for &'a mut CircularBuffer<T> {
 }
 
 #[cfg(feature = "alloc")]
-impl<T> Clone for Box<CircularBuffer<T>>
-where
-    T: Clone,
-{
-    fn clone(&self) -> Box<CircularBuffer<T>> {
-        let (front, back) = self.as_slices();
-        let mut buf = HeapCircularBuffer::<T>::with_capacity(self.capacity());
-        buf.extend_from_slice(front);
-        buf.extend_from_slice(back);
-        buf.into_boxed_circular_buffer()
-    }
-}
-
-#[cfg(feature = "alloc")]
 impl<T> ToOwned for CircularBuffer<T>
 where
     T: Clone,
@@ -2089,5 +2075,26 @@ where
         buf.extend_from_slice(front);
         buf.extend_from_slice(back);
         buf
+    }
+}
+
+impl<T> Drop for CircularBuffer<T> {
+    fn drop(&mut self) {
+        // `clear()` will make sure that every element is dropped in a safe way
+        self.clear();
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T> Clone for Box<CircularBuffer<T>>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Box<CircularBuffer<T>> {
+        let (front, back) = self.as_slices();
+        let mut buf = HeapCircularBuffer::<T>::with_capacity(self.capacity());
+        buf.extend_from_slice(front);
+        buf.extend_from_slice(back);
+        buf.into_boxed_circular_buffer()
     }
 }
