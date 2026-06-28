@@ -9,6 +9,9 @@ use core::hash::Hash;
 use core::hash::Hasher;
 use core::ops::Deref;
 
+#[cfg(feature = "alloc")]
+use crate::HeapCircularBuffer;
+
 impl<T> Hash for CircularBuffer<T>
 where
     T: Hash,
@@ -21,6 +24,17 @@ where
 }
 
 impl<T, const N: usize> Hash for FixedCircularBuffer<T, N>
+where
+    T: Hash,
+{
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.deref().hash(state);
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T> Hash for HeapCircularBuffer<T>
 where
     T: Hash,
 {
