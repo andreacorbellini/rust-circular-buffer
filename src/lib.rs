@@ -265,7 +265,11 @@ use core::ops::RangeBounds;
 use core::ptr;
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::boxed::Box;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::borrow::ToOwned;
 
 pub use crate::drain::Drain;
 pub use crate::fixed::FixedCircularBuffer;

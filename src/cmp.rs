@@ -12,6 +12,9 @@ use core::ops::Deref;
 #[cfg(feature = "alloc")]
 use crate::HeapCircularBuffer;
 
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::boxed::Box;
+
 impl<T> Eq for CircularBuffer<T> where T: Eq {}
 
 impl<T, const N: usize> Eq for FixedCircularBuffer<T, N> where T: Eq {}
@@ -199,6 +202,7 @@ where
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T, U> PartialOrd<HeapCircularBuffer<U>> for HeapCircularBuffer<T>
 where
     T: PartialOrd<U>,
@@ -209,6 +213,7 @@ where
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T> Ord for HeapCircularBuffer<T>
 where
     T: Ord,
