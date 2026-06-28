@@ -184,7 +184,7 @@ impl<T> HeapCircularBuffer<T> {
             let end = add_mod(start, size, self.capacity());
             debug_assert!(
                 start <= end,
-                "start index should preceed end index after a call to `make_contiguous()`"
+                "start index should precede end index after a call to `make_contiguous()`"
             );
 
             if end >= new_capacity {

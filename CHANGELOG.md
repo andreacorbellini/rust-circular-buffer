@@ -33,8 +33,7 @@ relationship between Rust's `slice`, `array`, and `Vec`:
 
 * Fixed a panic in `drain()` when called on a zero-capacity buffer.
 * Fixed `try_push_back()` and `try_push_front()` on zero-capacity buffers. The
-  methods used to discard the specified item; now instead they return it as an
-  `Err`.
+  methods used to discard the specified item; now they return it as an `Err`.
 * Fixed a potential double-drop in the `From<[T; M]>` implementation for
   `FixedCircularBuffer` that could occur when an element's `Drop`
   implementation panicked.
@@ -47,7 +46,7 @@ relationship between Rust's `slice`, `array`, and `Vec`:
 
 * Updated Rust edition from 2021 to 2024
 * Updated MSRV from 1.82 to 1.87
-* Removed polyfill code for features that have been stabilized in Rust 0.87
+* Removed polyfill code for features that have been stabilized in Rust 1.87
 
 ## circular-buffer 1.1.0
 

@@ -6,10 +6,10 @@ edition = "2024"
 rust-version = "1.93.0"
 license = "BSD-3-Clause"
 
-description = "Efficient, fixed-size, overwriting circular buffer"
+description = "Efficient circular buffer implementation"
 repository = "https://github.com/andreacorbellini/rust-circular-buffer"
 
-keywords = ["circular-buffer", "buffer", "queue", "fifo", "small"]
+keywords = ["circular-buffer", "buffer", "queue", "fifo"]
 categories = ["data-structures", "no-std"]
 
 [features]

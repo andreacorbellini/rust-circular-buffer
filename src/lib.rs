@@ -5,7 +5,7 @@
 //!
 //! A **circular buffer** is a sequence of elements with a maximum capacity: elements can be added
 //! to the buffer, and once the maximum capacity is reached, the elements at the start of the buffer
-//! are discarded and overwritten.
+//! are dropped and overwritten.
 //!
 //! The main structs are [`CircularBuffer`], [`FixedCircularBuffer`], and [`HeapCircularBuffer`].
 //! You can think of them as conceptually similar to [`slice`], [`array`], and [`Vec`] respectively:
@@ -86,8 +86,8 @@
 //!
 //! For the special case of a `CircularBuffer` containing `u8` elements, bytes can be written and
 //! read using the standard [`Write`](std::io::Write) and [`Read`](std::io::Read) traits. Writing
-//! past the buffer capacity will overwrite the bytes at the start of the buffer, and reading
-//! elements will consume elements from the buffer.
+//! past the buffer capacity will overwrite the bytes at the start of the buffer, and reading will
+//! consume elements from the buffer.
 //!
 //! ```
 //! # #[allow(unused_must_use)]
@@ -121,7 +121,7 @@
 //!
 //! Most of the methods implemented by [`CircularBuffer`] run in constant time. Some of the methods
 //! may run in linear time if the type of the elements implements [`Drop`], as each element needs
-//! to be deallocated one-by-one.
+//! to be dropped one-by-one.
 //!
 //! | Method                                                                                                                                                                                     | Complexity                                                           |
 //! |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
@@ -199,7 +199,7 @@
 //!
 //! ```text
 //! [dependencies]
-//! circular-buffer = { version = "0.1", default-features = false }
+//! circular-buffer = { version = "2", default-features = false }
 //! ```
 //!
 //! When using `no_std` mode, this crate supports heap-allocation features through the [`alloc`
@@ -207,15 +207,15 @@
 //!
 //! ```text
 //! [dependencies]
-//! circular-buffer = { version = "0.1", default-features = false, features = ["alloc"] }
+//! circular-buffer = { version = "2", default-features = false, features = ["alloc"] }
 //! ```
 //!
 //! # Cargo feature flags
 //!
 //! * `std`: enables support for the [`std` library] (enabled by default).
 //! * `alloc`: enables support for the [`alloc` crate] (enabled by default).
-//! * `embedded-io`: enables implementation for the [`embedded_io`]
-//! * `embedded-io-async`: enables implementation for the [`embedded_io_async`] traits.
+//! * `embedded-io`: enables implementation of the [`embedded_io`] traits.
+//! * `embedded-io-async`: enables implementation of the [`embedded_io_async`] traits.
 //!
 //! [circular buffer]: https://en.wikipedia.org/wiki/Circular_buffer
 //! [`std` library]: https://doc.rust-lang.org/std/

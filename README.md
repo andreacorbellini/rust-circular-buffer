@@ -13,11 +13,10 @@ LIFO (_last in, first out_) queues with a fixed memory capacity.
 This crate comes with three main structs:
 
 1. `FixedCircularBuffer`: this has a fixed capacity that is specified at
-   compile-time and may live on the stack. It is conceptually similar to an
+   compile-time and can live on the stack. It is conceptually similar to an
    `array`.
-2. `HeapCircularBuffer`: this has a heap-allocated struct, with dynamic
-   capacity that is specified at runtime. It is conceptually similar to a
-   `Vec`.
+2. `HeapCircularBuffer`: this is a heap-allocated struct, with dynamic capacity
+   that is specified at runtime. It is conceptually similar to a `Vec`.
 3. `CircularBuffer`: this is a view of the elements of either a
    `FixedCircularBuffer` or a `HeapCircularBuffer`. It is conceptually similar
    to a `slice`.
