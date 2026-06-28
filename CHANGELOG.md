@@ -40,7 +40,7 @@ relationship between Rust's `slice`, `array`, and `Vec`:
 
 ### Other changes
 
-* Performance improvements for `clone()`, `extend()`, and `from_iter()`.
+* Performance improvements for the `Clone` implementation.
 
 ## circular-buffer 1.2.0
 
