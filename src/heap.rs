@@ -184,6 +184,9 @@ impl<T> HeapCircularBuffer<T> {
         // - `new_layout.size()` does not overflow `isize` after rounding, because it comes from a
         //   `Layout` object, which already provides such guarantees.
         let new_ptr = unsafe { alloc::realloc(old_ptr, old_layout, new_layout.size()) };
+        if new_ptr.is_null() {
+            alloc::handle_alloc_error(new_layout);
+        }
 
         let new_ptr = Self::wide_inner_ptr(new_ptr, new_capacity);
 
