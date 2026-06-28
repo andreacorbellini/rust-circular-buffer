@@ -157,3 +157,22 @@ fn from_iter() {
     tracker.assert_all_alive([5, 6, 7, 8]);
     tracker.assert_all_dropped([1, 2, 3, 4]);
 }
+
+#[test]
+fn const_construction() {
+    let buf = const {
+        let mut buf = FixedCircularBuffer::<u32, 8>::new();
+        let buf_ref = buf.as_mut_circular_buffer();
+        buf_ref.push_back(3);
+        buf_ref.push_back(4);
+        buf_ref.push_back(5);
+        buf_ref.push_front(2);
+        buf_ref.push_front(1);
+        buf_ref.push_front(0);
+        buf_ref.pop_back();
+        buf_ref.pop_front();
+        buf
+    };
+
+    assert_buf_eq!(buf, [1, 2, 3, 4]);
+}
