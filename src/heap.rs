@@ -160,6 +160,11 @@ impl<T> HeapCircularBuffer<T> {
     /// buf.resize(2); // panics
     /// ```
     pub fn resize(&mut self, new_capacity: usize) {
+        if new_capacity == self.capacity() {
+            // Nothing to do.
+            return;
+        }
+
         assert!(
             new_capacity >= self.len(),
             "new capacity is lower than the length of the buffer"
