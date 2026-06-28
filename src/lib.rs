@@ -1986,9 +1986,11 @@ where
     #[must_use]
     #[cfg(feature = "alloc")]
     pub fn to_vec(&self) -> Vec<T> {
-        let mut vec = Vec::with_capacity(self.inner.size);
-        vec.extend(self.iter().cloned());
-        debug_assert_eq!(vec.len(), self.inner.size);
+        let (front, back) = self.as_slices();
+        let mut vec = Vec::with_capacity(self.len());
+        vec.extend_from_slice(front);
+        vec.extend_from_slice(back);
+        debug_assert_eq!(vec.len(), self.len());
         vec
     }
 }
@@ -2062,8 +2064,10 @@ where
     T: Clone,
 {
     fn clone(&self) -> Box<CircularBuffer<T>> {
+        let (front, back) = self.as_slices();
         let mut buf = HeapCircularBuffer::<T>::with_capacity(self.capacity());
-        buf.extend(self.iter().cloned());
+        buf.extend_from_slice(front);
+        buf.extend_from_slice(back);
         buf.into_boxed_circular_buffer()
     }
 }
@@ -2076,8 +2080,10 @@ where
     type Owned = HeapCircularBuffer<T>;
 
     fn to_owned(&self) -> Self::Owned {
+        let (front, back) = self.as_slices();
         let mut buf = HeapCircularBuffer::<T>::with_capacity(self.capacity());
-        buf.extend(self.iter().cloned());
+        buf.extend_from_slice(front);
+        buf.extend_from_slice(back);
         buf
     }
 }

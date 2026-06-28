@@ -381,17 +381,19 @@ where
     T: Clone,
 {
     fn clone(&self) -> Self {
-        // TODO Optimize
+        let (front, back) = self.as_slices();
         let mut clone = Self::with_capacity(self.capacity());
-        clone.extend(self.iter().cloned());
+        clone.extend_from_slice(front);
+        clone.extend_from_slice(back);
         clone
     }
 
     fn clone_from(&mut self, other: &Self) {
-        // TODO Optimize
+        let (front, back) = other.as_slices();
         self.clear();
         self.resize(other.capacity());
-        self.extend(other.iter().cloned());
+        self.extend_from_slice(front);
+        self.extend_from_slice(back);
     }
 }
 
