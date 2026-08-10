@@ -2435,6 +2435,183 @@ macro_rules! define_tests {
                 }
             }
         }
+
+        /// Tests to ensure that the buffer is left in a safe state after a panic occurs in a `Drop`
+        /// implementation of one of the elements.
+        ///
+        /// The tests are intended to cover methods that implicitly drop a range of elements
+        /// (`clear()`, `truncate_back()`, `truncate_front()`, `extend_from_slice()`, `extend()`).
+        ///
+        /// The tests do not cover methods that affect single items (such as `push_back()`) because
+        /// such methods return the removed element to the caller, and thus the method themselves do
+        /// not trigger any drop (it's the caller of such methods that may trigger a drop).
+        #[cfg(feature = "std")]
+        mod panic_on_drop {
+            use super::$buffer_from;
+            use drop_tracker::DropTracker;
+            use std::panic::AssertUnwindSafe;
+            use std::panic::catch_unwind;
+
+            #[derive(Clone, PartialEq, Eq, Debug)]
+            struct MaybePanicOnDrop(bool);
+
+            impl Drop for MaybePanicOnDrop {
+                fn drop(&mut self) {
+                    if self.0 {
+                        self.0 = false;
+                        panic!("panic-on-drop");
+                    }
+                }
+            }
+
+            fn should_panic<F: FnOnce() -> R, R: std::fmt::Debug>(f: F) {
+                let res = catch_unwind(AssertUnwindSafe(f));
+                let err = res
+                    .expect_err("expected `f` to cause a panic")
+                    .downcast::<&'static str>()
+                    .expect("expected the panic argument to be a string");
+                assert_eq!(*err, "panic-on-drop");
+            }
+
+            #[test]
+            fn clear() {
+                let mut tracker = DropTracker::new();
+                let mut buf = $buffer_from::<_, 4, _>([
+                    tracker.track_with_value(1, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(2, MaybePanicOnDrop(true)),
+                    tracker.track_with_value(3, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(4, MaybePanicOnDrop(false)),
+                ]);
+                assert_eq!(buf.len(), 4);
+                tracker.assert_fully_alive();
+
+                should_panic(|| buf.clear());
+
+                // When a single panic-on-drop occurs during `clear()`, the resulting buffer should be
+                // empty, and all the other elements should be dropped.
+                assert_eq!(buf.len(), 0);
+                tracker.assert_fully_dropped();
+            }
+
+            #[test]
+            fn truncate_back() {
+                let mut tracker = DropTracker::new();
+                let mut buf = $buffer_from::<_, 4, _>([
+                    tracker.track_with_value(1, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(2, MaybePanicOnDrop(true)),
+                    tracker.track_with_value(3, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(4, MaybePanicOnDrop(false)),
+                ]);
+                assert_eq!(buf.len(), 4);
+                tracker.assert_fully_alive();
+
+                should_panic(|| buf.truncate_back(1));
+
+                // When a single panic-on-drop occurs during `truncate_back()`, the resulting buffer
+                // should contain only the intended elements (as if the panic never occurred), and
+                // all the other elements should be dropped.
+                assert_eq!(buf.len(), 1);
+                tracker.assert_all_alive([1]);
+                tracker.assert_all_dropped([2, 3, 4]);
+            }
+
+            #[test]
+            fn truncate_front() {
+                let mut tracker = DropTracker::new();
+                let mut buf = $buffer_from::<_, 4, _>([
+                    tracker.track_with_value(1, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(2, MaybePanicOnDrop(true)),
+                    tracker.track_with_value(3, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(4, MaybePanicOnDrop(false)),
+                ]);
+                assert_eq!(buf.len(), 4);
+                tracker.assert_fully_alive();
+
+                should_panic(|| buf.truncate_front(1));
+
+                // When a single panic-on-drop occurs during `truncate_front()`, the resulting buffer
+                // should contain only the intended elements (as if the panic never occurred), and
+                // all the other elements should be dropped.
+                assert_eq!(buf.len(), 1);
+                tracker.assert_all_dropped([1, 2, 3]);
+                tracker.assert_all_alive([4]);
+            }
+
+            #[test]
+            fn extend_from_slice() {
+                let mut buf = $buffer_from::<_, 4, _>([
+                    MaybePanicOnDrop(false),
+                    MaybePanicOnDrop(true),
+                    MaybePanicOnDrop(false),
+                    MaybePanicOnDrop(false),
+                ]);
+                assert_eq!(buf.len(), 4);
+
+                should_panic(|| {
+                    buf.extend_from_slice(&[MaybePanicOnDrop(false), MaybePanicOnDrop(false)])
+                });
+
+                // When a single panic-on-drop occurs during `extend_from_slice()`, the resulting
+                // buffer should contain the untouched elements. No new elements should be added.
+                //
+                // This is because `extend_from_slice()` uses `clear()` or `truncate_front()` before
+                // adding elements, and thus a panic that occurs during `clear()`/`truncate_front()`
+                // would prevent adding any new element.
+                assert_eq!(buf.len(), 2);
+            }
+
+            #[test]
+            fn extend() {
+                let mut buf = $buffer_from::<_, 4, _>([
+                    MaybePanicOnDrop(false),
+                    MaybePanicOnDrop(true),
+                    MaybePanicOnDrop(false),
+                    MaybePanicOnDrop(false),
+                ]);
+                assert_eq!(buf.len(), 4);
+
+                should_panic(|| buf.extend([MaybePanicOnDrop(false), MaybePanicOnDrop(false)]));
+
+                // When a single panic-on-drop occurs during `extend()`, the resulting buffer should
+                // contain untouched elements plus any element that was added before the panic
+                // occurred.
+                //
+                // This is because `extend()` uses `push_back()` to add each element one-by-one, and
+                // `push_back()` works by first *adding* the new element, and *returning* the old
+                // element back, so a `Drop` implementation is called after `push_back()` has
+                // finished its job.
+                assert_eq!(buf.len(), 4);
+            }
+
+            // This test intentionally leaks memory, hence ignoring it during Miri runs
+            #[test]
+            #[cfg_attr(miri, ignore)]
+            fn drain() {
+                let mut tracker = DropTracker::new();
+                let mut buf = $buffer_from::<_, 4, _>([
+                    tracker.track_with_value(1, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(2, MaybePanicOnDrop(true)),
+                    tracker.track_with_value(3, MaybePanicOnDrop(false)),
+                    tracker.track_with_value(4, MaybePanicOnDrop(false)),
+                ]);
+                assert_eq!(buf.len(), 4);
+                tracker.assert_fully_alive();
+
+                should_panic(|| drop(buf.drain(1..=2)));
+
+                // When a single panic-on-drop occurs during `drop()`, the resulting buffer should
+                // be empty, regardless of what range was specified. Elements that were not part of
+                // the range are leaked.
+                //
+                // This is because `drain()` sets the length of the buffer to 0 until the `Drain`
+                // structure is consumed or destroyed. The panic in this case prevents the `Drain`
+                // from being fully destroyed, and therefore leaves the buffer empty. This is
+                // equivalent to what happens when calling `forget()` on a `Drain`.
+                assert_eq!(buf.len(), 0);
+                tracker.assert_all_dropped([2, 3]);
+                tracker.assert_all_alive([1, 4]);
+            }
+        }
     };
 }
 
