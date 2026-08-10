@@ -65,6 +65,7 @@ macro_rules! assert_buf_slices_eq {
 macro_rules! define_tests {
     ( $new_buffer:ident , $buffer_from:ident , $buffer_from_iter:ident , $new_buffer_boxed:ident $(,)? ) => {
         use core::cell::RefCell;
+        use core::mem;
         use core::ops::Bound;
         use drop_tracker::DropItem;
         use drop_tracker::DropTracker;
@@ -1544,6 +1545,21 @@ macro_rules! define_tests {
             assert_eq!(drain.next(), None);
             drop(drain);
             assert_buf_eq!(buf, [1, 2, 3, 4]);
+            tracker.assert_fully_alive();
+        }
+
+        // This test intentionally leaks memory, hence ignoring it during Miri runs
+        #[test]
+        #[cfg_attr(miri, ignore)]
+        fn drain_forget() {
+            let mut tracker = DropTracker::new();
+            let mut buf = $buffer_from_iter::<_, 10, _>(tracker.track_many([1, 2, 3, 4]));
+            let drain = buf.drain(1..=2);
+            mem::forget(drain);
+
+            // Forgetting the drain should cause all elements to be leaked (without dropping), even
+            // elements outside of the range
+            assert_buf_eq!(buf, [] as [i32; 0]);
             tracker.assert_fully_alive();
         }
 
