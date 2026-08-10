@@ -888,6 +888,14 @@ impl<T> CircularBuffer<T> {
         self.inner.size -= 1;
     }
 
+    /// Drops the elements at the specified range.
+    ///
+    /// The `start` and `size` attributes are automatically updated before the elements are dropped.
+    ///
+    /// # Safety
+    ///
+    /// `range` must be at a boundary of the buffer (either starting at index 0, or ending at the
+    /// end of the buffer), and must reference initialized elements.
     #[inline]
     unsafe fn drop_range(&mut self, range: Range<usize>) {
         if range.is_empty() {
@@ -922,6 +930,7 @@ impl<T> CircularBuffer<T> {
             }
         }
 
+        // Constructs the slices of elements to drop (without dropping any element yet).
         let drop_from = add_mod(self.inner.start, range.start, self.capacity());
         let drop_to = add_mod(self.inner.start, range.end, self.capacity());
 
@@ -933,6 +942,16 @@ impl<T> CircularBuffer<T> {
             (right, left)
         };
 
+        // Adjust `start` and `size` so that the dropped elements are excluded. This must be done
+        // *before* dropping the elements, so that, if a panic occurs in a `Drop` implementation,
+        // the buffer won't be left in an invalid state.
+        if range.start == 0 {
+            self.inner.start = drop_to;
+        }
+        self.inner.size -= range.len();
+
+        // Wrap the slices into the `Dropper` struct. When these go out of scope, they will be
+        // automatically dropped.
         let _left = Dropper(left);
         let _right = Dropper(right);
     }
@@ -1851,7 +1870,6 @@ impl<T> CircularBuffer<T> {
         // initialized. The `size` of the buffer is shrunk before dropping, so no value will be
         // dropped twice in case of panics.
         unsafe { self.drop_range(drop_range) };
-        self.inner.size = len;
     }
 
     /// Shortens the buffer, keeping only the back `len` elements and dropping the rest.
@@ -1886,8 +1904,6 @@ impl<T> CircularBuffer<T> {
         // initialized. The `start` of the buffer is shrunk before dropping, so no value will be
         // dropped twice in case of panics.
         unsafe { self.drop_range(drop_range) };
-        self.inner.start = add_mod(self.inner.start, drop_len, self.capacity());
-        self.inner.size = len;
     }
 
     /// Drops all the elements in the buffer.
