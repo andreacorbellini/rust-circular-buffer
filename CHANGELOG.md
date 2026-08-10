@@ -2,6 +2,29 @@
 
 ## circular-buffer 2.0.0
 
+### Bug fixes
+
+* Fixed an undefined behavior issue that could occur if a panics is triggered
+  during a call to `clear()`, `truncate_back()`, `truncate_front()`, or
+  `extend_from_slice()`.
+
+  `clear()`, `truncate_back()`, and `truncate_front()` worked by dropping the
+  truncated elements, and _afterwards_ adjusting the start/end pointers of the
+  buffer, in this order. If a `Drop` implementation of one of the elements
+  caused a panic, then the start/end pointers would be left untouched, meaning
+  that they could point to uninitialized memory, thus causing undefined
+  behavior if the buffer is used after the panic is handled. This release fixes
+  the issue by adjusting the start/end pointers _before_ the truncated elements
+  are dropped.
+
+  `extend_from_slice()` was also affected because it uses
+  `clear()`/`truncate_front()` under the hood.
+
+  Credits to [JuHyung Son](https://github.com/tooson9010-spec) for discovering
+  this issue.
+
+## circular-buffer 2.0.0
+
 ### New features
 
 This release restructures the crate around three types that mirror the
