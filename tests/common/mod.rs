@@ -2612,6 +2612,124 @@ macro_rules! define_tests {
                 tracker.assert_all_alive([1, 4]);
             }
         }
+
+        /// Tests to ensure that optimizations on zero-sized types (ZST) do not inadvertently cause
+        /// `Drop` implementations to be skipped.
+        ///
+        /// These tests do not use `DropTracker` because `DropItem`s are not ZST.
+        mod drop_on_zst {
+            use super::$buffer_from;
+            use core::cell::Cell;
+            use core::mem;
+
+            thread_local! {
+                static ALIVE: Cell<u32> = const { Cell::new(0) };
+            }
+
+            fn reset_counter() {
+                ALIVE.set(0);
+            }
+
+            #[derive(Debug)]
+            struct Zst;
+
+            impl Zst {
+                fn new() -> Self {
+                    ALIVE.set(ALIVE.get() + 1);
+                    Self
+                }
+            }
+
+            impl Clone for Zst {
+                fn clone(&self) -> Self {
+                    Self::new()
+                }
+            }
+
+            impl Drop for Zst {
+                fn drop(&mut self) {
+                    ALIVE.set(ALIVE.get() - 1);
+                }
+            }
+
+            #[test]
+            fn clear() {
+                reset_counter();
+                assert_eq!(mem::size_of::<Zst>(), 0);
+
+                let mut buf =
+                    $buffer_from::<_, 4, _>([Zst::new(), Zst::new(), Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+
+                buf.clear();
+                assert_eq!(ALIVE.get(), 0);
+            }
+
+            #[test]
+            fn truncate_back() {
+                reset_counter();
+                assert_eq!(mem::size_of::<Zst>(), 0);
+
+                let mut buf =
+                    $buffer_from::<_, 4, _>([Zst::new(), Zst::new(), Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+
+                buf.truncate_back(1);
+                assert_eq!(ALIVE.get(), 1);
+            }
+
+            #[test]
+            fn truncate_front() {
+                reset_counter();
+                assert_eq!(mem::size_of::<Zst>(), 0);
+
+                let mut buf =
+                    $buffer_from::<_, 4, _>([Zst::new(), Zst::new(), Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+
+                buf.truncate_front(1);
+                assert_eq!(ALIVE.get(), 1);
+            }
+
+            #[test]
+            fn extend_from_slice() {
+                reset_counter();
+                assert_eq!(mem::size_of::<Zst>(), 0);
+
+                let mut buf =
+                    $buffer_from::<_, 4, _>([Zst::new(), Zst::new(), Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+
+                buf.extend_from_slice(&[Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+            }
+
+            #[test]
+            fn extend() {
+                reset_counter();
+                assert_eq!(mem::size_of::<Zst>(), 0);
+
+                let mut buf =
+                    $buffer_from::<_, 4, _>([Zst::new(), Zst::new(), Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+
+                buf.extend([Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+            }
+
+            #[test]
+            fn drain() {
+                reset_counter();
+                assert_eq!(mem::size_of::<Zst>(), 0);
+
+                let mut buf =
+                    $buffer_from::<_, 4, _>([Zst::new(), Zst::new(), Zst::new(), Zst::new()]);
+                assert_eq!(ALIVE.get(), 4);
+
+                let _ = buf.drain(..);
+                assert_eq!(ALIVE.get(), 0);
+            }
+        }
     };
 }
 
