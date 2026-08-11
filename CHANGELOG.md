@@ -1,10 +1,44 @@
 # Changelog
 
+## circular-buffer 1.2.1
+
+This release contains bug fixes backported from the 2.0 release.
+
+### Bug fixes
+
+* Fixed an undefined behavior issue that could occur if a panics is triggered
+  during a call to `clear()`, `truncate_back()`, `truncate_front()`, or
+  `extend_from_slice()`.
+
+  `clear()`, `truncate_back()`, and `truncate_front()` worked by dropping the
+  truncated elements, and _afterwards_ adjusting the start/end pointers of the
+  buffer, in this order. If a `Drop` implementation of one of the elements
+  caused a panic, then the start/end pointers would be left untouched, meaning
+  that they could point to uninitialized memory, thus causing undefined
+  behavior if the buffer is used after the panic is handled. This release fixes
+  the issue by adjusting the start/end pointers _before_ the truncated elements
+  are dropped.
+
+  `extend_from_slice()` was also affected because it uses
+  `clear()`/`truncate_front()` under the hood.
+
+  Credits to [JuHyung Son](https://github.com/tooson9010-spec) for discovering
+  this issue.
+
+* Fixed a panic in `drain()` when called on a zero-capacity buffer.
+
+* Fixed `try_push_back()` and `try_push_front()` on zero-capacity buffers. The
+  methods used to discard the specified item; now they return it as an `Err`.
+
+* Fixed a potential double-drop in the `From<[T; M]>` implementation for
+  `FixedCircularBuffer` that could occur when an element's `Drop`
+  implementation panicked.
+
 ## circular-buffer 1.2.0
 
 * Updated Rust edition from 2021 to 2024
-* Updated MSRV from 0.82 to 0.87
-* Removed polyfill code for features that have been stabilized in Rust 0.87
+* Updated MSRV from 1.82 to 1.87
+* Removed polyfill code for features that have been stabilized in Rust 1.87
 
 ## circular-buffer 1.1.0
 
