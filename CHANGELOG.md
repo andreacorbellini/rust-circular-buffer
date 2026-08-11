@@ -31,8 +31,8 @@ This release contains bug fixes backported from the 2.0 release.
   methods used to discard the specified item; now they return it as an `Err`.
 
 * Fixed a potential double-drop in the `From<[T; M]>` implementation for
-  `FixedCircularBuffer` that could occur when an element's `Drop`
-  implementation panicked.
+  `CircularBuffer` that could occur when an element's `Drop` implementation
+  panicked.
 
 ## circular-buffer 1.1.0
 
