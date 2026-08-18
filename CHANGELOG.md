@@ -1,6 +1,6 @@
 # Changelog
 
-## circular-buffer 2.0.0
+## circular-buffer 2.0.1
 
 ### Bug fixes
 
